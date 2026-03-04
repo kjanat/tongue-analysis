@@ -13,7 +13,9 @@
 	"repository": "kjanat/tongue-analysis",
 	"dependencies": {
 		"react": "^19.2.0",
-		"react-dom": "^19.2.0"
+		"react-dom": "^19.2.0",
+		"vite-robots-txt": "^1.0.0",
+		"vite-svg-to-ico": "^2.0.1"
 	},
 	"devDependencies": {
 		"@eslint/js": "^9.39.1",

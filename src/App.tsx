@@ -1,6 +1,6 @@
-import tongueLogo from '/icons/icon-tongue.svg';
 import { useState } from 'react';
 import reactLogo from './assets/react.svg';
+import tongueLogo from './assets/tongue.svg';
 import './App.css';
 
 function App() {
