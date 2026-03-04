@@ -4,8 +4,7 @@ import DiagnosisResults from './components/DiagnosisResults.tsx';
 import Guide from './components/Guide.tsx';
 import LoadingSequence from './components/LoadingSequence.tsx';
 import UploadArea from './components/UploadArea.tsx';
-import type { ColorProfile } from './lib/color-analysis.ts';
-import { extractColor } from './lib/color-analysis.ts';
+import { type ColorProfile, extractColor } from './lib/color-analysis.ts';
 import { type Diagnosis, type FileInfo, generateDiagnosis } from './lib/diagnosis.ts';
 
 // ── Phase state machine ─────────────────────────────────────

@@ -2,6 +2,7 @@
 
 /**
  * Dominant color profile extracted from the center region of an image.
+ *
  * HSL ranges follow CSS convention: hue 0–360, saturation/lightness 0–100.
  */
 export interface ColorProfile {
@@ -16,7 +17,7 @@ export interface ColorProfile {
 // ── RGB → HSL conversion ───────────────────────────────────────
 
 /** Convert 0–255 RGB to { h: 0–360, s: 0–100, l: 0–100 }. */
-function rgbToHsl(r: number, g: number, b: number): { h: number; s: number; l: number } {
+export function rgbToHsl(r: number, g: number, b: number): { h: number; s: number; l: number } {
 	const rn = r / 255;
 	const gn = g / 255;
 	const bn = b / 255;

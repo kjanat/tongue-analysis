@@ -1,5 +1,5 @@
 import type { TongueType } from '../data/tongue-types.ts';
-import type { ColorProfile } from './color-analysis.ts';
+import { type ColorProfile, rgbToHsl } from './color-analysis.ts';
 
 // ── Hex → HSL conversion ───────────────────────────────────────
 
@@ -9,31 +9,13 @@ interface Hsl {
 	readonly l: number;
 }
 
-/** Parse "#RRGGBB" hex string to HSL. */
+/** Parse "#RRGGBB" hex string to HSL via shared {@linkcode rgbToHsl}. */
 function hexToHsl(hex: string): Hsl {
-	const r = parseInt(hex.slice(1, 3), 16) / 255;
-	const g = parseInt(hex.slice(3, 5), 16) / 255;
-	const b = parseInt(hex.slice(5, 7), 16) / 255;
-
-	const max = Math.max(r, g, b);
-	const min = Math.min(r, g, b);
-	const l = (max + min) / 2;
-	const d = max - min;
-
-	if (d === 0) return { h: 0, s: 0, l: l * 100 };
-
-	const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-
-	let h: number;
-	if (max === r) {
-		h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
-	} else if (max === g) {
-		h = ((b - r) / d + 2) / 6;
-	} else {
-		h = ((r - g) / d + 4) / 6;
-	}
-
-	return { h: h * 360, s: s * 100, l: l * 100 };
+	return rgbToHsl(
+		parseInt(hex.slice(1, 3), 16),
+		parseInt(hex.slice(3, 5), 16),
+		parseInt(hex.slice(5, 7), 16),
+	);
 }
 
 // ── HSL distance ───────────────────────────────────────────────
@@ -42,6 +24,7 @@ function hexToHsl(hex: string): Hsl {
  * Compute weighted HSL distance between two colors.
  *
  * Hue is treated as circular (0° and 360° are identical).
+ *
  * Weights emphasize hue and lightness over saturation, matching
  * how TCM tongue color categories are distinguished.
  */
@@ -73,6 +56,7 @@ const MAX_BOOST = 3.0;
  * Sharpness of the exponential falloff.
  *
  * Higher = narrower "cone" around each type color.
+ *
  * At k=5: d=0 → 1.0, d=0.2 → 0.82, d=0.5 → 0.29, d=0.8 → 0.04.
  */
 const FALLOFF_K = 5;
@@ -81,8 +65,9 @@ const FALLOFF_K = 5;
  * Compute per-type weight multipliers from image color vs tongue type colors.
  *
  * Uses absolute Gaussian-style falloff: `exp(-k * d²)`.
- * When image color is far from ALL types, all boosts ≈ MIN_BOOST,
- * so the PRNG dominates. Only genuinely close matches get meaningful lift.
+ *
+ * When image color is far from ALL types, all boosts ≈ `MIN_BOOST`,
+ * so the `PRNG` dominates. Only genuinely close matches get meaningful lift.
  */
 export function colorBoosts(
 	profile: ColorProfile,
