@@ -22,9 +22,7 @@ export type TongueZone =
 	| 'wortel-centrum';
 
 /** Five-element label (Dutch + Chinese) and CSS class per element. */
-export const ELEMENTS: ReadonlyArray<
-	{ readonly name: string; readonly cls: Element }
-> = [
+export const ELEMENTS: readonly { readonly name: string; readonly cls: Element }[] = [
 	{ name: 'Hout 木', cls: 'wood' },
 	{ name: 'Vuur 火', cls: 'fire' },
 	{ name: 'Aarde 土', cls: 'earth' },

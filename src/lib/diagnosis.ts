@@ -49,7 +49,9 @@ function makeHelpers(rng: () => number) {
 	}
 
 	function pick<T>(arr: readonly T[]): T {
-		return arr[Math.floor(rng() * arr.length)];
+		const item = arr[Math.floor(rng() * arr.length)];
+		if (item === undefined) throw new Error('pick from empty array');
+		return item;
 	}
 
 	/** Pick `n` unique items from `arr`. */
@@ -58,7 +60,9 @@ function makeHelpers(rng: () => number) {
 		const result: T[] = [];
 		for (let i = 0; i < Math.min(n, pool.length); i++) {
 			const idx = Math.floor(rng() * pool.length);
-			result.push(pool[idx]);
+			const item = pool[idx];
+			if (item === undefined) throw new Error('pickN index out of bounds');
+			result.push(item);
 			pool.splice(idx, 1);
 		}
 		return result;
@@ -137,7 +141,9 @@ function selectType(rng: () => number): TongueType {
 		roll -= t.weight;
 		if (roll <= 0) return t;
 	}
-	return TONGUE_TYPES[TONGUE_TYPES.length - 1];
+	const fallback = TONGUE_TYPES[TONGUE_TYPES.length - 1];
+	if (fallback === undefined) throw new Error('TONGUE_TYPES is empty');
+	return fallback;
 }
 
 // ── Main generator ──────────────────────────────────────────────

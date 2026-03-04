@@ -28,14 +28,20 @@ export default function LoadingSequence(
 
 		if (stepIndex === STEPS.length) {
 			const id = setTimeout(onComplete, 600);
-			return () => { clearTimeout(id); };
+			return () => {
+				clearTimeout(id);
+			};
 		}
 
 		const id = setTimeout(
-			() => { setStepIndex((i) => i + 1); },
+			() => {
+				setStepIndex((i) => i + 1);
+			},
 			rand(600, 1800),
 		);
-		return () => { clearTimeout(id); };
+		return () => {
+			clearTimeout(id);
+		};
 	}, [stepIndex, onComplete]);
 
 	const progress = (stepIndex / STEPS.length) * 100;
