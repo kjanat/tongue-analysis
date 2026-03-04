@@ -100,6 +100,17 @@
 	color: #6a5a45;
 }
 
+.upload-error {
+	margin-top: 0.75rem;
+	padding: 0.5rem 1rem;
+	font-size: 0.85rem;
+	color: #8b2020;
+	background: rgba(178, 34, 34, 0.08);
+	border: 1px solid rgba(178, 34, 34, 0.2);
+	border-radius: 8px;
+	text-align: center;
+}
+
 /* ── Image preview ─────────────────────────────────────────── */
 
 .preview-container {

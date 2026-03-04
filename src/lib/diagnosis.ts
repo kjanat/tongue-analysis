@@ -4,6 +4,7 @@ import {
 	MERIDIANS,
 	ORGAN_ELEMENT,
 	ORGAN_ZONE,
+	type OrganName,
 	TONGUE_TYPES,
 	type TongueType,
 	ZONE_LABEL,
@@ -82,7 +83,7 @@ const AFFECTED_BOOST = 30;
  * Affected elements get boosted; others stay near baseline + jitter.
  */
 function deriveElements(
-	affectedOrgans: readonly import('../data/tongue-types.ts').OrganName[],
+	affectedOrgans: readonly OrganName[],
 	jitter: (base: number) => number,
 ): readonly { name: string; cls: Element; val: number }[] {
 	const boosts = new Map<Element, number>();
@@ -102,10 +103,10 @@ const MERIDIAN_BOOST = 35;
 
 /** Derive meridian activity from affected organs. */
 function deriveMeridians(
-	affectedOrgans: readonly import('../data/tongue-types.ts').OrganName[],
+	affectedOrgans: readonly OrganName[],
 	jitter: (base: number) => number,
 ): readonly { name: string; val: number }[] {
-	const affected = new Set(affectedOrgans.map((o) => o as string));
+	const affected: ReadonlySet<string> = new Set(affectedOrgans);
 	return MERIDIANS.map((m) => ({
 		name: m,
 		val: Math.min(
@@ -118,7 +119,7 @@ function deriveMeridians(
 // ── Diagnosis result ────────────────────────────────────────────
 
 export interface OrganZoneHit {
-	readonly organ: string;
+	readonly organ: OrganName;
 	readonly zone: string;
 }
 
@@ -139,7 +140,7 @@ function selectType(rng: () => number): TongueType {
 	let roll = rng() * totalWeight;
 	for (const t of TONGUE_TYPES) {
 		roll -= t.weight;
-		if (roll <= 0) return t;
+		if (roll < 0) return t;
 	}
 	const fallback = TONGUE_TYPES[TONGUE_TYPES.length - 1];
 	if (fallback === undefined) throw new Error('TONGUE_TYPES is empty');

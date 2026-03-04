@@ -1,7 +1,7 @@
 /**
  * Inline SVG tongue organ-zone map based on TCM tongue diagnosis.
  *
- * Zones: Hart (tip), Long (above tip), Galblaas (L), Lever (R),
+ * Zones: Hart (tip), Long (above tip), Lever (L), Galblaas (R),
  *        Milt/Maag (center), Nier (back sides), Blaas (back center).
  */
 export default function TongueMap() {
@@ -9,13 +9,14 @@ export default function TongueMap() {
 		<div className='tongue-map-container'>
 			<svg
 				viewBox='0 0 200 280'
-				role='img'
-				aria-label='Tongdiagram met orgaanzones: Hart aan de punt, Longen daarboven, Lever rechts, Galblaas links, Milt en Maag in het midden, Nieren links en rechts achterin, Blaas centraal achterin.'
+				aria-labelledby='tongue-map-title'
+				aria-describedby='tongue-map-desc'
 			>
-				<title>TCM Tong-orgaanzone kaart</title>
-				<desc>
+				<title id='tongue-map-title'>TCM Tong-orgaanzone kaart</title>
+				<desc id='tongue-map-desc'>
 					Een schematische tong opgedeeld in zones die elk een orgaan vertegenwoordigen volgens de Traditionele Chinese
-					Geneeskunde.
+					Geneeskunde. Lever links, Galblaas rechts, Hart aan de punt, Longen daarboven, Milt en Maag in het midden,
+					Nieren achterin aan de zijkanten, Blaas centraal achterin.
 				</desc>
 
 				{/* Tongue outline */}
@@ -48,7 +49,7 @@ export default function TongueMap() {
 				/>
 				<text x='100' y='197' textAnchor='middle' fontSize='11' fill='#4a2020' fontWeight='bold'>Longen</text>
 
-				{/* Galblaas — left */}
+				{/* Lever — left */}
 				<path
 					d='M15 175 L60 175 L60 110 L15 110 C15 110 15 175 15 175Z'
 					fill='#d8a898'
@@ -56,10 +57,9 @@ export default function TongueMap() {
 					strokeWidth='1'
 					opacity='0.4'
 				/>
-				<text x='37' y='148' textAnchor='middle' fontSize='9' fill='#4a2020' fontWeight='bold'>Gal-</text>
-				<text x='37' y='160' textAnchor='middle' fontSize='9' fill='#4a2020' fontWeight='bold'>blaas</text>
+				<text x='37' y='155' textAnchor='middle' fontSize='10' fill='#4a2020' fontWeight='bold'>Lever</text>
 
-				{/* Lever — right */}
+				{/* Galblaas — right */}
 				<path
 					d='M140 175 L185 175 L185 110 L140 110Z'
 					fill='#d8a898'
@@ -67,7 +67,8 @@ export default function TongueMap() {
 					strokeWidth='1'
 					opacity='0.4'
 				/>
-				<text x='163' y='148' textAnchor='middle' fontSize='10' fill='#4a2020' fontWeight='bold'>Lever</text>
+				<text x='163' y='148' textAnchor='middle' fontSize='9' fill='#4a2020' fontWeight='bold'>Gal-</text>
+				<text x='163' y='160' textAnchor='middle' fontSize='9' fill='#4a2020' fontWeight='bold'>blaas</text>
 
 				{/* Milt / Maag — center */}
 				<path

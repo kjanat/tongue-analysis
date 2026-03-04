@@ -61,10 +61,10 @@ export default function Guide() {
 							<strong>Boven de punt:</strong> Longen
 						</li>
 						<li>
-							<strong>Linkerrand:</strong> Galblaas
+							<strong>Linkerrand:</strong> Lever
 						</li>
 						<li>
-							<strong>Rechterrand:</strong> Lever
+							<strong>Rechterrand:</strong> Galblaas
 						</li>
 						<li>
 							<strong>Centrum:</strong> Milt &amp; Maag

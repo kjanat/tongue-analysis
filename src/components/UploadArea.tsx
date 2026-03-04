@@ -3,25 +3,27 @@ import { useCallback, useRef, useState } from 'react';
 const MAX_FILE_SIZE = 10_000_000;
 
 interface UploadAreaProps {
-	readonly onFileSelected: (file: File, dataUrl: string) => void;
+	readonly onFileSelected: (file: File, objectUrl: string) => void;
 }
 
 export default function UploadArea({ onFileSelected }: UploadAreaProps) {
 	const [dragover, setDragover] = useState(false);
+	const [error, setError] = useState<string | null>(null);
 	const inputRef = useRef<HTMLInputElement>(null);
 
 	const handleFile = useCallback(
 		(file: File) => {
-			if (!file.type.startsWith('image/')) return;
-			if (file.size > MAX_FILE_SIZE) return;
-			const reader = new FileReader();
-			reader.onload = (e) => {
-				const result = e.target?.result;
-				if (typeof result === 'string') {
-					onFileSelected(file, result);
-				}
-			};
-			reader.readAsDataURL(file);
+			if (!file.type.startsWith('image/')) {
+				setError('Alleen afbeeldingen zijn toegestaan (JPG, PNG, HEIC).');
+				return;
+			}
+			if (file.size > MAX_FILE_SIZE) {
+				setError('Bestand is te groot — maximaal 10 MB.');
+				return;
+			}
+			setError(null);
+			const url = URL.createObjectURL(file);
+			onFileSelected(file, url);
 		},
 		[onFileSelected],
 	);
@@ -77,6 +79,11 @@ export default function UploadArea({ onFileSelected }: UploadAreaProps) {
 					Steek je tong uit in goed licht &bull; JPG, PNG of HEIC
 				</div>
 			</button>
+			{error !== null && (
+				<div className='upload-error' role='alert'>
+					{error}
+				</div>
+			)}
 			<input
 				ref={inputRef}
 				type='file'
