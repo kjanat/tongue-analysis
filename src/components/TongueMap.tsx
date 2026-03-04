@@ -1,115 +1,90 @@
 /**
  * Inline SVG tongue organ-zone map based on TCM tongue diagnosis.
  *
- * Zones: Hart (tip), Long (above tip), Lever (L), Galblaas (R),
- *        Milt/Maag (center), Nier (back sides), Blaas (back center).
+ * Drawn from the viewer/practitioner perspective (looking at patient's tongue):
+ * Galblaas (viewer L / patient R), Lever (viewer R / patient L).
+ *
+ * Zones top→bottom: Nier+Blaas (root), Lever+Milt/Maag+Galblaas (middle),
+ *                    Longen (above tip), Hart (tip).
  */
+
+/** Organic tongue outline — tip at bottom, root at top. */
+const OUTLINE =
+	'M130 308 C98 316 58 298 42 258 C28 222 22 190 22 160 C22 122 28 86 44 62 C56 42 78 28 106 22 Q130 16 154 22 C182 28 204 42 216 62 C232 86 238 122 238 160 C238 190 232 222 218 258 C202 298 162 316 130 308Z';
+
 export default function TongueMap() {
 	return (
 		<div className='tongue-map-container'>
 			<svg
-				viewBox='0 0 200 280'
+				viewBox='0 0 260 325'
 				aria-labelledby='tongue-map-title'
 				aria-describedby='tongue-map-desc'
 			>
 				<title id='tongue-map-title'>TCM Tong-orgaanzone kaart</title>
 				<desc id='tongue-map-desc'>
-					Een schematische tong opgedeeld in zones die elk een orgaan vertegenwoordigen volgens de Traditionele Chinese
-					Geneeskunde. Lever links, Galblaas rechts, Hart aan de punt, Longen daarboven, Milt en Maag in het midden,
-					Nieren achterin aan de zijkanten, Blaas centraal achterin.
+					Schematische tong met orgaanzones volgens de Traditionele Chinese Geneeskunde. Vanuit het perspectief van de
+					kijker: Galblaas links, Lever rechts, Hart aan de punt, Longen daarboven, Milt en Maag in het midden, Nieren
+					achterin aan de zijkanten, Blaas centraal achterin.
 				</desc>
 
-				{/* Tongue outline */}
-				<path
-					d='M100 270 C50 270 15 230 15 180 L15 80 C15 30 50 10 100 10 C150 10 185 30 185 80 L185 180 C185 230 150 270 100 270Z'
-					fill='#e8a0a0'
-					stroke='#b07070'
-					strokeWidth='2'
+				<defs>
+					<clipPath id='tongue-clip'>
+						<path d={OUTLINE} />
+					</clipPath>
+					<radialGradient id='tongue-grad' cx='50%' cy='45%' r='55%'>
+						<stop offset='0%' stopColor='#f0b0ac' />
+						<stop offset='100%' stopColor='#e09090' />
+					</radialGradient>
+				</defs>
+
+				{/* Tongue body */}
+				<path d={OUTLINE} fill='url(#tongue-grad)' stroke='#a06060' strokeWidth='2.5' />
+
+				{/* Zone dividers — clipped to tongue outline */}
+				<g clipPath='url(#tongue-clip)' fill='none' stroke='#804050' strokeWidth='1.8'>
+					{/* Hart | Longen */}
+					<path d='M0 270 Q130 263 260 270' />
+					{/* Longen | Middle */}
+					<path d='M0 218 Q130 211 260 218' />
+					{/* Middle | Back */}
+					<path d='M0 128 Q130 121 260 128' />
+					{/* Left column (middle + back only) */}
+					<path d='M83 220 C84 170 88 90 106 16' />
+					{/* Right column (middle + back only) */}
+					<path d='M177 220 C176 170 172 90 154 16' />
+				</g>
+
+				{/* Subtle median groove */}
+				<line
+					x1='130'
+					y1='268'
+					x2='130'
+					y2='40'
+					stroke='#c08888'
+					strokeWidth='0.6'
+					opacity='0.3'
+					clipPath='url(#tongue-clip)'
 				/>
 
-				{/* ── Zone outlines ────────────────────────────── */}
-
-				{/* Hart — tip */}
-				<path
-					d='M100 270 C50 270 15 230 15 210 L185 210 C185 230 150 270 100 270Z'
-					fill='#e09090'
-					stroke='#b07070'
-					strokeWidth='1'
-					opacity='0.6'
-				/>
-				<text x='100' y='248' textAnchor='middle' fontSize='11' fill='#4a2020' fontWeight='bold'>Hart</text>
-
-				{/* Long — above tip */}
-				<path
-					d='M15 210 L185 210 L185 175 L15 175Z'
-					fill='#e09898'
-					stroke='#b07070'
-					strokeWidth='1'
-					opacity='0.5'
-				/>
-				<text x='100' y='197' textAnchor='middle' fontSize='11' fill='#4a2020' fontWeight='bold'>Longen</text>
-
-				{/* Lever — left */}
-				<path
-					d='M15 175 L60 175 L60 110 L15 110 C15 110 15 175 15 175Z'
-					fill='#d8a898'
-					stroke='#b07070'
-					strokeWidth='1'
-					opacity='0.4'
-				/>
-				<text x='37' y='155' textAnchor='middle' fontSize='10' fill='#4a2020' fontWeight='bold'>Lever</text>
-
-				{/* Galblaas — right */}
-				<path
-					d='M140 175 L185 175 L185 110 L140 110Z'
-					fill='#d8a898'
-					stroke='#b07070'
-					strokeWidth='1'
-					opacity='0.4'
-				/>
-				<text x='163' y='148' textAnchor='middle' fontSize='9' fill='#4a2020' fontWeight='bold'>Gal-</text>
-				<text x='163' y='160' textAnchor='middle' fontSize='9' fill='#4a2020' fontWeight='bold'>blaas</text>
-
-				{/* Milt / Maag — center */}
-				<path
-					d='M60 175 L140 175 L140 110 L60 110Z'
-					fill='#e0a8a0'
-					stroke='#b07070'
-					strokeWidth='1'
-					opacity='0.45'
-				/>
-				<text x='100' y='140' textAnchor='middle' fontSize='11' fill='#4a2020' fontWeight='bold'>Milt</text>
-				<text x='100' y='155' textAnchor='middle' fontSize='11' fill='#4a2020' fontWeight='bold'>Maag</text>
-
-				{/* Nier — left back */}
-				<path
-					d='M15 110 L60 110 L60 50 C60 30 50 20 40 20 C30 20 15 30 15 50Z'
-					fill='#d0a0a8'
-					stroke='#b07070'
-					strokeWidth='1'
-					opacity='0.4'
-				/>
-				<text x='37' y='78' textAnchor='middle' fontSize='10' fill='#4a2020' fontWeight='bold'>Nier</text>
-
-				{/* Nier — right back */}
-				<path
-					d='M140 110 L185 110 L185 50 C185 30 170 20 160 20 C150 20 140 30 140 50Z'
-					fill='#d0a0a8'
-					stroke='#b07070'
-					strokeWidth='1'
-					opacity='0.4'
-				/>
-				<text x='163' y='78' textAnchor='middle' fontSize='10' fill='#4a2020' fontWeight='bold'>Nier</text>
-
-				{/* Blaas — center back */}
-				<path
-					d='M60 110 L140 110 L140 50 C140 30 130 15 100 10 C70 15 60 30 60 50Z'
-					fill='#d8a0b0'
-					stroke='#b07070'
-					strokeWidth='1'
-					opacity='0.35'
-				/>
-				<text x='100' y='75' textAnchor='middle' fontSize='11' fill='#4a2020' fontWeight='bold'>Blaas</text>
+				{/* Labels */}
+				<g
+					fontFamily='Inter, sans-serif'
+					fontWeight='bold'
+					fontStyle='italic'
+					textAnchor='middle'
+					fill='#2a1010'
+				>
+					<text x='130' y='295' fontSize='15'>Hart</text>
+					<text x='130' y='249' fontSize='14'>Longen</text>
+					<text x='54' y='170' fontSize='12'>Gal-</text>
+					<text x='54' y='184' fontSize='12'>blaas</text>
+					<text x='130' y='168' fontSize='14'>Milt</text>
+					<text x='130' y='186' fontSize='14'>Maag</text>
+					<text x='206' y='180' fontSize='14'>Lever</text>
+					<text x='56' y='80' fontSize='13'>Nier</text>
+					<text x='130' y='80' fontSize='14'>Blaas</text>
+					<text x='204' y='80' fontSize='13'>Nier</text>
+				</g>
 			</svg>
 		</div>
 	);
