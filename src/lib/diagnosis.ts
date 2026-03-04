@@ -9,6 +9,8 @@ import {
 	type TongueType,
 	ZONE_LABEL,
 } from '../data/tongue-types.ts';
+import type { ColorProfile } from './color-analysis.ts';
+import { colorBoosts } from './color-matching.ts';
 
 // ── Seeded PRNG (mulberry32) ────────────────────────────────────
 
@@ -135,12 +137,27 @@ export interface Diagnosis {
 
 // ── Weighted random type selection ──────────────────────────────
 
-function selectType(rng: () => number): TongueType {
-	const totalWeight = TONGUE_TYPES.reduce((sum, t) => sum + t.weight, 0);
+/**
+ * Select a tongue type via weighted random roll.
+ *
+ * When `boosts` are provided (from color analysis), each type's base weight
+ * is multiplied by the corresponding boost factor before rolling.
+ */
+function selectType(rng: () => number, boosts?: readonly number[]): TongueType {
+	const weights = TONGUE_TYPES.map((t, i) => {
+		const boost = boosts?.[i] ?? 1;
+		return t.weight * boost;
+	});
+	const totalWeight = weights.reduce((sum, w) => sum + w, 0);
 	let roll = rng() * totalWeight;
-	for (const t of TONGUE_TYPES) {
-		roll -= t.weight;
-		if (roll < 0) return t;
+	for (let i = 0; i < TONGUE_TYPES.length; i++) {
+		const w = weights[i];
+		if (w === undefined) continue;
+		roll -= w;
+		if (roll < 0) {
+			const t = TONGUE_TYPES[i];
+			if (t !== undefined) return t;
+		}
 	}
 	const fallback = TONGUE_TYPES[TONGUE_TYPES.length - 1];
 	if (fallback === undefined) throw new Error('TONGUE_TYPES is empty');
@@ -149,12 +166,13 @@ function selectType(rng: () => number): TongueType {
 
 // ── Main generator ──────────────────────────────────────────────
 
-export function generateDiagnosis(file: FileInfo): Diagnosis {
+export function generateDiagnosis(file: FileInfo, color?: ColorProfile): Diagnosis {
 	const seed = seedFromFile(file);
 	const rng = mulberry32(seed);
 	const { rand, pickN } = makeHelpers(rng);
 
-	const type = selectType(rng);
+	const boosts = color !== undefined ? colorBoosts(color, TONGUE_TYPES) : undefined;
+	const type = selectType(rng, boosts);
 
 	const jitter = (base: number) => Math.max(10, Math.min(100, base + rand(-8, 8)));
 

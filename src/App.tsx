@@ -4,6 +4,8 @@ import DiagnosisResults from './components/DiagnosisResults.tsx';
 import Guide from './components/Guide.tsx';
 import LoadingSequence from './components/LoadingSequence.tsx';
 import UploadArea from './components/UploadArea.tsx';
+import type { ColorProfile } from './lib/color-analysis.ts';
+import { extractColor } from './lib/color-analysis.ts';
 import { type Diagnosis, type FileInfo, generateDiagnosis } from './lib/diagnosis.ts';
 
 // ── Phase state machine ─────────────────────────────────────
@@ -44,6 +46,7 @@ export default function App() {
 	const [phase, setPhase] = useState<Phase>(loadSavedPhase);
 	const objectUrlRef = useRef<string | null>(null);
 	const fileInfoRef = useRef<FileInfo | null>(null);
+	const colorPromise = useRef<Promise<ColorProfile | undefined> | null>(null);
 
 	// Revoke previous object URL when leaving preview/loading phases
 	useEffect(() => {
@@ -53,6 +56,13 @@ export default function App() {
 		} else if (prev !== null) {
 			URL.revokeObjectURL(prev);
 			objectUrlRef.current = null;
+		}
+	}, [phase]);
+
+	// Start color extraction concurrently with loading animation
+	useEffect(() => {
+		if (phase.kind === 'loading') {
+			colorPromise.current = extractColor(phase.imageUrl).catch(() => undefined);
 		}
 	}, [phase]);
 
@@ -86,10 +96,13 @@ export default function App() {
 	}, []);
 
 	const handleLoadingComplete = useCallback(() => {
-		setPhase((prev) => {
-			if (prev.kind !== 'loading') return prev;
-			return { kind: 'results', diagnosis: generateDiagnosis(prev.fileInfo) };
-		});
+		void (async () => {
+			const color = await colorPromise.current ?? undefined;
+			setPhase((prev) => {
+				if (prev.kind !== 'loading') return prev;
+				return { kind: 'results', diagnosis: generateDiagnosis(prev.fileInfo, color) };
+			});
+		})();
 	}, []);
 
 	const handleRestart = useCallback(() => {

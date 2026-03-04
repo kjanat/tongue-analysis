@@ -4,8 +4,9 @@
 
 ## OVERVIEW
 
-Satirical Dutch tongue diagnosis SPA. User uploads tongue photo, seeded `PRNG` generates fake TCM diagnosis from file
-metadata (`name`, `size`, `lastModified`) — no actual image analysis (for now).
+Satirical Dutch tongue diagnosis SPA. User uploads tongue photo, client-side color extraction
+(Canvas API, center-crop HSL averaging) biases a seeded PRNG toward color-appropriate TCM diagnosis.
+File metadata (`name`, `size`, `lastModified`) seeds deterministic randomness; image color shifts type selection weights.
 React 19 + Vite 8 beta + TypeScript 5.9 strict + Bun.
 
 The `dist` is hosted on GitHub Pages at `https://kjanat.github.io/tongue-analysis/`,
@@ -29,6 +30,8 @@ tongue-analysis/
 │   ├── data/
 │   │   └── tongue-types.ts       # TCM domain data (organs, elements, zones, tongue types)
 │   └── lib/
+│       ├── color-analysis.ts    # Canvas pixel sampling, RGB→HSL, center-crop extraction
+│       ├── color-matching.ts    # HSL distance, per-type weight boosting from image color
 │       └── diagnosis.ts          # Core engine: seeded PRNG (mulberry32), deterministic diagnosis
 ├── public/                       # Static assets (icons, OG image)
 ├── .github/workflows/pages.yml   # CI: bun install → tsc -b → vite build → GitHub Pages
@@ -41,6 +44,8 @@ tongue-analysis/
 | Task              | Location                      | Notes                                                       |
 | ----------------- | ----------------------------- | ----------------------------------------------------------- |
 | Diagnosis logic   | `src/lib/diagnosis.ts`        | Seeded PRNG from file metadata, all generation              |
+| Color extraction  | `src/lib/color-analysis.ts`   | Canvas center-crop, RGB→HSL, `ColorProfile`                 |
+| Color matching    | `src/lib/color-matching.ts`   | HSL distance to type colors, weight boost multipliers       |
 | Domain data (TCM) | `src/data/tongue-types.ts`    | Organs, elements, meridians, tongue types                   |
 | App state machine | `src/App.tsx`                 | `Phase` discriminated union: upload→preview→loading→results |
 | Styles            | `src/App.css`                 | Single file, all component styles, section-divided          |
