@@ -4,7 +4,12 @@
 
 ## OVERVIEW
 
-Satirical Dutch tongue diagnosis SPA. User uploads tongue photo, seeded PRNG generates fake TCM diagnosis from file metadata (name, size, lastModified) — no actual image analysis. React 19 + Vite 8 beta + TypeScript 5.9 strict + Bun.
+Satirical Dutch tongue diagnosis SPA. User uploads tongue photo, seeded `PRNG` generates fake TCM diagnosis from file
+metadata (`name`, `size`, `lastModified`) — no actual image analysis (for now).
+React 19 + Vite 8 beta + TypeScript 5.9 strict + Bun.
+
+The `dist` is hosted on GitHub Pages at `https://kjanat.github.io/tongue-analysis/`,
+with custom CNAME pointing at `https://tong.kajkowalski.nl/`.
 
 ## STRUCTURE
 
