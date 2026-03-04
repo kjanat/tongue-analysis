@@ -6,9 +6,9 @@
 <title>舌診 — Tongdiagnose volgens Traditionele Chinese Geneeskunde</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700&family=Inter:wght@300;400;600&display=swap');
-  
+
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  
+
   body {
     font-family: 'Inter', sans-serif;
     background: linear-gradient(135deg, #0a0a0a 0%, #1a0a0a 50%, #0a0a1a 100%);
@@ -16,7 +16,7 @@
     min-height: 100vh;
     overflow-x: hidden;
   }
-  
+
   .bg-pattern {
     position: fixed;
     top: 0; left: 0; right: 0; bottom: 0;
@@ -25,7 +25,7 @@
     pointer-events: none;
     z-index: 0;
   }
-  
+
   .container {
     max-width: 640px;
     margin: 0 auto;
@@ -33,12 +33,12 @@
     position: relative;
     z-index: 1;
   }
-  
+
   header {
     text-align: center;
     margin-bottom: 2.5rem;
   }
-  
+
   .chinese-title {
     font-family: 'Noto Serif SC', serif;
     font-size: 3rem;
@@ -46,7 +46,7 @@
     text-shadow: 0 0 30px rgba(201, 165, 78, 0.3);
     margin-bottom: 0.3rem;
   }
-  
+
   h1 {
     font-size: 1.3rem;
     font-weight: 300;
@@ -54,14 +54,14 @@
     letter-spacing: 0.15em;
     text-transform: uppercase;
   }
-  
+
   .subtitle {
     margin-top: 0.8rem;
     font-size: 0.85rem;
     color: #7a6a55;
     font-style: italic;
   }
-  
+
   .upload-area {
     border: 2px dashed rgba(201, 165, 78, 0.3);
     border-radius: 16px;
@@ -73,41 +73,41 @@
     position: relative;
     overflow: hidden;
   }
-  
+
   .upload-area:hover {
     border-color: rgba(201, 165, 78, 0.6);
     background: rgba(201, 165, 78, 0.06);
   }
-  
+
   .upload-area.dragover {
     border-color: #c9a54e;
     background: rgba(201, 165, 78, 0.1);
   }
-  
+
   .upload-icon {
     font-size: 3rem;
     margin-bottom: 1rem;
   }
-  
+
   .upload-text {
     font-size: 1.1rem;
     color: #b8a080;
     margin-bottom: 0.5rem;
   }
-  
+
   .upload-hint {
     font-size: 0.8rem;
     color: #6a5a45;
   }
-  
+
   #fileInput { display: none; }
-  
+
   .preview-container {
     display: none;
     margin-top: 1.5rem;
     text-align: center;
   }
-  
+
   .preview-container img {
     max-width: 280px;
     max-height: 280px;
@@ -115,7 +115,7 @@
     border: 2px solid rgba(201, 165, 78, 0.3);
     object-fit: cover;
   }
-  
+
   .analyze-btn {
     display: none;
     margin: 1.5rem auto;
@@ -131,57 +131,57 @@
     transition: all 0.3s ease;
     text-transform: uppercase;
   }
-  
+
   .analyze-btn:hover {
     transform: translateY(-2px);
     box-shadow: 0 8px 25px rgba(139, 69, 19, 0.4);
   }
-  
+
   .loading {
     display: none;
     text-align: center;
     margin: 2rem 0;
   }
-  
+
   .loading-text {
     font-size: 0.95rem;
     color: #b8a080;
     margin-bottom: 1.5rem;
   }
-  
+
   .loading-steps {
     text-align: left;
     max-width: 320px;
     margin: 0 auto;
   }
-  
+
   .loading-step {
     padding: 0.4rem 0;
     font-size: 0.85rem;
     color: #5a4a35;
     transition: color 0.5s ease;
   }
-  
+
   .loading-step.active {
     color: #c9a54e;
   }
-  
+
   .loading-step.done {
     color: #6a8a5a;
   }
-  
+
   .loading-step::before {
     content: '○ ';
   }
-  
+
   .loading-step.active::before {
     content: '◉ ';
   }
-  
+
   .loading-step.done::before {
     content: '✓ ';
   }
-  
+
   .progress-bar {
     width: 100%;
     height: 3px;
@@ -190,7 +190,7 @@
     margin-top: 1.5rem;
     overflow: hidden;
   }
-  
+
   .progress-fill {
     height: 100%;
     width: 0%;
@@ -198,29 +198,29 @@
     transition: width 0.3s ease;
     border-radius: 2px;
   }
-  
+
   .results {
     display: none;
     margin-top: 2rem;
   }
-  
+
   .results-header {
     text-align: center;
     margin-bottom: 2rem;
   }
-  
+
   .results-header h2 {
     font-family: 'Noto Serif SC', serif;
     font-size: 1.5rem;
     color: #c9a54e;
   }
-  
+
   .results-header p {
     font-size: 0.8rem;
     color: #6a5a45;
     margin-top: 0.3rem;
   }
-  
+
   .result-card {
     background: rgba(201, 165, 78, 0.05);
     border: 1px solid rgba(201, 165, 78, 0.15);
@@ -228,7 +228,7 @@
     padding: 1.3rem 1.5rem;
     margin-bottom: 1rem;
   }
-  
+
   .result-card h3 {
     font-size: 0.75rem;
     text-transform: uppercase;
@@ -236,13 +236,13 @@
     color: #8a7a65;
     margin-bottom: 0.6rem;
   }
-  
+
   .result-card p {
     font-size: 0.95rem;
     line-height: 1.6;
     color: #d4c4a8;
   }
-  
+
   .element-badge {
     display: inline-block;
     padding: 0.2rem 0.8rem;
@@ -251,13 +251,13 @@
     font-weight: 600;
     margin: 0.2rem;
   }
-  
+
   .element-fire { background: rgba(178, 34, 34, 0.2); color: #e07070; border: 1px solid rgba(178, 34, 34, 0.3); }
   .element-water { background: rgba(30, 60, 120, 0.2); color: #7090d0; border: 1px solid rgba(30, 60, 120, 0.3); }
   .element-wood { background: rgba(34, 120, 50, 0.2); color: #60b070; border: 1px solid rgba(34, 120, 50, 0.3); }
   .element-earth { background: rgba(160, 130, 50, 0.2); color: #c0a850; border: 1px solid rgba(160, 130, 50, 0.3); }
   .element-metal { background: rgba(160, 160, 170, 0.2); color: #b0b0c0; border: 1px solid rgba(160, 160, 170, 0.3); }
-  
+
   .meridian-chart {
     display: flex;
     justify-content: space-around;
@@ -265,12 +265,12 @@
     flex-wrap: wrap;
     gap: 0.5rem;
   }
-  
+
   .meridian-item {
     text-align: center;
     flex: 0 0 auto;
   }
-  
+
   .meridian-bar {
     width: 40px;
     background: rgba(201, 165, 78, 0.1);
@@ -281,19 +281,19 @@
     display: flex;
     align-items: flex-end;
   }
-  
+
   .meridian-fill {
     width: 100%;
     background: linear-gradient(0deg, #8b4513, #c9a54e);
     border-radius: 4px;
     transition: height 1s ease;
   }
-  
+
   .meridian-label {
     font-size: 0.65rem;
     color: #7a6a55;
   }
-  
+
   .disclaimer {
     text-align: center;
     margin-top: 2.5rem;
@@ -302,7 +302,7 @@
     color: #4a3a25;
     border-top: 1px solid rgba(201, 165, 78, 0.1);
   }
-  
+
   .restart-btn {
     display: none;
     margin: 1.5rem auto;
@@ -315,7 +315,7 @@
     cursor: pointer;
     transition: all 0.3s ease;
   }
-  
+
   .restart-btn:hover {
     border-color: #c9a54e;
     color: #c9a54e;
@@ -325,7 +325,7 @@
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
   }
-  
+
   .fade-in {
     animation: fadeIn 0.6s ease forwards;
   }
@@ -436,7 +436,7 @@ function generateResults() {
 
   const elBalances = elements.map((_,i)=>({name:elements[i],cls:elementClasses[i],val:rand(30,95)}));
   const meridianVals = meridians.map(m=>({name:m,val:rand(25,100)}));
-  
+
   const affectedOrgans = [];
   const used = new Set();
   for(let i=0;i<3;i++){
@@ -536,11 +536,11 @@ analyzeBtn.addEventListener('click', ()=>{
   analyzeBtn.style.display = 'none';
   preview.style.display = 'none';
   loading.style.display = 'block';
-  
+
   let step = 0;
   const totalSteps = loadingSteps.length;
   const stepTime = rand(800, 1400);
-  
+
   function nextStep(){
     if(step > 0) loadingSteps[step-1].classList.remove('active'), loadingSteps[step-1].classList.add('done');
     if(step < totalSteps){
