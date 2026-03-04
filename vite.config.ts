@@ -9,6 +9,7 @@ export default defineConfig({
 		react({
 			babel: {
 				plugins: [['babel-plugin-react-compiler']],
+				targets: { browsers: ['baseline-widely-available'] },
 			},
 		}),
 		svg({
