@@ -1,5 +1,5 @@
-import type { ColorProfile } from './color-analysis.ts';
 import type { TongueType } from '../data/tongue-types.ts';
+import type { ColorProfile } from './color-analysis.ts';
 
 // ── Hex → HSL conversion ───────────────────────────────────────
 
@@ -56,8 +56,8 @@ function hslDistance(a: Hsl, b: Hsl): number {
 	// Weights: hue 1.0, saturation 0.5, lightness 0.8
 	return Math.sqrt(
 		hueDiff * hueDiff * 1.0
-		+ satDiff * satDiff * 0.5
-		+ litDiff * litDiff * 0.8,
+			+ satDiff * satDiff * 0.5
+			+ litDiff * litDiff * 0.8,
 	);
 }
 
