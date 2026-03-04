@@ -1,5 +1,5 @@
 name: Deploy to GitHub Pages
-on: { push: { branches: [master] } }
+on: { push: { branches: [master], paths: ["src/**"] } }
 permissions: { contents: read, pages: write, id-token: write }
 jobs:
   deploy:
