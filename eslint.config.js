@@ -2,7 +2,7 @@ import js from '@eslint/js';
 import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
 import { defineConfig, globalIgnores } from 'eslint/config';
-import globals, { es2026 } from 'globals';
+import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
 export default defineConfig([
@@ -16,7 +16,7 @@ export default defineConfig([
 			reactRefresh.configs.vite,
 		],
 		languageOptions: {
-			ecmaVersion: es2026,
+			ecmaVersion: 2026,
 			globals: globals.browser,
 		},
 	},

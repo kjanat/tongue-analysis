@@ -1,5 +1,5 @@
 name: Deploy to GitHub Pages
-on: { push: { branches: [master], paths: ["src/**"] } }
+on: { push: { branches: [master], paths: ["src/**", "index.html", "vite.config.ts", "package.json"] } }
 permissions: { contents: read, pages: write, id-token: write }
 jobs:
   deploy:
@@ -9,8 +9,11 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v6
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun run build
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
-        with: { path: "src" }
+        with: { path: dist }
       - uses: actions/deploy-pages@v4
         id: deployment
