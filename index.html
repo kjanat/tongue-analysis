@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>舌診 — Tongdiagnose volgens Traditionele Chinese Geneeskunde</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700&family=Inter:wght@300;400;600&display=swap');
+  
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  
+  body {
+    font-family: 'Inter', sans-serif;
+    background: linear-gradient(135deg, #0a0a0a 0%, #1a0a0a 50%, #0a0a1a 100%);
+    color: #e8d5b7;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  
+  .bg-pattern {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-image: radial-gradient(circle at 20% 50%, rgba(139, 69, 19, 0.08) 0%, transparent 50%),
+                      radial-gradient(circle at 80% 20%, rgba(178, 34, 34, 0.06) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+  }
+  
+  .container {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem;
+    position: relative;
+    z-index: 1;
+  }
+  
+  header {
+    text-align: center;
+    margin-bottom: 2.5rem;
+  }
+  
+  .chinese-title {
+    font-family: 'Noto Serif SC', serif;
+    font-size: 3rem;
+    color: #c9a54e;
+    text-shadow: 0 0 30px rgba(201, 165, 78, 0.3);
+    margin-bottom: 0.3rem;
+  }
+  
+  h1 {
+    font-size: 1.3rem;
+    font-weight: 300;
+    color: #b8a080;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+  
+  .subtitle {
+    margin-top: 0.8rem;
+    font-size: 0.85rem;
+    color: #7a6a55;
+    font-style: italic;
+  }
+  
+  .upload-area {
+    border: 2px dashed rgba(201, 165, 78, 0.3);
+    border-radius: 16px;
+    padding: 3rem 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.4s ease;
+    background: rgba(201, 165, 78, 0.03);
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .upload-area:hover {
+    border-color: rgba(201, 165, 78, 0.6);
+    background: rgba(201, 165, 78, 0.06);
+  }
+  
+  .upload-area.dragover {
+    border-color: #c9a54e;
+    background: rgba(201, 165, 78, 0.1);
+  }
+  
+  .upload-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+  }
+  
+  .upload-text {
+    font-size: 1.1rem;
+    color: #b8a080;
+    margin-bottom: 0.5rem;
+  }
+  
+  .upload-hint {
+    font-size: 0.8rem;
+    color: #6a5a45;
+  }
+  
+  #fileInput { display: none; }
+  
+  .preview-container {
+    display: none;
+    margin-top: 1.5rem;
+    text-align: center;
+  }
+  
+  .preview-container img {
+    max-width: 280px;
+    max-height: 280px;
+    border-radius: 12px;
+    border: 2px solid rgba(201, 165, 78, 0.3);
+    object-fit: cover;
+  }
+  
+  .analyze-btn {
+    display: none;
+    margin: 1.5rem auto;
+    padding: 1rem 3rem;
+    background: linear-gradient(135deg, #8b4513, #c9a54e);
+    color: #fff;
+    border: none;
+    border-radius: 50px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    letter-spacing: 0.08em;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+  }
+  
+  .analyze-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(139, 69, 19, 0.4);
+  }
+  
+  .loading {
+    display: none;
+    text-align: center;
+    margin: 2rem 0;
+  }
+  
+  .loading-text {
+    font-size: 0.95rem;
+    color: #b8a080;
+    margin-bottom: 1.5rem;
+  }
+  
+  .loading-steps {
+    text-align: left;
+    max-width: 320px;
+    margin: 0 auto;
+  }
+  
+  .loading-step {
+    padding: 0.4rem 0;
+    font-size: 0.85rem;
+    color: #5a4a35;
+    transition: color 0.5s ease;
+  }
+  
+  .loading-step.active {
+    color: #c9a54e;
+  }
+  
+  .loading-step.done {
+    color: #6a8a5a;
+  }
+  
+  .loading-step::before {
+    content: '○ ';
+  }
+  
+  .loading-step.active::before {
+    content: '◉ ';
+  }
+  
+  .loading-step.done::before {
+    content: '✓ ';
+  }
+  
+  .progress-bar {
+    width: 100%;
+    height: 3px;
+    background: rgba(201, 165, 78, 0.1);
+    border-radius: 2px;
+    margin-top: 1.5rem;
+    overflow: hidden;
+  }
+  
+  .progress-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #8b4513, #c9a54e);
+    transition: width 0.3s ease;
+    border-radius: 2px;
+  }
+  
+  .results {
+    display: none;
+    margin-top: 2rem;
+  }
+  
+  .results-header {
+    text-align: center;
+    margin-bottom: 2rem;
+  }
+  
+  .results-header h2 {
+    font-family: 'Noto Serif SC', serif;
+    font-size: 1.5rem;
+    color: #c9a54e;
+  }
+  
+  .results-header p {
+    font-size: 0.8rem;
+    color: #6a5a45;
+    margin-top: 0.3rem;
+  }
+  
+  .result-card {
+    background: rgba(201, 165, 78, 0.05);
+    border: 1px solid rgba(201, 165, 78, 0.15);
+    border-radius: 12px;
+    padding: 1.3rem 1.5rem;
+    margin-bottom: 1rem;
+  }
+  
+  .result-card h3 {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: #8a7a65;
+    margin-bottom: 0.6rem;
+  }
+  
+  .result-card p {
+    font-size: 0.95rem;
+    line-height: 1.6;
+    color: #d4c4a8;
+  }
+  
+  .element-badge {
+    display: inline-block;
+    padding: 0.2rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin: 0.2rem;
+  }
+  
+  .element-fire { background: rgba(178, 34, 34, 0.2); color: #e07070; border: 1px solid rgba(178, 34, 34, 0.3); }
+  .element-water { background: rgba(30, 60, 120, 0.2); color: #7090d0; border: 1px solid rgba(30, 60, 120, 0.3); }
+  .element-wood { background: rgba(34, 120, 50, 0.2); color: #60b070; border: 1px solid rgba(34, 120, 50, 0.3); }
+  .element-earth { background: rgba(160, 130, 50, 0.2); color: #c0a850; border: 1px solid rgba(160, 130, 50, 0.3); }
+  .element-metal { background: rgba(160, 160, 170, 0.2); color: #b0b0c0; border: 1px solid rgba(160, 160, 170, 0.3); }
+  
+  .meridian-chart {
+    display: flex;
+    justify-content: space-around;
+    margin-top: 0.8rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  
+  .meridian-item {
+    text-align: center;
+    flex: 0 0 auto;
+  }
+  
+  .meridian-bar {
+    width: 40px;
+    background: rgba(201, 165, 78, 0.1);
+    border-radius: 4px;
+    margin: 0 auto 0.3rem;
+    overflow: hidden;
+    height: 60px;
+    display: flex;
+    align-items: flex-end;
+  }
+  
+  .meridian-fill {
+    width: 100%;
+    background: linear-gradient(0deg, #8b4513, #c9a54e);
+    border-radius: 4px;
+    transition: height 1s ease;
+  }
+  
+  .meridian-label {
+    font-size: 0.65rem;
+    color: #7a6a55;
+  }
+  
+  .disclaimer {
+    text-align: center;
+    margin-top: 2.5rem;
+    padding: 1rem;
+    font-size: 0.7rem;
+    color: #4a3a25;
+    border-top: 1px solid rgba(201, 165, 78, 0.1);
+  }
+  
+  .restart-btn {
+    display: none;
+    margin: 1.5rem auto;
+    padding: 0.7rem 2rem;
+    background: transparent;
+    color: #8a7a65;
+    border: 1px solid rgba(201, 165, 78, 0.3);
+    border-radius: 50px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  
+  .restart-btn:hover {
+    border-color: #c9a54e;
+    color: #c9a54e;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  
+  .fade-in {
+    animation: fadeIn 0.6s ease forwards;
+  }
+</style>
+</head>
+<body>
+<div class="bg-pattern"></div>
+<div class="container">
+  <header>
+    <div class="chinese-title">舌診</div>
+    <h1>Tongdiagnose</h1>
+    <p class="subtitle">Traditionele Chinese Geneeskunde — AI-analyse</p>
+  </header>
+
+  <div class="upload-area" id="uploadArea">
+    <div class="upload-icon">👅</div>
+    <div class="upload-text">Upload een foto van je tong</div>
+    <div class="upload-hint">Steek je tong uit in goed licht • JPG, PNG of HEIC</div>
+  </div>
+  <input type="file" id="fileInput" accept="image/*">
+
+  <div class="preview-container" id="preview">
+    <img id="previewImg" src="" alt="Preview">
+  </div>
+
+  <button class="analyze-btn" id="analyzeBtn">🔮 Analyseer Tong</button>
+
+  <div class="loading" id="loading">
+    <div class="loading-text">Qi-patroonherkenning actief...</div>
+    <div class="loading-steps" id="loadingSteps">
+      <div class="loading-step">Tonglichaam detecteren</div>
+      <div class="loading-step">Kleur & coating analyseren</div>
+      <div class="loading-step">Meridianen in kaart brengen</div>
+      <div class="loading-step">Vijf-elementenbalans berekenen</div>
+      <div class="loading-step">TCM-diagnose genereren</div>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+  </div>
+
+  <div class="results" id="results"></div>
+
+  <button class="restart-btn" id="restartBtn">↻ Nieuwe analyse</button>
+
+  <div class="disclaimer">
+    ⚠️ Dit is een experimentele AI-analyse gebaseerd op principes uit de Traditionele Chinese Geneeskunde.
+    Raadpleeg altijd een gekwalificeerde TCM-arts voor een professionele diagnose.
+  </div>
+</div>
+
+<script>
+const tongueColors = ['bleekroze','donkerroze','rood','donkerrood','paarsachtig','licht roze'];
+const coatings = ['dun wit beslag','dik wit beslag','geel beslag','grijs beslag','geen beslag (geschild)','vochtig wit beslag'];
+const shapes = ['gezwollen met tandafdrukken','dun en smal','normaal met lichte zwelling','puntig met rode punt','breed met inkepingen','stevig en rond'];
+const moistures = ['vochtig','droog','licht vochtig','kleverig vochtig','zeer droog'];
+
+const elements = ['Hout 木','Vuur 火','Aarde 土','Metaal 金','Water 水'];
+const elementClasses = ['wood','fire','earth','metal','water'];
+
+const organs = [
+  {name:'Hart',zone:'tongpunt'},
+  {name:'Long',zone:'tongpunt zijkant'},
+  {name:'Lever',zone:'linkerrand'},
+  {name:'Galblaas',zone:'rechterrand'},
+  {name:'Maag',zone:'tongcentrum'},
+  {name:'Milt',zone:'tongcentrum'},
+  {name:'Nier',zone:'tongwortel'},
+  {name:'Blaas',zone:'tongwortel'}
+];
+
+const qiPatterns = [
+  'Qi-stagnatie in de Lever — emotionele spanning of frustratie kan zich ophopen. Beweging en creatieve expressie worden aanbevolen.',
+  'Milt-Qi-deficiëntie — de spijsvertering kan trager werken. Warm, gekookt voedsel heeft de voorkeur boven rauwe maaltijden.',
+  'Hart-Vuur stijgend — onrust of slaapproblemen zijn mogelijk. Bittere thee (zoals chrysantenthee) kan verkoelend werken.',
+  'Nier-Yin-deficiëntie — droogheid en warmte-gevoel, vooral 's avonds. Zwarte sesamzaadjes en walnoten worden traditioneel aanbevolen.',
+  'Vochtigheid in de Milt — een zwaar, moe gevoel kan duiden op ophoping van vocht. Vermijd zuivel en te veel zoet.',
+  'Lever-Qi die de Maag aanvalt — stress beïnvloedt de spijsvertering. Pepermuntthee en rustige maaltijden helpen.',
+  'Long-Qi-zwakte — vatbaarheid voor verkoudheid of kortademigheid. Diepe ademhalingsoefeningen worden aanbevolen.',
+  'Bloed-stasis — de circulatie kan verbetering gebruiken. Kurkuma en lichte beweging ondersteunen de bloedstroom.'
+];
+
+const advice = [
+  'Drink elke ochtend warm water met een schijfje gember om je Milt-Qi te activeren.',
+  'Vermijd ijskoude dranken — deze verzwakken het spijsverteringsvuur (Maag-Yang).',
+  'Eet volgens de seizoenen: nu in het voorjaar zijn groene, licht bittere groenten ideaal voor de Lever.',
+  'Overweeg acupressuur op punt ST36 (Zusanli) — drie vingerbreedte onder de knie, voor algemene energieversterking.',
+  'Meditatie of qigong voor 10 minuten per dag kan Qi-stagnatie helpen oplossen.',
+  'Ga voor 23:00 slapen — de Galblaas- en Levermeridiaan zijn dan het meest actief voor herstel.',
+  'Voeg gojibessen toe aan je thee voor Nier- en Levervoeding.',
+  'Een warme voetbad voor het slapen stimuleert de Niermeridiaan en bevordert diepe slaap.'
+];
+
+const meridians = ['Lever','Hart','Milt','Long','Nier','Maag'];
+
+function pick(arr) { return arr[Math.floor(Math.random()*arr.length)]; }
+function rand(min,max) { return Math.floor(Math.random()*(max-min+1))+min; }
+
+function generateResults() {
+  const color = pick(tongueColors);
+  const coating = pick(coatings);
+  const shape = pick(shapes);
+  const moisture = pick(moistures);
+  const pattern1 = pick(qiPatterns);
+  let pattern2 = pick(qiPatterns);
+  while(pattern2===pattern1) pattern2 = pick(qiPatterns);
+  const tip1 = pick(advice);
+  let tip2 = pick(advice);
+  while(tip2===tip1) tip2 = pick(advice);
+
+  const elBalances = elements.map((_,i)=>({name:elements[i],cls:elementClasses[i],val:rand(30,95)}));
+  const meridianVals = meridians.map(m=>({name:m,val:rand(25,100)}));
+  
+  const affectedOrgans = [];
+  const used = new Set();
+  for(let i=0;i<3;i++){
+    let o;
+    do { o = pick(organs); } while(used.has(o.name));
+    used.add(o.name);
+    affectedOrgans.push(o);
+  }
+
+  let html = `
+    <div class="results-header fade-in">
+      <h2>診斷結果</h2>
+      <p>Analyseresultaat — ${new Date().toLocaleDateString('nl-NL',{year:'numeric',month:'long',day:'numeric'})}</p>
+    </div>
+
+    <div class="result-card fade-in">
+      <h3>👁️ Visuele Observatie</h3>
+      <p><strong>Kleur:</strong> ${color}<br>
+      <strong>Beslag:</strong> ${coating}<br>
+      <strong>Vorm:</strong> ${shape}<br>
+      <strong>Vochtigheid:</strong> ${moisture}</p>
+    </div>
+
+    <div class="result-card fade-in">
+      <h3>☯️ Vijf-Elementenbalans</h3>
+      <div style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-top:0.5rem">
+        ${elBalances.map(e=>`<span class="element-badge element-${e.cls}">${e.name} ${e.val}%</span>`).join('')}
+      </div>
+    </div>
+
+    <div class="result-card fade-in">
+      <h3>🔴 Meridiaan-Activiteit</h3>
+      <div class="meridian-chart">
+        ${meridianVals.map(m=>`
+          <div class="meridian-item">
+            <div class="meridian-bar"><div class="meridian-fill" style="height:${m.val}%"></div></div>
+            <div class="meridian-label">${m.name}</div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+
+    <div class="result-card fade-in">
+      <h3>🏥 Orgaanzones</h3>
+      <p>${affectedOrgans.map(o=>`De <strong>${o.zone}</strong> toont activiteit gerelateerd aan de <strong>${o.name}</strong>.`).join('<br>')}</p>
+    </div>
+
+    <div class="result-card fade-in">
+      <h3>📋 TCM-Patroonherkenning</h3>
+      <p>${pattern1}</p>
+      <p style="margin-top:0.8rem">${pattern2}</p>
+    </div>
+
+    <div class="result-card fade-in">
+      <h3>🌿 Aanbevelingen</h3>
+      <p>• ${tip1}</p>
+      <p>• ${tip2}</p>
+    </div>
+  `;
+  return html;
+}
+
+// UI Logic
+const uploadArea = document.getElementById('uploadArea');
+const fileInput = document.getElementById('fileInput');
+const preview = document.getElementById('preview');
+const previewImg = document.getElementById('previewImg');
+const analyzeBtn = document.getElementById('analyzeBtn');
+const loading = document.getElementById('loading');
+const results = document.getElementById('results');
+const restartBtn = document.getElementById('restartBtn');
+const progressFill = document.getElementById('progressFill');
+const loadingSteps = document.getElementById('loadingSteps').children;
+
+uploadArea.addEventListener('click', ()=> fileInput.click());
+uploadArea.addEventListener('dragover', e=>{ e.preventDefault(); uploadArea.classList.add('dragover'); });
+uploadArea.addEventListener('dragleave', ()=> uploadArea.classList.remove('dragover'));
+uploadArea.addEventListener('drop', e=>{
+  e.preventDefault();
+  uploadArea.classList.remove('dragover');
+  if(e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', e=>{ if(e.target.files.length) handleFile(e.target.files[0]); });
+
+function handleFile(file){
+  const reader = new FileReader();
+  reader.onload = e=>{
+    previewImg.src = e.target.result;
+    preview.style.display = 'block';
+    analyzeBtn.style.display = 'block';
+    uploadArea.style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+}
+
+analyzeBtn.addEventListener('click', ()=>{
+  analyzeBtn.style.display = 'none';
+  preview.style.display = 'none';
+  loading.style.display = 'block';
+  
+  let step = 0;
+  const totalSteps = loadingSteps.length;
+  const stepTime = rand(800, 1400);
+  
+  function nextStep(){
+    if(step > 0) loadingSteps[step-1].classList.remove('active'), loadingSteps[step-1].classList.add('done');
+    if(step < totalSteps){
+      loadingSteps[step].classList.add('active');
+      progressFill.style.width = ((step+1)/totalSteps*100)+'%';
+      step++;
+      setTimeout(nextStep, stepTime + rand(-300,500));
+    } else {
+      setTimeout(showResults, 600);
+    }
+  }
+  nextStep();
+});
+
+function showResults(){
+  loading.style.display = 'none';
+  results.innerHTML = generateResults();
+  results.style.display = 'block';
+  restartBtn.style.display = 'block';
+}
+
+restartBtn.addEventListener('click', ()=>{
+  results.style.display = 'none';
+  restartBtn.style.display = 'none';
+  preview.style.display = 'none';
+  analyzeBtn.style.display = 'none';
+  uploadArea.style.display = 'block';
+  fileInput.value = '';
+  Array.from(loadingSteps).forEach(s=>{ s.classList.remove('active','done'); });
+  progressFill.style.width = '0%';
+});
+</script>
+</body>
+</html>
