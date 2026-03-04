@@ -3,7 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" type="image/svg+xml" href="icons/icon-tongue.svg">
 <title>舌診 — Tongdiagnose volgens Traditionele Chinese Geneeskunde</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700&family=Inter:wght@300;400;600&display=swap');
 
@@ -113,7 +116,7 @@
     max-height: 280px;
     border-radius: 12px;
     border: 2px solid rgba(201, 165, 78, 0.3);
-    object-fit: cover;
+    object-fit: contain;
   }
 
   .analyze-btn {
@@ -299,7 +302,7 @@
     margin-top: 2.5rem;
     padding: 1rem;
     font-size: 0.7rem;
-    color: #4a3a25;
+    color: #7a6a55;
     border-top: 1px solid rgba(201, 165, 78, 0.1);
   }
 
@@ -329,18 +332,31 @@
   .fade-in {
     animation: fadeIn 0.6s ease forwards;
   }
+
+  .fade-in:nth-child(2) { animation-delay: 0.1s; }
+  .fade-in:nth-child(3) { animation-delay: 0.2s; }
+  .fade-in:nth-child(4) { animation-delay: 0.3s; }
+  .fade-in:nth-child(5) { animation-delay: 0.4s; }
+  .fade-in:nth-child(6) { animation-delay: 0.5s; }
+  .fade-in:nth-child(7) { animation-delay: 0.6s; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .fade-in { animation: none; }
+    .progress-fill { transition: none; }
+    .meridian-fill { transition: none; }
+  }
 </style>
 </head>
 <body>
 <div class="bg-pattern"></div>
 <div class="container">
   <header>
-    <div class="chinese-title">舌診</div>
+    <div class="chinese-title" lang="zh">舌診</div>
     <h1>Tongdiagnose</h1>
     <p class="subtitle">Traditionele Chinese Geneeskunde — AI-analyse</p>
   </header>
 
-  <div class="upload-area" id="uploadArea">
+  <div class="upload-area" id="uploadArea" role="button" tabindex="0" aria-label="Upload een foto van je tong. Klik of sleep een bestand hiernaartoe.">
     <div class="upload-icon">👅</div>
     <div class="upload-text">Upload een foto van je tong</div>
     <div class="upload-hint">Steek je tong uit in goed licht • JPG, PNG of HEIC</div>
@@ -365,7 +381,7 @@
     <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
   </div>
 
-  <div class="results" id="results"></div>
+  <div class="results" id="results" aria-live="polite" aria-atomic="true"></div>
 
   <button class="restart-btn" id="restartBtn">↻ Nieuwe analyse</button>
 
@@ -448,7 +464,7 @@ function generateResults() {
 
   let html = `
     <div class="results-header fade-in">
-      <h2>診斷結果</h2>
+      <h2 lang="zh">診斷結果</h2>
       <p>Analyseresultaat — ${new Date().toLocaleDateString('nl-NL',{year:'numeric',month:'long',day:'numeric'})}</p>
     </div>
 
@@ -511,7 +527,18 @@ const restartBtn = document.getElementById('restartBtn');
 const progressFill = document.getElementById('progressFill');
 const loadingSteps = document.getElementById('loadingSteps').children;
 
+/** @param {'upload'|'preview'|'loading'|'results'} phase */
+function setState(phase) {
+  uploadArea.style.display  = phase === 'upload'  ? 'block'  : 'none';
+  preview.style.display     = phase === 'preview' ? 'block'  : 'none';
+  analyzeBtn.style.display  = phase === 'preview' ? 'block'  : 'none';
+  loading.style.display     = phase === 'loading' ? 'block'  : 'none';
+  results.style.display     = phase === 'results' ? 'block'  : 'none';
+  restartBtn.style.display  = phase === 'results' ? 'block'  : 'none';
+}
+
 uploadArea.addEventListener('click', ()=> fileInput.click());
+uploadArea.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); fileInput.click(); } });
 uploadArea.addEventListener('dragover', e=>{ e.preventDefault(); uploadArea.classList.add('dragover'); });
 uploadArea.addEventListener('dragleave', ()=> uploadArea.classList.remove('dragover'));
 uploadArea.addEventListener('drop', e=>{
@@ -522,24 +549,21 @@ uploadArea.addEventListener('drop', e=>{
 fileInput.addEventListener('change', e=>{ if(e.target.files.length) handleFile(e.target.files[0]); });
 
 function handleFile(file){
+  if(!file.type.startsWith('image/')) return;
+  if(file.size > 10_000_000) return;
   const reader = new FileReader();
   reader.onload = e=>{
     previewImg.src = e.target.result;
-    preview.style.display = 'block';
-    analyzeBtn.style.display = 'block';
-    uploadArea.style.display = 'none';
+    setState('preview');
   };
   reader.readAsDataURL(file);
 }
 
 analyzeBtn.addEventListener('click', ()=>{
-  analyzeBtn.style.display = 'none';
-  preview.style.display = 'none';
-  loading.style.display = 'block';
+  setState('loading');
 
   let step = 0;
   const totalSteps = loadingSteps.length;
-  const stepTime = rand(800, 1400);
 
   function nextStep(){
     if(step > 0) loadingSteps[step-1].classList.remove('active'), loadingSteps[step-1].classList.add('done');
@@ -547,7 +571,7 @@ analyzeBtn.addEventListener('click', ()=>{
       loadingSteps[step].classList.add('active');
       progressFill.style.width = ((step+1)/totalSteps*100)+'%';
       step++;
-      setTimeout(nextStep, stepTime + rand(-300,500));
+      setTimeout(nextStep, rand(600, 1800));
     } else {
       setTimeout(showResults, 600);
     }
@@ -556,21 +580,15 @@ analyzeBtn.addEventListener('click', ()=>{
 });
 
 function showResults(){
-  loading.style.display = 'none';
   results.innerHTML = generateResults();
-  results.style.display = 'block';
-  restartBtn.style.display = 'block';
+  setState('results');
 }
 
 restartBtn.addEventListener('click', ()=>{
-  results.style.display = 'none';
-  restartBtn.style.display = 'none';
-  preview.style.display = 'none';
-  analyzeBtn.style.display = 'none';
-  uploadArea.style.display = 'block';
   fileInput.value = '';
   Array.from(loadingSteps).forEach(s=>{ s.classList.remove('active','done'); });
   progressFill.style.width = '0%';
+  setState('upload');
 });
 </script>
 </body>

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+	<path fill="transparent" d="M0 0h100v100H0z"/>
+	<text x="50" y="30" fill="#c5a15a" dominant-baseline="middle" font-family="serif" font-size="28" font-weight="bold" text-anchor="middle">舌診</text>
+	<path fill="#ff6b9d" d="M30 50q0-7 20-7t20 7v20q0 25-20 25T30 70Z"/>
+	<path fill="none" stroke="#ff85af" stroke-linecap="round" stroke-width="3" d="M28 50q22-10 44 0"/>
+	<path fill="none" stroke="#d64577" stroke-linecap="round" stroke-width="3" d="M50 47v33" opacity=".6"/>
+</svg>
