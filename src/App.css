@@ -59,6 +59,7 @@
 /* ── Upload area ───────────────────────────────────────────── */
 
 .upload-area {
+	width: 100%;
 	border: 2px dashed rgba(201, 165, 78, 0.3);
 	border-radius: 16px;
 	padding: 3rem 2rem;
@@ -68,6 +69,8 @@
 	background: rgba(201, 165, 78, 0.03);
 	position: relative;
 	overflow: hidden;
+	font: inherit;
+	color: inherit;
 }
 
 .upload-area:hover,

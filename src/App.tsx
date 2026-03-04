@@ -94,12 +94,12 @@ export default function App() {
 
 				{/* Disclaimer — always visible */}
 				<div className='disclaimer'>
-					Dit is een experimentele AI-analyse gebaseerd op principes uit de Traditionele Chinese Geneeskunde.
+					⚠️ Dit is een experimentele AI-analyse gebaseerd op principes uit de Traditionele Chinese Geneeskunde.
 					Raadpleeg altijd een gekwalificeerde TCM-arts voor een professionele diagnose.
 				</div>
 
-				{/* Interactive guide — always accessible */}
-				<Guide />
+				{/* Interactive guide — only after results */}
+				{phase.kind === 'results' && <Guide />}
 			</main>
 		</>
 	);
