@@ -94,8 +94,8 @@ export default function App() {
 
 				{/* Disclaimer — always visible */}
 				<div className='disclaimer'>
-					Dit is een parodie — er vindt geen echte beeldanalyse plaats. De resultaten zijn willekeurig gegenereerd ter
-					illustratie van TCM-principes. Raadpleeg altijd een gekwalificeerde TCM-arts voor een professionele diagnose.
+					Dit is een experimentele AI-analyse gebaseerd op principes uit de Traditionele Chinese Geneeskunde.
+					Raadpleeg altijd een gekwalificeerde TCM-arts voor een professionele diagnose.
 				</div>
 
 				{/* Interactive guide — always accessible */}
