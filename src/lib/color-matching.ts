@@ -63,18 +63,26 @@ function hslDistance(a: Hsl, b: Hsl): number {
 
 // ── Weight boosting ────────────────────────────────────────────
 
-/** Minimum boost multiplier — no type becomes impossible. */
+/** Minimum boost — distant colors still selectable. */
 const MIN_BOOST = 0.3;
 
-/** Maximum boost multiplier — no type becomes guaranteed. */
+/** Maximum boost — close matches strongly favoured. */
 const MAX_BOOST = 3.0;
+
+/**
+ * Sharpness of the exponential falloff.
+ *
+ * Higher = narrower "cone" around each type color.
+ * At k=5: d=0 → 1.0, d=0.2 → 0.82, d=0.5 → 0.29, d=0.8 → 0.04.
+ */
+const FALLOFF_K = 5;
 
 /**
  * Compute per-type weight multipliers from image color vs tongue type colors.
  *
- * Close color match → higher multiplier (up to 3.0×).
- * Distant match → lower multiplier (down to 0.3×).
- * These multiply the existing `TongueType.weight` in `selectType`.
+ * Uses absolute Gaussian-style falloff: `exp(-k * d²)`.
+ * When image color is far from ALL types, all boosts ≈ MIN_BOOST,
+ * so the PRNG dominates. Only genuinely close matches get meaningful lift.
  */
 export function colorBoosts(
 	profile: ColorProfile,
@@ -82,26 +90,9 @@ export function colorBoosts(
 ): readonly number[] {
 	const imageHsl: Hsl = { h: profile.hue, s: profile.saturation, l: profile.lightness };
 
-	const distances = types.map((t) => hslDistance(imageHsl, hexToHsl(t.color.hex)));
-
-	// Find range for normalization
-	let minDist = Infinity;
-	let maxDist = 0;
-	for (const d of distances) {
-		if (d < minDist) minDist = d;
-		if (d > maxDist) maxDist = d;
-	}
-
-	const range = maxDist - minDist;
-
-	// Map distance → boost: closest = MAX_BOOST, farthest = MIN_BOOST
-	if (range < 0.001) {
-		// All types equally distant — no boost differentiation
-		return types.map(() => 1.0);
-	}
-
-	return distances.map((d) => {
-		const similarity = 1 - (d - minDist) / range; // 0–1, 1 = closest
+	return types.map((t) => {
+		const d = hslDistance(imageHsl, hexToHsl(t.color.hex));
+		const similarity = Math.exp(-FALLOFF_K * d * d); // 0–1, absolute
 		return MIN_BOOST + similarity * (MAX_BOOST - MIN_BOOST);
 	});
 }
