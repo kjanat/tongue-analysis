@@ -38,7 +38,7 @@ export interface FileInfo {
 
 /** Derive a seed from file metadata so same photo → same result. */
 function seedFromFile(file: FileInfo): number {
-	return hashString(`${file.name}:${file.size}:${file.lastModified}`);
+	return hashString(`${file.name}:${String(file.size)}:${String(file.lastModified)}`);
 }
 
 // ── Seeded helpers ──────────────────────────────────────────────
@@ -80,7 +80,7 @@ const AFFECTED_BOOST = 30;
 function deriveElements(
 	affectedOrgans: readonly import('../data/tongue-types.ts').OrganName[],
 	jitter: (base: number) => number,
-): ReadonlyArray<{ name: string; cls: Element; val: number }> {
+): readonly { name: string; cls: Element; val: number }[] {
 	const boosts = new Map<Element, number>();
 	for (const organ of affectedOrgans) {
 		const el = ORGAN_ELEMENT[organ];
@@ -100,7 +100,7 @@ const MERIDIAN_BOOST = 35;
 function deriveMeridians(
 	affectedOrgans: readonly import('../data/tongue-types.ts').OrganName[],
 	jitter: (base: number) => number,
-): ReadonlyArray<{ name: string; val: number }> {
+): readonly { name: string; val: number }[] {
 	const affected = new Set(affectedOrgans.map((o) => o as string));
 	return MERIDIANS.map((m) => ({
 		name: m,
@@ -120,12 +120,8 @@ export interface OrganZoneHit {
 
 export interface Diagnosis {
 	readonly type: TongueType;
-	readonly elements: ReadonlyArray<
-		{ readonly name: string; readonly cls: Element; readonly val: number }
-	>;
-	readonly meridians: ReadonlyArray<
-		{ readonly name: string; readonly val: number }
-	>;
+	readonly elements: readonly { readonly name: string; readonly cls: Element; readonly val: number }[];
+	readonly meridians: readonly { readonly name: string; readonly val: number }[];
 	readonly organZones: readonly OrganZoneHit[];
 	readonly patterns: readonly string[];
 	readonly tips: readonly string[];

@@ -43,8 +43,7 @@ export default function UploadArea({ onFileSelected }: UploadAreaProps) {
 		(e: React.DragEvent) => {
 			e.preventDefault();
 			setDragover(false);
-			const file = e.dataTransfer.files[0];
-			if (file) handleFile(file);
+			if (e.dataTransfer.files.length > 0) handleFile(e.dataTransfer.files[0]);
 		},
 		[handleFile],
 	);
