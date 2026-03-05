@@ -4,6 +4,7 @@ import {
 	FilesetResolver,
 	type NormalizedLandmark,
 } from '@mediapipe/tasks-vision';
+import { type AssetSource, getPackageBinding } from 'virtual:package-bindings';
 import { err, ok, type Result } from './result.ts';
 
 export interface Point {
@@ -33,6 +34,7 @@ export type MouthDetectionError =
 	| { readonly kind: 'mouth_not_visible' };
 
 type DetectionMode = 'IMAGE' | 'VIDEO';
+type VisionWasmFileset = Awaited<ReturnType<typeof FilesetResolver.forVisionTasks>>;
 
 type DetectionInput =
 	| {
@@ -45,9 +47,12 @@ type DetectionInput =
 		readonly timestampMs: number;
 	};
 
-const MEDIAPIPE_WASM_BASE_URL = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.32/wasm';
-const FACE_LANDMARKER_MODEL_URL =
+const FALLBACK_FACE_LANDMARKER_MODEL_URL =
 	'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task';
+const LOCAL_BASE_URL = import.meta.env.BASE_URL;
+const LOCAL_FACE_LANDMARKER_MODEL_PATH = 'mediapipe/models/face_landmarker.task';
+const MEDIAPIPE_BINDING = getPackageBinding('@mediapipe/tasks-vision');
+const WASM_PRIMARY = MEDIAPIPE_BINDING.asset('wasm').primary;
 
 const OUTER_LIP_INDICES = /* dprint-ignore */ [
 	61, 146, 91, 181, 84, 17, 314, 405, 321, 375, 291, 185, 40, 39, 37, 0, 267, 269, 270, 409
@@ -71,6 +76,26 @@ let currentMode: DetectionMode | undefined;
 
 function clamp(value: number, min: number, max: number): number {
 	return Math.min(max, Math.max(min, value));
+}
+
+function localAssetUrl(path: string): string {
+	const base = LOCAL_BASE_URL.endsWith('/') ? LOCAL_BASE_URL : `${LOCAL_BASE_URL}/`;
+	const normalizedPath = path.startsWith('/') ? path.slice(1) : path;
+	return `${base}${normalizedPath}`;
+}
+
+function wasmBaseUrl(source: AssetSource): string {
+	return MEDIAPIPE_BINDING.url('wasm', source);
+}
+
+function modelUrl(source: AssetSource): string {
+	const localModelUrl = localAssetUrl(LOCAL_FACE_LANDMARKER_MODEL_PATH);
+
+	if (source === 'primary') {
+		return WASM_PRIMARY === 'cdn' ? FALLBACK_FACE_LANDMARKER_MODEL_URL : localModelUrl;
+	}
+
+	return WASM_PRIMARY === 'cdn' ? localModelUrl : FALLBACK_FACE_LANDMARKER_MODEL_URL;
 }
 
 function isValidDimension(value: number): boolean {
@@ -166,12 +191,14 @@ function computeBoundingBox(
 	};
 }
 
-async function createFaceLandmarker(mode: DetectionMode): Promise<FaceLandmarker> {
-	const wasmFileset = await FilesetResolver.forVisionTasks(MEDIAPIPE_WASM_BASE_URL);
-
+function createFaceLandmarkerWithOptions(
+	wasmFileset: VisionWasmFileset,
+	mode: DetectionMode,
+	modelAssetPath: string,
+): Promise<FaceLandmarker> {
 	return FaceLandmarker.createFromOptions(wasmFileset, {
 		baseOptions: {
-			modelAssetPath: FACE_LANDMARKER_MODEL_URL,
+			modelAssetPath,
 		},
 		runningMode: mode,
 		numFaces: 2,
@@ -181,6 +208,21 @@ async function createFaceLandmarker(mode: DetectionMode): Promise<FaceLandmarker
 		outputFaceBlendshapes: false,
 		outputFacialTransformationMatrixes: false,
 	});
+}
+
+async function createFaceLandmarker(mode: DetectionMode): Promise<FaceLandmarker> {
+	try {
+		const primaryWasmFileset = await FilesetResolver.forVisionTasks(wasmBaseUrl('primary'));
+		return await createFaceLandmarkerWithOptions(primaryWasmFileset, mode, modelUrl('primary'));
+	} catch (primaryError: unknown) {
+		console.warn('Primary WASM/model source failed, trying fallback:', primaryError);
+		const fallbackWasmFileset = await FilesetResolver.forVisionTasks(wasmBaseUrl('fallback'));
+		return createFaceLandmarkerWithOptions(
+			fallbackWasmFileset,
+			mode,
+			modelUrl('fallback'),
+		);
+	}
 }
 
 async function getFaceLandmarker(mode: DetectionMode): Promise<FaceLandmarker> {
