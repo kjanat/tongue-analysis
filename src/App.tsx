@@ -4,112 +4,173 @@ import DiagnosisResults from './components/DiagnosisResults.tsx';
 import Guide from './components/Guide.tsx';
 import LoadingSequence from './components/LoadingSequence.tsx';
 import UploadArea from './components/UploadArea.tsx';
-import { type ColorProfile, extractColor } from './lib/color-analysis.ts';
-import { type Diagnosis, type FileInfo, generateDiagnosis } from './lib/diagnosis.ts';
-
-// ── Phase state machine ─────────────────────────────────────
+import type { Diagnosis } from './lib/diagnosis.ts';
+import { type AnalysisError, type AnalysisStep, analyzeTongueFromUrl } from './lib/pipeline.ts';
 
 type Phase =
 	| { readonly kind: 'upload' }
-	| { readonly kind: 'preview'; readonly imageUrl: string; readonly fileInfo: FileInfo }
-	| { readonly kind: 'loading'; readonly imageUrl: string; readonly fileInfo: FileInfo }
-	| { readonly kind: 'results'; readonly diagnosis: Diagnosis };
+	| { readonly kind: 'preview'; readonly imageUrl: string }
+	| {
+		readonly kind: 'loading';
+		readonly imageUrl: string;
+		readonly analysisId: number;
+		readonly step: AnalysisStep;
+	}
+	| { readonly kind: 'results'; readonly diagnosis: Diagnosis }
+	| { readonly kind: 'error'; readonly imageUrl: string; readonly error: AnalysisError };
 
 const INITIAL: Phase = { kind: 'upload' };
 
-// ── Session persistence ─────────────────────────────────────
-
-const SESSION_KEY = 'tongue:fileInfo';
-
-function isFileInfo(value: unknown): value is FileInfo {
-	if (typeof value !== 'object' || value === null) return false;
-	if (!('name' in value) || !('size' in value) || !('lastModified' in value)) return false;
-	return typeof value.name === 'string' && typeof value.size === 'number' && typeof value.lastModified === 'number';
-}
-
-function loadSavedPhase(): Phase {
-	try {
-		const raw = sessionStorage.getItem(SESSION_KEY);
-		if (raw === null) return INITIAL;
-		const parsed: unknown = JSON.parse(raw);
-		if (!isFileInfo(parsed)) return INITIAL;
-		return { kind: 'results', diagnosis: generateDiagnosis(parsed) };
-	} catch {
-		return INITIAL;
+function errorMessage(error: AnalysisError): string {
+	switch (error.kind) {
+		case 'image_load_failed':
+			return 'Kon de afbeelding niet laden. Kies een andere foto en probeer opnieuw.';
+		case 'canvas_unavailable':
+			return 'Canvas niet beschikbaar in deze browser. Gebruik een moderne browser.';
+		case 'mouth_crop_failed':
+			return 'Mondregio kon niet worden uitgesneden. Gebruik een scherpere foto van dichterbij.';
+		case 'face_detection_error':
+			switch (error.error.kind) {
+				case 'no_face_detected':
+					return 'Geen gezicht gevonden. Zorg dat je gezicht volledig zichtbaar is.';
+				case 'multiple_faces_detected':
+					return 'Meerdere gezichten gedetecteerd. Gebruik een foto met slechts één persoon.';
+				case 'mouth_not_visible':
+					return 'Mond niet duidelijk zichtbaar. Open je mond en steek je tong uit.';
+				case 'invalid_image_dimensions':
+					return 'Ongeldige afbeeldingsafmetingen gedetecteerd. Gebruik een andere foto.';
+				case 'model_load_failed':
+					return 'Model kon niet geladen worden. Controleer je internetverbinding en probeer opnieuw.';
+				case 'detection_failed':
+					return 'Gezichtsdetectie mislukte. Probeer een foto met beter licht.';
+			}
+			return 'Gezichtsdetectie gaf een onbekende fout.';
+		case 'tongue_segmentation_error':
+			switch (error.error.kind) {
+				case 'empty_input':
+					return 'Lege mondregio ontvangen. Probeer een andere foto.';
+				case 'no_tongue_pixels_detected':
+					return 'Geen tong gevonden in de mondregio. Steek je tong verder uit.';
+				case 'insufficient_pixels':
+					return 'Te weinig tongpixels gedetecteerd. Gebruik een scherpere foto van dichterbij.';
+			}
+			return 'Tongsegmentatie gaf een onbekende fout.';
+		case 'color_correction_error':
+			switch (error.error.kind) {
+				case 'mask_size_mismatch':
+					return 'Interne maskfout tijdens kleurcorrectie. Probeer opnieuw.';
+				case 'no_masked_pixels':
+					return 'Geen bruikbare tongpixels na kleurcorrectie. Probeer beter licht.';
+			}
+			return 'Kleurcorrectie gaf een onbekende fout.';
 	}
+
+	return 'Onbekende analysefout opgetreden.';
 }
 
-// ─────────────────────────────────────────────────────────────
+function startLoadingPhase(imageUrl: string, analysisId: number): Phase {
+	return {
+		kind: 'loading',
+		imageUrl,
+		analysisId,
+		step: 'loading_image',
+	};
+}
 
 export default function App() {
-	const [phase, setPhase] = useState<Phase>(loadSavedPhase);
+	const [phase, setPhase] = useState<Phase>(INITIAL);
 	const objectUrlRef = useRef<string | null>(null);
-	const fileInfoRef = useRef<FileInfo | null>(null);
-	const colorPromise = useRef<Promise<ColorProfile | undefined> | null>(null);
+	const nextAnalysisIdRef = useRef(0);
 
-	// Revoke previous object URL when leaving preview/loading phases
+	const loadingAnalysisId = phase.kind === 'loading' ? phase.analysisId : null;
+	const loadingImageUrl = phase.kind === 'loading' ? phase.imageUrl : null;
+
 	useEffect(() => {
-		const prev = objectUrlRef.current;
-		if (phase.kind === 'preview' || phase.kind === 'loading') {
+		const previousUrl = objectUrlRef.current;
+		if (phase.kind === 'preview' || phase.kind === 'loading' || phase.kind === 'error') {
 			objectUrlRef.current = phase.imageUrl;
-		} else if (prev !== null) {
-			URL.revokeObjectURL(prev);
+			return;
+		}
+
+		if (previousUrl !== null) {
+			URL.revokeObjectURL(previousUrl);
 			objectUrlRef.current = null;
 		}
 	}, [phase]);
 
-	// Start color extraction concurrently with loading animation
 	useEffect(() => {
-		if (phase.kind === 'loading') {
-			colorPromise.current = extractColor(phase.imageUrl).catch(() => undefined);
-		}
-	}, [phase]);
+		if (loadingAnalysisId === null || loadingImageUrl === null) return;
 
-	// Persist fileInfo to sessionStorage when entering results
-	useEffect(() => {
-		if (phase.kind === 'results' && fileInfoRef.current !== null) {
-			try {
-				sessionStorage.setItem(SESSION_KEY, JSON.stringify(fileInfoRef.current));
-			} catch { /* storage unavailable */ }
-		}
-	}, [phase]);
+		let cancelled = false;
 
-	const handleFileSelected = useCallback(
-		(file: File, imageUrl: string) => {
-			const fileInfo: FileInfo = {
-				name: file.name,
-				size: file.size,
-				lastModified: file.lastModified,
-			};
-			fileInfoRef.current = fileInfo;
-			setPhase({ kind: 'preview', imageUrl, fileInfo });
-		},
-		[],
-	);
+		void (async () => {
+			const result = await analyzeTongueFromUrl(loadingImageUrl, {
+				onStep: (step) => {
+					if (cancelled) return;
+
+					setPhase((previous) => {
+						if (previous.kind !== 'loading' || previous.analysisId !== loadingAnalysisId) {
+							return previous;
+						}
+
+						if (previous.step === step) return previous;
+
+						return {
+							...previous,
+							step,
+						};
+					});
+				},
+			});
+
+			setPhase((previous) => {
+				if (previous.kind !== 'loading' || previous.analysisId !== loadingAnalysisId) {
+					return previous;
+				}
+
+				if (!result.ok) {
+					return {
+						kind: 'error',
+						imageUrl: loadingImageUrl,
+						error: result.error,
+					};
+				}
+
+				return {
+					kind: 'results',
+					diagnosis: result.value.diagnosis,
+				};
+			});
+		})();
+
+		return () => {
+			cancelled = true;
+		};
+	}, [loadingAnalysisId, loadingImageUrl]);
+
+	const handleFileSelected = useCallback((file: File, imageUrl: string) => {
+		void file;
+		setPhase({ kind: 'preview', imageUrl });
+	}, []);
 
 	const handleAnalyze = useCallback(() => {
-		setPhase((prev) => {
-			if (prev.kind !== 'preview') return prev;
-			return { kind: 'loading', imageUrl: prev.imageUrl, fileInfo: prev.fileInfo };
+		setPhase((previous) => {
+			if (previous.kind !== 'preview') return previous;
+			nextAnalysisIdRef.current += 1;
+			return startLoadingPhase(previous.imageUrl, nextAnalysisIdRef.current);
 		});
 	}, []);
 
-	const handleLoadingComplete = useCallback(() => {
-		void (async () => {
-			const color = await colorPromise.current ?? undefined;
-			setPhase((prev) => {
-				if (prev.kind !== 'loading') return prev;
-				return { kind: 'results', diagnosis: generateDiagnosis(prev.fileInfo, color) };
-			});
-		})();
+	const handleRetry = useCallback(() => {
+		setPhase((previous) => {
+			if (previous.kind !== 'error') return previous;
+			nextAnalysisIdRef.current += 1;
+			return startLoadingPhase(previous.imageUrl, nextAnalysisIdRef.current);
+		});
 	}, []);
 
 	const handleRestart = useCallback(() => {
 		setPhase(INITIAL);
-		fileInfoRef.current = null;
-		try {
-			sessionStorage.removeItem(SESSION_KEY);
-		} catch { /* storage unavailable */ }
 	}, []);
 
 	return (
@@ -126,10 +187,8 @@ export default function App() {
 					</p>
 				</header>
 
-				{/* Upload phase */}
 				{phase.kind === 'upload' && <UploadArea onFileSelected={handleFileSelected} />}
 
-				{/* Preview phase */}
 				{phase.kind === 'preview' && (
 					<>
 						<div className='preview-container'>
@@ -145,10 +204,32 @@ export default function App() {
 					</>
 				)}
 
-				{/* Loading phase */}
-				{phase.kind === 'loading' && <LoadingSequence onComplete={handleLoadingComplete} />}
+				{phase.kind === 'loading' && <LoadingSequence step={phase.step} />}
 
-				{/* Results phase */}
+				{phase.kind === 'error' && (
+					<>
+						<div className='preview-container'>
+							<img src={phase.imageUrl} alt='Tongfoto voor foutmelding' />
+						</div>
+						<div className='analysis-error'>
+							<h3>Analyse mislukt</h3>
+							<p>{errorMessage(phase.error)}</p>
+						</div>
+						<div className='error-actions'>
+							<button
+								type='button'
+								className='analyze-btn'
+								onClick={handleRetry}
+							>
+								Opnieuw proberen
+							</button>
+							<button type='button' className='restart-btn' onClick={handleRestart}>
+								Nieuwe foto kiezen
+							</button>
+						</div>
+					</>
+				)}
+
 				{phase.kind === 'results' && (
 					<DiagnosisResults
 						diagnosis={phase.diagnosis}
@@ -156,10 +237,8 @@ export default function App() {
 					/>
 				)}
 
-				{/* Interactive guide — only after results */}
 				{phase.kind === 'results' && <Guide />}
 
-				{/* Disclaimer — always visible */}
 				<div className='disclaimer'>
 					Dit is een experimentele AI-analyse gebaseerd op principes uit de Traditionele Chinese Geneeskunde. Raadpleeg
 					altijd een gekwalificeerde TCM-arts voor een professionele diagnose.

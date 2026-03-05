@@ -8,7 +8,7 @@ interface DiagnosisResultsProps {
 export default function DiagnosisResults(
 	{ diagnosis, onRestart }: DiagnosisResultsProps,
 ) {
-	const { type, elements, meridians, organZones, patterns, tips, date } = diagnosis;
+	const { type, confidence, observedColor, elements, meridians, organZones, patterns, tips, date } = diagnosis;
 
 	return (
 		<>
@@ -25,11 +25,27 @@ export default function DiagnosisResults(
 				{/* Summary */}
 				<div className='result-card fade-in'>
 					<p className='summary'>{type.summary}</p>
+					<p style={{ marginTop: '0.6rem' }}>
+						<strong>Detectiebetrouwbaarheid:</strong> {Math.round(confidence * 100)}%
+					</p>
 				</div>
 
 				{/* Visual observation */}
 				<div className='result-card fade-in'>
 					<h3>Visuele Observatie</h3>
+					<div className='detected-color'>
+						<span
+							className='detected-color-swatch'
+							style={{
+								backgroundColor: `rgb(${String(observedColor.r)} ${String(observedColor.g)} ${
+									String(observedColor.b)
+								})`,
+							}}
+						/>
+						<span>
+							Gemeten kleur: rgb({String(observedColor.r)}, {String(observedColor.g)}, {String(observedColor.b)})
+						</span>
+					</div>
 					<p>
 						<strong>Kleur:</strong> {type.color.label}
 						<br />

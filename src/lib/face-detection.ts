@@ -36,50 +36,12 @@ const MEDIAPIPE_WASM_BASE_URL = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-v
 const FACE_LANDMARKER_MODEL_URL =
 	'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task';
 
-const OUTER_LIP_INDICES = [
-	61,
-	146,
-	91,
-	181,
-	84,
-	17,
-	314,
-	405,
-	321,
-	375,
-	291,
-	185,
-	40,
-	39,
-	37,
-	0,
-	267,
-	269,
-	270,
-	409,
+const OUTER_LIP_INDICES = /* dprint-ignore */ [
+	61, 146, 91, 181, 84, 17, 314, 405, 321, 375, 291, 185, 40, 39, 37, 0, 267, 269, 270, 409
 ] as const;
 
-const INNER_LIP_INDICES = [
-	78,
-	95,
-	88,
-	178,
-	87,
-	14,
-	317,
-	402,
-	318,
-	324,
-	308,
-	191,
-	80,
-	81,
-	82,
-	13,
-	312,
-	311,
-	310,
-	415,
+const INNER_LIP_INDICES = /* dprint-ignore */ [
+	78, 95, 88, 178, 87, 14, 317, 402, 318, 324, 308, 191, 80, 81, 82, 13, 312, 311, 310, 415
 ] as const;
 
 const BOUNDING_BOX_PADDING = 0.15;
