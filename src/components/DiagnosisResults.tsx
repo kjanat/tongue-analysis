@@ -5,10 +5,92 @@ interface DiagnosisResultsProps {
 	readonly onRestart: () => void;
 }
 
+interface RgbColor {
+	readonly r: number;
+	readonly g: number;
+	readonly b: number;
+}
+
+function clampChannel(value: number): number {
+	return Math.min(255, Math.max(0, Math.round(value)));
+}
+
+function clampUnit(value: number): number {
+	return Math.min(1, Math.max(0, value));
+}
+
+function fallbackColorFromHex(hex: string): RgbColor {
+	const sanitized = hex.startsWith('#') ? hex.slice(1) : hex;
+	if (sanitized.length !== 6) {
+		return { r: 128, g: 128, b: 128 };
+	}
+
+	const r = Number.parseInt(sanitized.slice(0, 2), 16);
+	const g = Number.parseInt(sanitized.slice(2, 4), 16);
+	const b = Number.parseInt(sanitized.slice(4, 6), 16);
+
+	if (!Number.isFinite(r) || !Number.isFinite(g) || !Number.isFinite(b)) {
+		return { r: 128, g: 128, b: 128 };
+	}
+
+	return {
+		r: clampChannel(r),
+		g: clampChannel(g),
+		b: clampChannel(b),
+	};
+}
+
+function readObservedColor(diagnosis: unknown, fallbackHex: string): RgbColor {
+	if (typeof diagnosis !== 'object' || diagnosis === null || !('observedColor' in diagnosis)) {
+		return fallbackColorFromHex(fallbackHex);
+	}
+
+	const observedColor = diagnosis.observedColor;
+	if (typeof observedColor !== 'object' || observedColor === null) {
+		return fallbackColorFromHex(fallbackHex);
+	}
+
+	if (!('r' in observedColor) || !('g' in observedColor) || !('b' in observedColor)) {
+		return fallbackColorFromHex(fallbackHex);
+	}
+
+	const r = observedColor.r;
+	const g = observedColor.g;
+	const b = observedColor.b;
+	if (typeof r !== 'number' || typeof g !== 'number' || typeof b !== 'number') {
+		return fallbackColorFromHex(fallbackHex);
+	}
+
+	if (!Number.isFinite(r) || !Number.isFinite(g) || !Number.isFinite(b)) {
+		return fallbackColorFromHex(fallbackHex);
+	}
+
+	return {
+		r: clampChannel(r),
+		g: clampChannel(g),
+		b: clampChannel(b),
+	};
+}
+
+function readConfidence(diagnosis: unknown): number {
+	if (typeof diagnosis !== 'object' || diagnosis === null || !('confidence' in diagnosis)) {
+		return 0.5;
+	}
+
+	const confidence = diagnosis.confidence;
+	if (typeof confidence !== 'number' || !Number.isFinite(confidence)) {
+		return 0.5;
+	}
+
+	return clampUnit(confidence);
+}
+
 export default function DiagnosisResults(
 	{ diagnosis, onRestart }: DiagnosisResultsProps,
 ) {
-	const { type, confidence, observedColor, elements, meridians, organZones, patterns, tips, date } = diagnosis;
+	const { type, elements, meridians, organZones, patterns, tips, date } = diagnosis;
+	const confidence = readConfidence(diagnosis);
+	const observedColor = readObservedColor(diagnosis, type.color.hex);
 
 	return (
 		<>
