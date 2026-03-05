@@ -121,13 +121,26 @@ export default function DiagnosisResults(
 						<span
 							className='detected-color-swatch'
 							style={{
-								backgroundColor: `rgb(${String(observedColor.r)} ${String(observedColor.g)} ${
-									String(observedColor.b)
-								})`,
+								backgroundColor: import.meta.env.DEV
+									? `rgb(${String(observedColor.r)} ${String(observedColor.g)} ${
+										String(observedColor.b)
+									})`
+									: type.color.hex,
 							}}
 						/>
 						<span>
-							Gemeten kleur: rgb({String(observedColor.r)}, {String(observedColor.g)}, {String(observedColor.b)})
+							{import.meta.env.DEV
+								? (
+									<>
+										Gemeten kleur: rgb({String(observedColor.r)}, {String(observedColor.g)},{' '}
+										{String(observedColor.b)})
+									</>
+								)
+								: (
+									<>
+										Tongtype: <span lang='zh'>{type.nameZh}</span> — {type.name}
+									</>
+								)}
 						</span>
 					</div>
 					<p>
