@@ -257,7 +257,7 @@
 	border-radius: 10px;
 	border: 1px solid rgba(201, 165, 78, 0.3);
 	background: rgba(139, 69, 19, 0.08);
-	min-height: 8rem;
+	min-height: 3.5rem;
 	max-height: 14rem;
 	overflow-y: auto;
 	transition: opacity 0.3s ease;
