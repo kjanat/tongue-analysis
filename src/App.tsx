@@ -197,6 +197,13 @@ export default function App() {
 		setPhase(INITIAL);
 	}, []);
 
+	const handleUseLiveDiagnosis = useCallback((diagnosis: Diagnosis) => {
+		setPhase({
+			kind: 'results',
+			diagnosis,
+		});
+	}, []);
+
 	return (
 		<>
 			<div className='bg-pattern' />
@@ -212,7 +219,9 @@ export default function App() {
 				</header>
 
 				{phase.kind === 'upload' && <UploadArea onFileSelected={handleFileSelected} />}
-				{phase.kind === 'upload' && <CameraCapture onCapture={handleFileSelected} />}
+				{phase.kind === 'upload' && (
+					<CameraCapture onCapture={handleFileSelected} onLiveDiagnosis={handleUseLiveDiagnosis} />
+				)}
 
 				{phase.kind === 'preview' && (
 					<>

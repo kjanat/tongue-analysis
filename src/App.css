@@ -159,6 +159,12 @@
 	color: #9d8a73;
 }
 
+.camera-btn--live[data-running="true"] {
+	background: rgba(34, 139, 34, 0.18);
+	border-color: rgba(76, 175, 80, 0.5);
+	color: #c9e7c9;
+}
+
 .camera-status {
 	font-size: 0.85rem;
 	color: #b8a080;
@@ -192,6 +198,58 @@
 	border-radius: 8px;
 	background: rgba(178, 34, 34, 0.09);
 	border: 1px solid rgba(178, 34, 34, 0.28);
+}
+
+.camera-live {
+	margin-top: 0.9rem;
+	padding: 0.85rem;
+	border-radius: 10px;
+	border: 1px solid rgba(201, 165, 78, 0.3);
+	background: rgba(139, 69, 19, 0.08);
+}
+
+.camera-live-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 0.6rem;
+	font-size: 0.82rem;
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	color: #d6b27b;
+}
+
+.camera-live-step {
+	font-size: 0.74rem;
+	text-transform: none;
+	letter-spacing: 0.02em;
+	color: #b8a080;
+}
+
+.camera-live-diagnosis {
+	margin-top: 0.6rem;
+	display: grid;
+	gap: 0.55rem;
+}
+
+.camera-live-type {
+	font-size: 1rem;
+	color: #f2dcb1;
+}
+
+.camera-live-diagnosis p {
+	font-size: 0.85rem;
+	line-height: 1.45;
+	color: #dcc9a5;
+}
+
+.camera-live-updated {
+	font-size: 0.74rem;
+	color: #9f8b68;
+}
+
+.camera-live .camera-btn {
+	justify-self: start;
 }
 
 /* ── Image preview ─────────────────────────────────────────── */

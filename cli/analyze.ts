@@ -49,7 +49,7 @@ async function loadImagePixels(filePath: string): Promise<{
 	const image = sharp(filePath).removeAlpha().ensureAlpha();
 	const { width, height } = await image.metadata();
 
-	if (width === undefined || height === undefined || width === 0 || height === 0) {
+	if (width <= 0 || height <= 0) {
 		throw new Error(`Invalid image dimensions: ${String(width)}x${String(height)}`);
 	}
 
@@ -65,7 +65,7 @@ async function loadImagePixels(filePath: string): Promise<{
 // ── Output formatting (CLI presentation) ───────────────────────
 
 function formatRgb(color: RgbColor): string {
-	return `rgb(${color.r}, ${color.g}, ${color.b})`;
+	return `rgb(${String(color.r)}, ${String(color.g)}, ${String(color.b)})`;
 }
 
 function printSection(title: string): void {
@@ -78,7 +78,7 @@ function printSection(title: string): void {
 
 const pixels = await loadImagePixels(imagePath);
 const imageData = new ImageData(
-	pixels.data as Uint8ClampedArray<ArrayBuffer>,
+	new Uint8ClampedArray(pixels.data),
 	pixels.width,
 	pixels.height,
 );
