@@ -11,6 +11,8 @@ interface CameraCaptureProps {
 type CameraMode = 'idle' | 'requesting' | 'ready';
 type LiveMode = 'idle' | 'running';
 
+const LIVE_UPDATED_AT_THROTTLE_MS = 1000;
+
 const LIVE_STEP_LABELS: Readonly<Record<AnalysisStep, string>> = {
 	loading_image: 'Foto laden',
 	loading_model: 'Model initialiseren',
@@ -84,10 +86,6 @@ function formatUpdateTime(timestampMs: number): string {
 		minute: '2-digit',
 		second: '2-digit',
 	});
-}
-
-function isLiveRunning(liveRunningRef: Readonly<{ current: boolean }>): boolean {
-	return liveRunningRef.current;
 }
 
 function scalePoint(
@@ -228,7 +226,6 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 	const liveRafRef = useRef<number | null>(null);
 	const liveInFlightRef = useRef(false);
 	const lastVideoTimeRef = useRef(-1);
-	const liveStepRef = useRef<AnalysisStep | null>(null);
 	const lastUpdatedAtRef = useRef(0);
 
 	const stopLiveAnalysis = useCallback(() => {
@@ -269,6 +266,9 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 		setIsModalOpen(false);
 	}, [stopCurrentStream, stopLiveAnalysis]);
 
+	// Cleanup: stop RAF loop en camera stream bij unmount.
+	// In-flight analyse kan voltooien na unmount, maar is veilig:
+	// liveRunningRef prevents scheduling, React 19 ignores late setState.
 	useEffect(() => {
 		return () => {
 			stopLiveAnalysis();
@@ -292,7 +292,7 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 	}, [handleCloseModal, isModalOpen]);
 
 	const runLiveAnalysis = useCallback(async () => {
-		if (!isLiveRunning(liveRunningRef) || liveInFlightRef.current) return;
+		if (!liveRunningRef.current || liveInFlightRef.current) return;
 
 		const video = videoRef.current;
 		if (video === null || video.videoWidth === 0 || video.videoHeight === 0) {
@@ -314,16 +314,14 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 		const result = await analyzeTongueVideoFrame(video, timestampMs, {
 			onStep: (step) => {
 				if (!liveRunningRef.current) return;
-				liveStepRef.current = step;
+				setLiveStep(step);
 			},
 		});
 
-		if (!isLiveRunning(liveRunningRef)) {
+		if (!liveRunningRef.current) {
 			liveInFlightRef.current = false;
 			return;
 		}
-
-		setLiveStep(liveStepRef.current);
 
 		if (!result.ok) {
 			if (
@@ -346,7 +344,7 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 		setLiveError(null);
 
 		const now = Date.now();
-		if (now - lastUpdatedAtRef.current >= 1000) {
+		if (now - lastUpdatedAtRef.current >= LIVE_UPDATED_AT_THROTTLE_MS) {
 			setLiveUpdatedAt(now);
 			lastUpdatedAtRef.current = now;
 		}
@@ -376,11 +374,13 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 
 		const tick = (): void => {
 			if (!liveRunningRef.current) return;
-			void runLiveAnalysis();
-			liveRafRef.current = window.requestAnimationFrame(tick);
+			void runLiveAnalysis().then(() => {
+				if (liveRunningRef.current) {
+					liveRafRef.current = window.requestAnimationFrame(tick);
+				}
+			});
 		};
 
-		void runLiveAnalysis();
 		liveRafRef.current = window.requestAnimationFrame(tick);
 	}, [mode, runLiveAnalysis]);
 
