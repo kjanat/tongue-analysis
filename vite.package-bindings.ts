@@ -133,8 +133,16 @@ function resolvePackageRoot(root: string, packageName: string): {
 	for (;;) {
 		const candidatePath = path.join(currentDirectory, 'package.json');
 		if (existsSync(candidatePath)) {
-			packageJsonPath = candidatePath;
-			break;
+			const parsed: unknown = JSON.parse(readFileSync(candidatePath, 'utf8'));
+			if (
+				typeof parsed === 'object'
+				&& parsed !== null
+				&& 'name' in parsed
+				&& parsed.name === packageName
+			) {
+				packageJsonPath = candidatePath;
+				break;
+			}
 		}
 
 		const parentDirectory = path.dirname(currentDirectory);
@@ -165,26 +173,20 @@ function maybeDirectoryUrl(url: string, kind: AssetKind): string {
 	return kind === 'dir' ? withTrailingSlash(url) : url;
 }
 
+function cdnPresetUrl(preset: CdnPreset, context: CdnContext): string {
+	switch (preset) {
+		case 'jsdelivr':
+			return `https://cdn.jsdelivr.net/npm/${context.packageName}@${context.version}/${context.assetPath}`;
+		case 'unpkg':
+			return `https://unpkg.com/${context.packageName}@${context.version}/${context.assetPath}`;
+		case 'esm.sh':
+			return `https://esm.sh/${context.packageName}@${context.version}/${context.assetPath}`;
+	}
+}
+
 function resolveCdnUrl(config: CdnConfig, context: CdnContext): string {
-	if (config === 'jsdelivr') {
-		return maybeDirectoryUrl(
-			`https://cdn.jsdelivr.net/npm/${context.packageName}@${context.version}/${context.assetPath}`,
-			context.kind,
-		);
-	}
-
-	if (config === 'unpkg') {
-		return maybeDirectoryUrl(
-			`https://unpkg.com/${context.packageName}@${context.version}/${context.assetPath}`,
-			context.kind,
-		);
-	}
-
-	if (config === 'esm.sh') {
-		return maybeDirectoryUrl(
-			`https://esm.sh/${context.packageName}@${context.version}/${context.assetPath}`,
-			context.kind,
-		);
+	if (typeof config === 'string') {
+		return maybeDirectoryUrl(cdnPresetUrl(config, context), context.kind);
 	}
 
 	if (config.url !== undefined) {
@@ -249,6 +251,7 @@ function toSerializableEntry(entry: ResolvedPackageAsset): SerializableResolvedP
 	};
 }
 
+// SYNC: Runtime shape must match the declaration in src/types/package-bindings.d.ts
 function virtualModuleSource(entries: readonly ResolvedPackageAsset[]): string {
 	const serializableEntries = entries.map(toSerializableEntry);
 	return [
@@ -338,8 +341,10 @@ function virtualModuleSource(entries: readonly ResolvedPackageAsset[]): string {
 
 function mimeTypeForPath(filePath: string): string {
 	if (filePath.endsWith('.wasm')) return 'application/wasm';
-	if (filePath.endsWith('.js')) return 'text/javascript; charset=utf-8';
+	if (filePath.endsWith('.js') || filePath.endsWith('.mjs')) return 'text/javascript; charset=utf-8';
 	if (filePath.endsWith('.json')) return 'application/json; charset=utf-8';
+	if (filePath.endsWith('.css')) return 'text/css; charset=utf-8';
+	if (filePath.endsWith('.html')) return 'text/html; charset=utf-8';
 	return 'application/octet-stream';
 }
 
@@ -403,7 +408,6 @@ function resolvePackageAssets(
 		);
 
 		const absoluteStat = statSync(absolutePath);
-		const kind: AssetKind = absoluteStat.isDirectory() ? 'dir' : 'file';
 
 		if (!absoluteStat.isDirectory() && !absoluteStat.isFile()) {
 			throw new Error(
@@ -411,6 +415,7 @@ function resolvePackageAssets(
 			);
 		}
 
+		const kind: AssetKind = absoluteStat.isDirectory() ? 'dir' : 'file';
 		const files: ResolvedAssetFile[] = [];
 		if (absoluteStat.isFile()) {
 			if (seenEmittedFile.has(baseLocalPath)) {
