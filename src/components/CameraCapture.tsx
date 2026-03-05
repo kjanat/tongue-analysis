@@ -429,6 +429,10 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 		stopCurrentStream();
 		clearOverlayCanvas(overlayCanvasRef.current);
 		setMode('idle');
+		setLiveHasStarted(false);
+		setLiveError(null);
+		setLiveDiagnosis(null);
+		setLiveUpdatedAt(null);
 	}, [stopCurrentStream, stopLiveAnalysis]);
 
 	const handleCapture = useCallback(async () => {
