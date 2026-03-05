@@ -27,6 +27,31 @@ interface ChannelStats {
 	readonly pixelCount: number;
 }
 
+function computeWholeImageChannelStats(imageData: ImageData): ChannelStats {
+	let rSum = 0;
+	let gSum = 0;
+	let bSum = 0;
+
+	for (let channelIndex = 0; channelIndex < imageData.data.length; channelIndex += 4) {
+		const r = imageData.data[channelIndex];
+		const g = imageData.data[channelIndex + 1];
+		const b = imageData.data[channelIndex + 2];
+		if (r === undefined || g === undefined || b === undefined) continue;
+
+		rSum += r;
+		gSum += g;
+		bSum += b;
+	}
+
+	const pixelCount = imageData.width * imageData.height;
+	return {
+		rMean: rSum / pixelCount,
+		gMean: gSum / pixelCount,
+		bMean: bSum / pixelCount,
+		pixelCount,
+	};
+}
+
 function computeMaskedChannelStats(
 	imageData: ImageData,
 	mask: Uint8Array,
@@ -113,15 +138,14 @@ export function applyGrayWorldCorrection(
 		return err({ kind: 'mask_size_mismatch' });
 	}
 
-	const stats = computeMaskedChannelStats(imageData, tongueMask.mask);
-	if (stats === undefined) {
-		return err({ kind: 'no_masked_pixels' });
-	}
-
-	const targetMean = (stats.rMean + stats.gMean + stats.bMean) / 3;
-	const rGain = targetMean / Math.max(stats.rMean, 1e-6);
-	const gGain = targetMean / Math.max(stats.gMean, 1e-6);
-	const bGain = targetMean / Math.max(stats.bMean, 1e-6);
+	// Gray-world assumption: the average color of the entire scene should be
+	// neutral gray. Compute gains from the whole image so ambient lighting is
+	// corrected without destroying the tongue's own chromaticity.
+	const sceneStats = computeWholeImageChannelStats(imageData);
+	const targetMean = (sceneStats.rMean + sceneStats.gMean + sceneStats.bMean) / 3;
+	const rGain = targetMean / Math.max(sceneStats.rMean, 1e-6);
+	const gGain = targetMean / Math.max(sceneStats.gMean, 1e-6);
+	const bGain = targetMean / Math.max(sceneStats.bMean, 1e-6);
 
 	const correctedImageData = applyGains(imageData, rGain, gGain, bGain);
 	const averageTongueColor = computeAverageMaskedColor(correctedImageData, tongueMask.mask);

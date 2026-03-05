@@ -5,6 +5,8 @@ export interface TongueMask {
 	readonly width: number;
 	readonly height: number;
 	readonly pixelCount: number;
+	readonly centroidYRatio: number;
+	readonly passesCentroidHeuristic: boolean;
 }
 
 export interface HsvThreshold {
@@ -314,14 +316,14 @@ export function segmentTongue(
 		});
 	}
 
-	if (centroidYRatio(largestComponentMask, imageData.width, imageData.height) < MIN_CENTROID_Y_RATIO) {
-		return err({ kind: 'no_tongue_pixels_detected' });
-	}
+	const yRatio = centroidYRatio(largestComponentMask, imageData.width, imageData.height);
 
 	return ok({
 		mask: largestComponentMask,
 		width: imageData.width,
 		height: imageData.height,
 		pixelCount,
+		centroidYRatio: yRatio,
+		passesCentroidHeuristic: yRatio >= MIN_CENTROID_Y_RATIO,
 	});
 }
