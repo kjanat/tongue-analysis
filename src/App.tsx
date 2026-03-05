@@ -47,6 +47,16 @@ function errorMessage(error: AnalysisError): string {
 					return 'Gezichtsdetectie mislukte. Probeer een foto met beter licht.';
 			}
 			return 'Gezichtsdetectie gaf een onbekende fout.';
+		case 'poor_lighting':
+			switch (error.issue) {
+				case 'too_dark':
+					return 'Belichting is te donker voor betrouwbare tonganalyse. Gebruik helder frontaal licht zonder tegenlicht.';
+				case 'too_bright':
+					return 'Belichting is te fel of overbelicht. Vermijd directe flits en gebruik zacht, egaal licht.';
+				case 'high_contrast':
+					return 'Belichting heeft te harde schaduwen. Gebruik egaal licht van voren zonder sterke contrasten.';
+			}
+			return 'Belichting onvoldoende voor betrouwbare analyse.';
 		case 'tongue_segmentation_error':
 			switch (error.error.kind) {
 				case 'empty_input':
@@ -54,9 +64,9 @@ function errorMessage(error: AnalysisError): string {
 				case 'allowed_mask_size_mismatch':
 					return 'Interne mondmaskerfout opgetreden. Probeer opnieuw.';
 				case 'no_tongue_pixels_detected':
-					return 'Geen tong gevonden in de mondregio. Steek je tong verder uit.';
+					return 'Tong niet duidelijk zichtbaar in de mondregio. Gebruik egaal licht van voren, open je mond verder en steek je tong uit.';
 				case 'insufficient_pixels':
-					return 'Te weinig tongpixels gedetecteerd. Gebruik een scherpere foto van dichterbij.';
+					return 'Te weinig bruikbare tongpixels gevonden. Ga dichterbij en zorg voor egaal frontaal licht zonder harde schaduwen.';
 			}
 			return 'Tongsegmentatie gaf een onbekende fout.';
 		case 'color_correction_error':

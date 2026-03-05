@@ -32,6 +32,19 @@ export type MouthDetectionError =
 	| { readonly kind: 'multiple_faces_detected'; readonly count: number }
 	| { readonly kind: 'mouth_not_visible' };
 
+type DetectionMode = 'IMAGE' | 'VIDEO';
+
+type DetectionInput =
+	| {
+		readonly mode: 'IMAGE';
+		readonly source: TexImageSource;
+	}
+	| {
+		readonly mode: 'VIDEO';
+		readonly source: HTMLVideoElement;
+		readonly timestampMs: number;
+	};
+
 const MEDIAPIPE_WASM_BASE_URL = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.32/wasm';
 const FACE_LANDMARKER_MODEL_URL =
 	'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task';
@@ -54,6 +67,7 @@ interface ImageDimensions {
 
 let cachedFaceLandmarker: FaceLandmarker | undefined;
 let faceLandmarkerPromise: Promise<FaceLandmarker> | undefined;
+let currentMode: DetectionMode | undefined;
 
 function clamp(value: number, min: number, max: number): number {
 	return Math.min(max, Math.max(min, value));
@@ -152,14 +166,14 @@ function computeBoundingBox(
 	};
 }
 
-async function createFaceLandmarker(): Promise<FaceLandmarker> {
+async function createFaceLandmarker(mode: DetectionMode): Promise<FaceLandmarker> {
 	const wasmFileset = await FilesetResolver.forVisionTasks(MEDIAPIPE_WASM_BASE_URL);
 
 	return FaceLandmarker.createFromOptions(wasmFileset, {
 		baseOptions: {
 			modelAssetPath: FACE_LANDMARKER_MODEL_URL,
 		},
-		runningMode: 'IMAGE',
+		runningMode: mode,
 		numFaces: 2,
 		minFaceDetectionConfidence: 0.5,
 		minFacePresenceConfidence: 0.5,
@@ -169,16 +183,21 @@ async function createFaceLandmarker(): Promise<FaceLandmarker> {
 	});
 }
 
-async function getFaceLandmarker(): Promise<FaceLandmarker> {
+async function getFaceLandmarker(mode: DetectionMode): Promise<FaceLandmarker> {
 	if (cachedFaceLandmarker !== undefined) {
+		if (currentMode !== mode) {
+			await cachedFaceLandmarker.setOptions({ runningMode: mode });
+			currentMode = mode;
+		}
 		return cachedFaceLandmarker;
 	}
 
-	faceLandmarkerPromise ??= createFaceLandmarker();
+	faceLandmarkerPromise ??= createFaceLandmarker(mode);
 
 	try {
 		const faceLandmarker = await faceLandmarkerPromise;
 		cachedFaceLandmarker = faceLandmarker;
+		currentMode = mode;
 		return faceLandmarker;
 	} catch (error) {
 		faceLandmarkerPromise = undefined;
@@ -190,26 +209,38 @@ export function releaseFaceLandmarker(): void {
 	cachedFaceLandmarker?.close();
 	cachedFaceLandmarker = undefined;
 	faceLandmarkerPromise = undefined;
+	currentMode = undefined;
 }
 
-export async function detectMouthRegion(
-	image: TexImageSource,
+function detectLandmarks(
+	faceLandmarker: FaceLandmarker,
+	input: DetectionInput,
+): FaceLandmarkerResult {
+	if (input.mode === 'VIDEO') {
+		return faceLandmarker.detectForVideo(input.source, input.timestampMs);
+	}
+
+	return faceLandmarker.detect(input.source);
+}
+
+async function detectMouthRegionInternal(
+	input: DetectionInput,
 ): Promise<Result<MouthRegion, MouthDetectionError>> {
-	const dimensions = getImageDimensions(image);
+	const dimensions = getImageDimensions(input.source);
 	if (dimensions === undefined) {
 		return err({ kind: 'invalid_image_dimensions' });
 	}
 
 	let faceLandmarker: FaceLandmarker;
 	try {
-		faceLandmarker = await getFaceLandmarker();
+		faceLandmarker = await getFaceLandmarker(input.mode);
 	} catch (error) {
 		return err({ kind: 'model_load_failed', cause: error });
 	}
 
 	let result: FaceLandmarkerResult;
 	try {
-		result = faceLandmarker.detect(image);
+		result = detectLandmarks(faceLandmarker, input);
 	} catch (error) {
 		return err({ kind: 'detection_failed', cause: error });
 	}
@@ -254,5 +285,25 @@ export async function detectMouthRegion(
 		boundingBox,
 		outerLipPolygon,
 		innerLipPolygon,
+	});
+}
+
+export async function detectMouthRegion(
+	image: TexImageSource,
+): Promise<Result<MouthRegion, MouthDetectionError>> {
+	return detectMouthRegionInternal({
+		mode: 'IMAGE',
+		source: image,
+	});
+}
+
+export async function detectMouthRegionForVideo(
+	videoFrame: HTMLVideoElement,
+	timestampMs: number,
+): Promise<Result<MouthRegion, MouthDetectionError>> {
+	return detectMouthRegionInternal({
+		mode: 'VIDEO',
+		source: videoFrame,
+		timestampMs,
 	});
 }
