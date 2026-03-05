@@ -6,6 +6,7 @@ import Guide from './components/Guide.tsx';
 import LoadingSequence from './components/LoadingSequence.tsx';
 import UploadArea from './components/UploadArea.tsx';
 import type { Diagnosis } from './lib/diagnosis.ts';
+import { releaseFaceLandmarker } from './lib/face-detection.ts';
 import { type AnalysisError, type AnalysisStep, analyzeTongueFromUrl } from './lib/pipeline.ts';
 
 type Phase =
@@ -86,6 +87,12 @@ export default function App() {
 	const [phase, setPhase] = useState<Phase>(INITIAL);
 	const objectUrlRef = useRef<string | null>(null);
 	const nextAnalysisIdRef = useRef(0);
+
+	useEffect(() => {
+		return () => {
+			releaseFaceLandmarker();
+		};
+	}, []);
 
 	const loadingAnalysisId = phase.kind === 'loading' ? phase.analysisId : null;
 	const loadingImageUrl = phase.kind === 'loading' ? phase.imageUrl : null;

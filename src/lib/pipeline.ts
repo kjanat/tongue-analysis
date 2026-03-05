@@ -159,8 +159,9 @@ function pointInPolygon(point: Point2D, polygon: readonly Point2D[]): boolean {
 		const b = polygon[j];
 		if (a === undefined || b === undefined) continue;
 
+		const deltaY = b.y - a.y;
 		const intersects = (a.y > point.y) !== (b.y > point.y)
-			&& point.x < ((b.x - a.x) * (point.y - a.y)) / Math.max(b.y - a.y, 1e-6) + a.x;
+			&& point.x < ((b.x - a.x) * (point.y - a.y)) / deltaY + a.x;
 
 		if (intersects) inside = !inside;
 	}
