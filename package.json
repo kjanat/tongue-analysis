@@ -15,6 +15,7 @@
 		"@mediapipe/tasks-vision": "^0.10.32",
 		"react": "^19.2.4",
 		"react-dom": "^19.2.4",
+		"hex-to-oklch": "^3.2.0",
 		"vite-robots-txt": "^1.0.0",
 		"vite-svg-to-ico": "^2.0.1"
 	},
@@ -32,7 +33,6 @@
 		"eslint-plugin-react-refresh": "^0.5.2",
 		"eslint-plugin-react-x": "^2.13.0",
 		"globals": "^17.4.0",
-		"hex-to-oklch": "^3.2.0",
 		"typescript": "~5.9.3",
 		"typescript-eslint": "^8.56.1",
 		"vite": "^8.0.0-beta.16"
