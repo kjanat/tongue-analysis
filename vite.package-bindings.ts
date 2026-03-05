@@ -103,7 +103,7 @@ function resolveAssets(config: ResolvedConfig, options: PackageBindingsPluginOpt
 		const mountPath = path.posix.join(MOUNT_BASE, asset.package, pkg.version, assetPath);
 		const primary = asset.primary ?? 'self';
 
-		const cdnUrl = `https://cdn.jsdelivr.net/npm/${asset.package}@${pkg.version}/${assetPath}${isDirectory ? '/' : ''}`;
+		const cdnUrl = `https://cdn.jsdelivr.net/npm/${asset.package}@${pkg.version}/${assetPath}`;
 
 		const files = isDirectory
 			? collectFiles(absolutePath).map((f) => ({
@@ -121,7 +121,7 @@ function resolveAssets(config: ResolvedConfig, options: PackageBindingsPluginOpt
 			version: pkg.version,
 			assetPath,
 			isDirectory,
-			localMountPath: isDirectory ? `${mountPath}/` : mountPath,
+			localMountPath: mountPath,
 			cdnUrl,
 			primary,
 			files,
@@ -148,8 +148,7 @@ function withBase(localPath, kind) {
 	const base = import.meta.env.BASE_URL;
 	const b = base.endsWith('/') ? base : base + '/';
 	const p = localPath.startsWith('/') ? localPath.slice(1) : localPath;
-	const url = b + p;
-	return kind === 'dir' && !url.endsWith('/') ? url + '/' : url;
+	return b + p;
 }
 
 const entries = manifest.map((e) => {

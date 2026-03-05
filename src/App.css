@@ -113,10 +113,48 @@
 
 .camera-capture {
 	margin-top: 1rem;
+	display: flex;
+	justify-content: center;
+}
+
+.camera-modal-backdrop {
+	position: fixed;
+	inset: 0;
+	z-index: 90;
+	display: grid;
+	place-items: center;
+	padding: 1rem;
+	background: rgba(14, 9, 5, 0.78);
+	backdrop-filter: blur(2px);
+}
+
+.camera-modal {
+	width: min(860px, 100%);
+	max-height: calc(100vh - 2rem);
+	overflow: auto;
 	padding: 1rem;
 	border-radius: 12px;
 	border: 1px solid rgba(201, 165, 78, 0.2);
-	background: rgba(201, 165, 78, 0.04);
+	background: linear-gradient(
+		180deg,
+		rgba(35, 25, 15, 0.96),
+		rgba(25, 18, 12, 0.96)
+	);
+	box-shadow: 0 18px 46px rgba(0, 0, 0, 0.38);
+}
+
+.camera-modal-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 0.75rem;
+}
+
+.camera-modal-header h3 {
+	font-size: 1rem;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: #d6b27b;
 }
 
 .camera-actions {
@@ -181,12 +219,25 @@
 }
 
 .camera-video {
-	width: min(100%, 360px);
+	width: min(100%, 700px);
 	border-radius: 10px;
 	border: 1px solid rgba(201, 165, 78, 0.25);
 	background: #000;
 	aspect-ratio: 4 / 3;
-	object-fit: cover;
+	object-fit: contain;
+}
+
+.camera-stage {
+	position: relative;
+	width: min(100%, 700px);
+}
+
+.camera-overlay {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	pointer-events: none;
 }
 
 .camera-error {

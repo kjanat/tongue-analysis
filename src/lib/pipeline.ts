@@ -365,7 +365,12 @@ function shouldUseCloseupFallback(
 	mouthResult: Result<MouthRegion, MouthDetectionError>,
 ): boolean {
 	return !mouthResult.ok
-		&& (mouthResult.error.kind === 'no_face_detected' || mouthResult.error.kind === 'mouth_not_visible');
+		&& (
+			mouthResult.error.kind === 'no_face_detected'
+			|| mouthResult.error.kind === 'mouth_not_visible'
+			|| mouthResult.error.kind === 'model_load_failed'
+			|| mouthResult.error.kind === 'detection_failed'
+		);
 }
 
 function analyzeTongueFrame(
