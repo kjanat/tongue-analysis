@@ -375,7 +375,7 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 						)}
 					</div>
 
-					{liveDiagnosis !== null && (
+					{liveDiagnosis !== null && liveError === null && (
 						<div className='camera-live-diagnosis'>
 							<div className='camera-live-type'>
 								<span lang='zh'>{liveDiagnosis.type.nameZh}</span> - {liveDiagnosis.type.name}
