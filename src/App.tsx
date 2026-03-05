@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import './App.css';
+import CameraCapture from './components/CameraCapture.tsx';
 import DiagnosisResults from './components/DiagnosisResults.tsx';
 import Guide from './components/Guide.tsx';
 import LoadingSequence from './components/LoadingSequence.tsx';
@@ -188,6 +189,7 @@ export default function App() {
 				</header>
 
 				{phase.kind === 'upload' && <UploadArea onFileSelected={handleFileSelected} />}
+				{phase.kind === 'upload' && <CameraCapture onCapture={handleFileSelected} />}
 
 				{phase.kind === 'preview' && (
 					<>
