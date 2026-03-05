@@ -5,6 +5,8 @@ export interface TongueMask {
 	readonly width: number;
 	readonly height: number;
 	readonly pixelCount: number;
+	readonly componentCount: number;
+	readonly largestComponentRatio: number;
 	readonly centroidYRatio: number;
 	readonly passesCentroidHeuristic: boolean;
 }
@@ -23,6 +25,11 @@ export type TongueSegmentationError =
 	| { readonly kind: 'allowed_mask_size_mismatch' }
 	| { readonly kind: 'no_tongue_pixels_detected' }
 	| {
+		readonly kind: 'multiple_regions_detected';
+		readonly componentCount: number;
+		readonly largestComponentRatio: number;
+	}
+	| {
 		readonly kind: 'insufficient_pixels';
 		readonly count: number;
 		readonly minimumRequired: number;
@@ -39,6 +46,7 @@ const DEFAULT_HSV_THRESHOLD: HsvThreshold = {
 
 const MIN_TONGUE_PIXELS = 120;
 const MIN_CENTROID_Y_RATIO = 0.45;
+const MIN_LARGEST_COMPONENT_RATIO = 0.55;
 const REDNESS_OVER_GREEN_MIN = 12;
 const REDNESS_OVER_BLUE_MIN = 8;
 const MIN_RED_CHANNEL = 70;
@@ -192,16 +200,27 @@ function dilate(mask: Uint8Array, width: number, height: number): Uint8Array {
 	return output;
 }
 
-function keepLargestConnectedComponent(
+interface ConnectedComponentAnalysis {
+	readonly largestMask: Uint8Array;
+	readonly largestComponentSize: number;
+	readonly componentCount: number;
+	readonly totalForegroundPixels: number;
+}
+
+function analyzeConnectedComponents(
 	mask: Uint8Array,
 	width: number,
 	height: number,
-): Uint8Array {
+): ConnectedComponentAnalysis {
 	const visited = new Uint8Array(mask.length);
 	let largestComponent: readonly number[] = [];
+	let componentCount = 0;
+	let totalForegroundPixels = 0;
 
 	for (let start = 0; start < mask.length; start++) {
 		if (mask[start] !== 1 || visited[start] === 1) continue;
+
+		componentCount++;
 
 		const queue = [start];
 		const component: number[] = [];
@@ -246,6 +265,8 @@ function keepLargestConnectedComponent(
 		if (component.length > largestComponent.length) {
 			largestComponent = component;
 		}
+
+		totalForegroundPixels += component.length;
 	}
 
 	const largestMask = new Uint8Array(mask.length);
@@ -253,15 +274,12 @@ function keepLargestConnectedComponent(
 		largestMask[index] = 1;
 	}
 
-	return largestMask;
-}
-
-function countMaskPixels(mask: Uint8Array): number {
-	let count = 0;
-	for (const value of mask) {
-		if (value === 1) count++;
-	}
-	return count;
+	return {
+		largestMask,
+		largestComponentSize: largestComponent.length,
+		componentCount,
+		totalForegroundPixels,
+	};
 }
 
 function centroidYRatio(mask: Uint8Array, width: number, height: number): number {
@@ -301,8 +319,9 @@ export function segmentTongue(
 
 	const thresholdMask = buildThresholdMask(imageData, threshold, allowedMask);
 	const openedMask = dilate(erode(thresholdMask, imageData.width, imageData.height), imageData.width, imageData.height);
-	const largestComponentMask = keepLargestConnectedComponent(openedMask, imageData.width, imageData.height);
-	const pixelCount = countMaskPixels(largestComponentMask);
+	const componentAnalysis = analyzeConnectedComponents(openedMask, imageData.width, imageData.height);
+	const largestComponentMask = componentAnalysis.largestMask;
+	const pixelCount = componentAnalysis.largestComponentSize;
 
 	if (pixelCount === 0) {
 		return err({ kind: 'no_tongue_pixels_detected' });
@@ -316,6 +335,18 @@ export function segmentTongue(
 		});
 	}
 
+	const largestComponentRatio = pixelCount / Math.max(componentAnalysis.totalForegroundPixels, 1);
+	if (
+		componentAnalysis.componentCount > 1
+		&& largestComponentRatio < MIN_LARGEST_COMPONENT_RATIO
+	) {
+		return err({
+			kind: 'multiple_regions_detected',
+			componentCount: componentAnalysis.componentCount,
+			largestComponentRatio,
+		});
+	}
+
 	const yRatio = centroidYRatio(largestComponentMask, imageData.width, imageData.height);
 
 	return ok({
@@ -323,6 +354,8 @@ export function segmentTongue(
 		width: imageData.width,
 		height: imageData.height,
 		pixelCount,
+		componentCount: componentAnalysis.componentCount,
+		largestComponentRatio,
 		centroidYRatio: yRatio,
 		passesCentroidHeuristic: yRatio >= MIN_CENTROID_Y_RATIO,
 	});

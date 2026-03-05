@@ -65,6 +65,8 @@ function errorMessage(error: AnalysisError): string {
 					return 'Interne mondmaskerfout opgetreden. Probeer opnieuw.';
 				case 'no_tongue_pixels_detected':
 					return 'Tong niet duidelijk zichtbaar in de mondregio. Gebruik egaal licht van voren, open je mond verder en steek je tong uit.';
+				case 'multiple_regions_detected':
+					return "Meerdere losse tongregio's gevonden. Gebruik een close-up van slechts één tong.";
 				case 'insufficient_pixels':
 					return 'Te weinig bruikbare tongpixels gevonden. Ga dichterbij en zorg voor egaal frontaal licht zonder harde schaduwen.';
 			}

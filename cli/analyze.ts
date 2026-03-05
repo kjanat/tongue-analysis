@@ -92,6 +92,15 @@ if (!segmentResult.ok) {
 			`  found ${String(segmentResult.error.count)} pixels, need ${String(segmentResult.error.minimumRequired)}`,
 		);
 	}
+	if (segmentResult.error.kind === 'multiple_regions_detected') {
+		console.error(
+			`  found ${String(segmentResult.error.componentCount)} regions, largest covers ${
+				(
+					segmentResult.error.largestComponentRatio * 100
+				).toFixed(1)
+			}%`,
+		);
+	}
 	process.exit(2);
 }
 
