@@ -333,11 +333,6 @@
 	color: #9f8b68;
 }
 
-.camera-live-error {
-	font-size: 0.78rem;
-	color: #dd9a9a;
-	margin-bottom: 0.3rem;
-}
 
 .camera-live .camera-btn {
 	justify-self: start;

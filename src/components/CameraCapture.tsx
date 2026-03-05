@@ -498,7 +498,7 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 		}
 	}, [handleCloseModal]);
 
-	const liveVisible = liveHasStarted && (liveMode === 'running' || liveDiagnosis !== null || liveError !== null);
+	const activeError = liveError ?? error;
 
 	return (
 		<>
@@ -575,8 +575,8 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 										aria-hidden='true'
 									/>
 								)}
-								{error !== null && (
-									<div className='camera-video-error' role='alert'>{error}</div>
+								{activeError !== null && (
+									<div className='camera-video-error' role='alert'>{activeError}</div>
 								)}
 							</div>
 						</div>
@@ -585,7 +585,7 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 							<div className='camera-status'>DEV: mondregio-overlay actief</div>
 						)}
 
-						{liveVisible && (
+						{liveHasStarted && (
 							<div className='camera-live' aria-live='polite'>
 								<div className='camera-live-header'>
 									<span>Live</span>
@@ -593,8 +593,6 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 										<span className='camera-live-step'>{LIVE_STEP_LABELS[liveStep]}</span>
 									)}
 								</div>
-
-								{liveError !== null && <div className='camera-live-error'>{liveError}</div>}
 
 								{liveMode === 'running' && liveDiagnosis === null && liveError === null && (
 									<div className='camera-live-loading'>Analyse wordt gestart...</div>
