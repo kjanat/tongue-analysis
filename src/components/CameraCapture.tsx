@@ -291,8 +291,10 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 		};
 	}, [handleCloseModal, isModalOpen]);
 
+	const isLiveActive = useCallback((): boolean => liveRunningRef.current, []);
+
 	const runLiveAnalysis = useCallback(async () => {
-		if (!liveRunningRef.current || liveInFlightRef.current) return;
+		if (!isLiveActive() || liveInFlightRef.current) return;
 
 		const video = videoRef.current;
 		if (video === null || video.videoWidth === 0 || video.videoHeight === 0) {
@@ -313,12 +315,12 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 		const timestampMs = performance.now();
 		const result = await analyzeTongueVideoFrame(video, timestampMs, {
 			onStep: (step) => {
-				if (!liveRunningRef.current) return;
+				if (!isLiveActive()) return;
 				setLiveStep(step);
 			},
 		});
 
-		if (!liveRunningRef.current) {
+		if (!isLiveActive()) {
 			liveInFlightRef.current = false;
 			return;
 		}
@@ -360,7 +362,7 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 		}
 
 		liveInFlightRef.current = false;
-	}, []);
+	}, [isLiveActive]);
 
 	const startLiveAnalysis = useCallback(() => {
 		if (mode !== 'ready' || liveRunningRef.current) return;
@@ -391,6 +393,7 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 		stopCurrentStream();
 		setMode('requesting');
 		setError(null);
+		setLiveError(null);
 
 		try {
 			const stream = await navigator.mediaDevices.getUserMedia({
@@ -405,7 +408,16 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 			const video = videoRef.current;
 			if (video !== null) {
 				video.srcObject = stream;
-				await video.play().catch(() => undefined);
+				try {
+					await video.play();
+				} catch (playError: unknown) {
+					if (import.meta.env.DEV) {
+						console.warn('video.play() failed:', playError);
+					}
+					if (playError instanceof DOMException && playError.name !== 'AbortError') {
+						setError('Automatisch afspelen mislukt. Tik op het videobeeld om te starten.');
+					}
+				}
 			}
 
 			setMode('ready');
@@ -423,17 +435,6 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 			void handleStartCamera();
 		}
 	}, [handleStartCamera, mode]);
-
-	const handleStopCamera = useCallback(() => {
-		stopLiveAnalysis();
-		stopCurrentStream();
-		clearOverlayCanvas(overlayCanvasRef.current);
-		setMode('idle');
-		setLiveHasStarted(false);
-		setLiveError(null);
-		setLiveDiagnosis(null);
-		setLiveUpdatedAt(null);
-	}, [stopCurrentStream, stopLiveAnalysis]);
 
 	const handleCapture = useCallback(async () => {
 		const video = videoRef.current;
@@ -491,6 +492,14 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 		onLiveDiagnosis(liveDiagnosis);
 	}, [handleCloseModal, liveDiagnosis, onLiveDiagnosis]);
 
+	const handleBackdropClick = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+		if (event.target === event.currentTarget) {
+			handleCloseModal();
+		}
+	}, [handleCloseModal]);
+
+	const liveVisible = liveHasStarted && (liveMode === 'running' || liveDiagnosis !== null || liveError !== null);
+
 	return (
 		<>
 			<div className='camera-capture'>
@@ -500,8 +509,18 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 			</div>
 
 			{isModalOpen && (
-				<div className='camera-modal-backdrop'>
-					<div className='camera-modal' role='dialog' aria-modal='true' aria-label='Live camera analyse'>
+				<div className='camera-modal-backdrop' onClick={handleBackdropClick}>
+					<div
+						className='camera-modal'
+						role='dialog'
+						aria-modal='true'
+						aria-label='Live camera analyse'
+						aria-describedby='camera-modal-desc'
+					>
+						<p id='camera-modal-desc' className='visually-hidden'>
+							Maak een foto van je tong of gebruik live-analyse voor een tongdiagnose.
+						</p>
+
 						<div className='camera-modal-header'>
 							<h3>Live camera</h3>
 							<button
@@ -535,14 +554,11 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 									>
 										{liveMode === 'running' ? 'Stop live-analyse' : 'Start live-analyse'}
 									</button>
-									<button type='button' className='camera-btn camera-btn--ghost' onClick={handleStopCamera}>
-										Stop camera
-									</button>
 								</div>
 							)}
 						</div>
 
-						<div className='camera-preview' data-visible={mode === 'ready'}>
+						<div className='camera-preview' data-visible={mode === 'ready' || mode === 'requesting'}>
 							<div className='camera-stage'>
 								<video
 									ref={videoRef}
@@ -552,6 +568,16 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 									playsInline
 								/>
 								{import.meta.env.DEV && <canvas ref={overlayCanvasRef} className='camera-overlay' />}
+								{liveHasStarted && (
+									<span
+										className='camera-live-dot'
+										data-status={liveError !== null ? 'error' : liveMode === 'running' ? 'active' : 'idle'}
+										aria-hidden='true'
+									/>
+								)}
+								{error !== null && (
+									<div className='camera-video-error' role='alert'>{error}</div>
+								)}
 							</div>
 						</div>
 
@@ -559,12 +585,8 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 							<div className='camera-status'>DEV: mondregio-overlay actief</div>
 						)}
 
-						{liveHasStarted && (
-							<div
-								className='camera-live'
-								data-visible={liveMode === 'running' || liveDiagnosis !== null || liveError !== null}
-								aria-live='polite'
-							>
+						{liveVisible && (
+							<div className='camera-live' aria-live='polite'>
 								<div className='camera-live-header'>
 									<span>Live</span>
 									{liveMode === 'running' && liveStep !== null && (
@@ -573,6 +595,10 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 								</div>
 
 								{liveError !== null && <div className='camera-live-error'>{liveError}</div>}
+
+								{liveMode === 'running' && liveDiagnosis === null && liveError === null && (
+									<div className='camera-live-loading'>Analyse wordt gestart...</div>
+								)}
 
 								{liveDiagnosis !== null && (
 									<div className='camera-live-diagnosis' data-stale={liveError !== null}>
@@ -596,12 +622,6 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 										)}
 									</div>
 								)}
-							</div>
-						)}
-
-						{error !== null && (
-							<div className='camera-error' role='alert'>
-								{error}
 							</div>
 						)}
 					</div>
