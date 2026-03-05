@@ -45,6 +45,7 @@ const INNER_LIP_INDICES = /* dprint-ignore */ [
 ] as const;
 
 const BOUNDING_BOX_PADDING = 0.15;
+const MIN_INNER_MOUTH_OPENING_HEIGHT_RATIO = 0.08;
 
 interface ImageDimensions {
 	readonly width: number;
@@ -236,6 +237,16 @@ export async function detectMouthRegion(
 
 	const boundingBox = computeBoundingBox(outerLipPolygon, dimensions);
 	if (boundingBox === undefined || boundingBox.width === 0 || boundingBox.height === 0) {
+		return err({ kind: 'mouth_not_visible' });
+	}
+
+	const innerBoundingBox = computeBoundingBox(innerLipPolygon, dimensions);
+	if (innerBoundingBox === undefined || innerBoundingBox.height === 0) {
+		return err({ kind: 'mouth_not_visible' });
+	}
+
+	const openingHeightRatio = innerBoundingBox.height / boundingBox.height;
+	if (openingHeightRatio < MIN_INNER_MOUTH_OPENING_HEIGHT_RATIO) {
 		return err({ kind: 'mouth_not_visible' });
 	}
 

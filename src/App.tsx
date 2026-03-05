@@ -50,6 +50,8 @@ function errorMessage(error: AnalysisError): string {
 			switch (error.error.kind) {
 				case 'empty_input':
 					return 'Lege mondregio ontvangen. Probeer een andere foto.';
+				case 'allowed_mask_size_mismatch':
+					return 'Interne mondmaskerfout opgetreden. Probeer opnieuw.';
 				case 'no_tongue_pixels_detected':
 					return 'Geen tong gevonden in de mondregio. Steek je tong verder uit.';
 				case 'insufficient_pixels':
@@ -64,6 +66,8 @@ function errorMessage(error: AnalysisError): string {
 					return 'Geen bruikbare tongpixels na kleurcorrectie. Probeer beter licht.';
 			}
 			return 'Kleurcorrectie gaf een onbekende fout.';
+		case 'inconclusive_color':
+			return 'Kleurmeting was te onzeker. Zorg voor zichtbaar uitgestoken tong in egaal licht.';
 	}
 
 	return 'Onbekende analysefout opgetreden.';

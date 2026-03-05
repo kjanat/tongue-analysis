@@ -18,6 +18,7 @@ export interface HsvThreshold {
 
 export type TongueSegmentationError =
 	| { readonly kind: 'empty_input' }
+	| { readonly kind: 'allowed_mask_size_mismatch' }
 	| { readonly kind: 'no_tongue_pixels_detected' }
 	| {
 		readonly kind: 'insufficient_pixels';
@@ -35,6 +36,10 @@ const DEFAULT_HSV_THRESHOLD: HsvThreshold = {
 };
 
 const MIN_TONGUE_PIXELS = 120;
+const MIN_CENTROID_Y_RATIO = 0.45;
+const REDNESS_OVER_GREEN_MIN = 12;
+const REDNESS_OVER_BLUE_MIN = 8;
+const MIN_RED_CHANNEL = 70;
 
 interface HsvColor {
 	readonly h: number;
@@ -89,21 +94,36 @@ function isPixelInThreshold(color: HsvColor, threshold: HsvThreshold): boolean {
 		&& color.v <= threshold.valueMax;
 }
 
+function hasTongueLikeRedness(r: number, g: number, b: number): boolean {
+	return r >= MIN_RED_CHANNEL
+		&& r - g >= REDNESS_OVER_GREEN_MIN
+		&& r - b >= REDNESS_OVER_BLUE_MIN;
+}
+
 function buildThresholdMask(
 	imageData: ImageData,
 	threshold: HsvThreshold,
+	allowedMask?: Uint8Array,
 ): Uint8Array {
 	const { data, width, height } = imageData;
 	const pixelCount = width * height;
 	const mask = new Uint8Array(pixelCount);
 
 	for (let pixelIndex = 0; pixelIndex < pixelCount; pixelIndex++) {
+		if (allowedMask !== undefined && allowedMask[pixelIndex] !== 1) {
+			continue;
+		}
+
 		const channelIndex = pixelIndex * 4;
 		const r = data[channelIndex];
 		const g = data[channelIndex + 1];
 		const b = data[channelIndex + 2];
 
 		if (r === undefined || g === undefined || b === undefined) {
+			continue;
+		}
+
+		if (!hasTongueLikeRedness(r, g, b)) {
 			continue;
 		}
 
@@ -242,11 +262,27 @@ function countMaskPixels(mask: Uint8Array): number {
 	return count;
 }
 
+function centroidYRatio(mask: Uint8Array, width: number, height: number): number {
+	let weightedY = 0;
+	let count = 0;
+
+	for (let index = 0; index < mask.length; index++) {
+		if (mask[index] !== 1) continue;
+		const y = Math.floor(index / width);
+		weightedY += y;
+		count++;
+	}
+
+	if (count === 0 || height === 0) return 0;
+	return (weightedY / count) / height;
+}
+
 export function segmentTongue(
 	imageData: ImageData,
 	options?: {
 		readonly threshold?: HsvThreshold;
 		readonly minimumPixels?: number;
+		readonly allowedMask?: Uint8Array;
 	},
 ): Result<TongueMask, TongueSegmentationError> {
 	if (imageData.width === 0 || imageData.height === 0) {
@@ -255,8 +291,13 @@ export function segmentTongue(
 
 	const threshold = options?.threshold ?? DEFAULT_HSV_THRESHOLD;
 	const minimumPixels = clamp(options?.minimumPixels ?? MIN_TONGUE_PIXELS, 1, Number.MAX_SAFE_INTEGER);
+	const allowedMask = options?.allowedMask;
 
-	const thresholdMask = buildThresholdMask(imageData, threshold);
+	if (allowedMask !== undefined && allowedMask.length !== imageData.width * imageData.height) {
+		return err({ kind: 'allowed_mask_size_mismatch' });
+	}
+
+	const thresholdMask = buildThresholdMask(imageData, threshold, allowedMask);
 	const openedMask = dilate(erode(thresholdMask, imageData.width, imageData.height), imageData.width, imageData.height);
 	const largestComponentMask = keepLargestConnectedComponent(openedMask, imageData.width, imageData.height);
 	const pixelCount = countMaskPixels(largestComponentMask);
@@ -271,6 +312,10 @@ export function segmentTongue(
 			count: pixelCount,
 			minimumRequired: minimumPixels,
 		});
+	}
+
+	if (centroidYRatio(largestComponentMask, imageData.width, imageData.height) < MIN_CENTROID_Y_RATIO) {
+		return err({ kind: 'no_tongue_pixels_detected' });
 	}
 
 	return ok({

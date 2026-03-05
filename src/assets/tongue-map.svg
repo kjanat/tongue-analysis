@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 950" width="100%" height="100%">
+  <defs>
+    <clipPath id="tongueClip">
+      <path d="M 150 300 C 150 120, 650 120, 650 300 C 720 700, 600 920, 400 920 C 200 920, 80 700, 150 300 Z"/>
+    </clipPath>
+    <linearGradient id="creaseGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#D95C5C" stop-opacity="0.8"/>
+      <stop offset="60%" stop-color="#D95C5C" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#D95C5C" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <path d="M 40 320 C 100 80, 350 50, 400 120 C 450 50, 700 80, 760 320 C 700 700, 500 800, 400 800 C 300 800, 100 700, 40 320 Z" fill="#FCA7A3"/>
+  <path d="M 65 330 C 200 150, 600 150, 735 330 C 650 480, 150 480, 65 330 Z" fill="#303030"/>
+  <path d="M 150 300 C 150 120, 650 120, 650 300 C 720 700, 600 920, 400 920 C 200 920, 80 700, 150 300 Z" fill="#F57B7B"/>
+  <g clip-path="url(#tongueClip)">
+    <path d="M 80 200 Q 250 550 120 950 L 0 950 L 0 200 Z" fill="#FFFFFF" opacity="0.12"/>
+    <path d="M 400 220 L 400 900" stroke="url(#creaseGrad)" stroke-width="8" fill="none" stroke-linecap="round"/>
+    <path d="M 0 400 Q 400 480 800 400" stroke="#1A1A1A" stroke-width="4.5" fill="none"/>
+    <path d="M 0 680 Q 400 580 800 680" stroke="#1A1A1A" stroke-width="4.5" fill="none"/>
+    <path d="M 0 830 Q 400 730 800 830" stroke="#1A1A1A" stroke-width="4.5" fill="none"/>
+    <path d="M 280 436 Q 350 535 280 635" stroke="#1A1A1A" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+    <path d="M 520 436 Q 450 535 520 635" stroke="#1A1A1A" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+  </g>
+  <g font-family="Arial, Helvetica, sans-serif" font-weight="bold" font-style="italic" font-size="28" fill="#111111" text-anchor="middle">
+    <text x="230" y="370">Nier</text>
+    <text x="400" y="370">Blaas</text>
+    <text x="570" y="370">Nier</text>
+    <text x="210" y="525">Gal-</text>
+    <text x="210" y="560">blaas</text>
+    <text x="400" y="530">Milt</text>
+    <text x="400" y="570">Maag</text>
+    <text x="590" y="545">Lever</text>
+    <text x="400" y="735">Longen</text>
+    <text x="400" y="860">Hart</text>
+  </g>
+  <g>
+    <path d="M 180 180 L 620 180 C 620 250, 500 275, 400 275 C 300 275, 180 250, 180 180 Z" fill="#FFFFFF"/>
+    <path d="M 290 180 L 290 260 M 400 180 L 400 275 M 510 180 L 510 260" stroke="#D4D4D4" stroke-width="3" stroke-linecap="round" fill="none"/>
+  </g>
+  <path d="M 40 320 C 100 80, 350 50, 400 120 C 450 50, 700 80, 760 320 L 735 330 C 600 150, 200 150, 65 330 Z" fill="#FCA7A3"/>
+</svg>
