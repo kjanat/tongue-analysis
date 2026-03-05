@@ -1,5 +1,7 @@
 name: Deploy to GitHub Pages
-on: { push: { branches: [master], paths: ["src/**", "index.html", "vite.config.ts", "package.json", "bun.lock"] } }
+on:
+  push: { branches: [master], paths: ["src/**", "index.html", "vite.config.ts", "package.json", "bun.lock"] }
+  workflow_dispatch:
 permissions: { contents: read, pages: write, id-token: write }
 concurrency: { group: pages, cancel-in-progress: true }
 jobs:
