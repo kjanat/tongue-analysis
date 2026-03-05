@@ -562,13 +562,13 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 								aria-live='polite'
 							>
 								<div className='camera-live-header'>
-									<span>Live-analyse</span>
+									<span>Live</span>
 									{liveMode === 'running' && liveStep !== null && (
 										<span className='camera-live-step'>{LIVE_STEP_LABELS[liveStep]}</span>
 									)}
 								</div>
 
-								{liveError !== null && <div className='camera-error'>{liveError}</div>}
+								{liveError !== null && <div className='camera-live-error'>{liveError}</div>}
 
 								{liveDiagnosis !== null && (
 									<div className='camera-live-diagnosis' data-stale={liveError !== null}>

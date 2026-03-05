@@ -258,6 +258,8 @@
 	border: 1px solid rgba(201, 165, 78, 0.3);
 	background: rgba(139, 69, 19, 0.08);
 	min-height: 8rem;
+	max-height: 14rem;
+	overflow-y: auto;
 	transition: opacity 0.3s ease;
 }
 
@@ -270,7 +272,8 @@
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
-	gap: 0.6rem;
+	flex-wrap: wrap;
+	gap: 0.3rem 0.6rem;
 	font-size: 0.82rem;
 	text-transform: uppercase;
 	letter-spacing: 0.08em;
@@ -282,7 +285,7 @@
 	text-transform: none;
 	letter-spacing: 0.02em;
 	color: #b8a080;
-	min-width: 12rem;
+	flex: 1 1 auto;
 	text-align: right;
 }
 
@@ -313,9 +316,10 @@
 	color: #9f8b68;
 }
 
-.camera-live .camera-error {
-	margin-top: 0;
-	margin-bottom: 0.5rem;
+.camera-live-error {
+	font-size: 0.78rem;
+	color: #dd9a9a;
+	margin-bottom: 0.3rem;
 }
 
 .camera-live .camera-btn {
