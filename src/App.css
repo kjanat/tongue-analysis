@@ -257,6 +257,13 @@
 	border-radius: 10px;
 	border: 1px solid rgba(201, 165, 78, 0.3);
 	background: rgba(139, 69, 19, 0.08);
+	min-height: 8rem;
+	transition: opacity 0.3s ease;
+}
+
+.camera-live[data-visible="false"] {
+	opacity: 0;
+	pointer-events: none;
 }
 
 .camera-live-header {
@@ -275,12 +282,19 @@
 	text-transform: none;
 	letter-spacing: 0.02em;
 	color: #b8a080;
+	min-width: 12rem;
+	text-align: right;
 }
 
 .camera-live-diagnosis {
 	margin-top: 0.6rem;
 	display: grid;
 	gap: 0.55rem;
+	transition: opacity 0.25s ease;
+}
+
+.camera-live-diagnosis[data-stale="true"] {
+	opacity: 0.55;
 }
 
 .camera-live-type {
@@ -297,6 +311,11 @@
 .camera-live-updated {
 	font-size: 0.74rem;
 	color: #9f8b68;
+}
+
+.camera-live .camera-error {
+	margin-top: 0;
+	margin-bottom: 0.5rem;
 }
 
 .camera-live .camera-btn {

@@ -220,6 +220,7 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 	const [liveError, setLiveError] = useState<string | null>(null);
 	const [liveDiagnosis, setLiveDiagnosis] = useState<Diagnosis | null>(null);
 	const [liveUpdatedAt, setLiveUpdatedAt] = useState<number | null>(null);
+	const [liveHasStarted, setLiveHasStarted] = useState(false);
 	const streamRef = useRef<MediaStream | null>(null);
 	const videoRef = useRef<HTMLVideoElement>(null);
 	const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -227,6 +228,8 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 	const liveRafRef = useRef<number | null>(null);
 	const liveInFlightRef = useRef(false);
 	const lastVideoTimeRef = useRef(-1);
+	const liveStepRef = useRef<AnalysisStep | null>(null);
+	const lastUpdatedAtRef = useRef(0);
 
 	const stopLiveAnalysis = useCallback(() => {
 		liveRunningRef.current = false;
@@ -262,6 +265,7 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 		setLiveError(null);
 		setLiveDiagnosis(null);
 		setLiveUpdatedAt(null);
+		setLiveHasStarted(false);
 		setIsModalOpen(false);
 	}, [stopCurrentStream, stopLiveAnalysis]);
 
@@ -310,7 +314,7 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 		const result = await analyzeTongueVideoFrame(video, timestampMs, {
 			onStep: (step) => {
 				if (!liveRunningRef.current) return;
-				setLiveStep(step);
+				liveStepRef.current = step;
 			},
 		});
 
@@ -318,6 +322,8 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 			liveInFlightRef.current = false;
 			return;
 		}
+
+		setLiveStep(liveStepRef.current);
 
 		if (!result.ok) {
 			if (
@@ -337,8 +343,13 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 		}
 
 		setLiveDiagnosis(result.value.diagnosis);
-		setLiveUpdatedAt(Date.now());
 		setLiveError(null);
+
+		const now = Date.now();
+		if (now - lastUpdatedAtRef.current >= 1000) {
+			setLiveUpdatedAt(now);
+			lastUpdatedAtRef.current = now;
+		}
 
 		if (import.meta.env.DEV) {
 			const overlayCanvas = overlayCanvasRef.current;
@@ -357,6 +368,7 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 		if (mode !== 'ready' || liveRunningRef.current) return;
 
 		liveRunningRef.current = true;
+		setLiveHasStarted(true);
 		setLiveMode('running');
 		setLiveStep('loading_model');
 		setLiveError(null);
@@ -543,8 +555,12 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 							<div className='camera-status'>DEV: mondregio-overlay actief</div>
 						)}
 
-						{(liveMode === 'running' || liveDiagnosis !== null || liveError !== null) && (
-							<div className='camera-live' aria-live='polite'>
+						{liveHasStarted && (
+							<div
+								className='camera-live'
+								data-visible={liveMode === 'running' || liveDiagnosis !== null || liveError !== null}
+								aria-live='polite'
+							>
 								<div className='camera-live-header'>
 									<span>Live-analyse</span>
 									{liveMode === 'running' && liveStep !== null && (
@@ -552,8 +568,10 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 									)}
 								</div>
 
-								{liveDiagnosis !== null && liveError === null && (
-									<div className='camera-live-diagnosis'>
+								{liveError !== null && <div className='camera-error'>{liveError}</div>}
+
+								{liveDiagnosis !== null && (
+									<div className='camera-live-diagnosis' data-stale={liveError !== null}>
 										<div className='camera-live-type'>
 											<span lang='zh'>{liveDiagnosis.type.nameZh}</span> - {liveDiagnosis.type.name}
 										</div>
@@ -574,8 +592,6 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 										)}
 									</div>
 								)}
-
-								{liveError !== null && <div className='camera-error'>{liveError}</div>}
 							</div>
 						)}
 
