@@ -32,7 +32,7 @@
 		"eslint-plugin-react-refresh": "^0.5.2",
 		"eslint-plugin-react-x": "^2.13.0",
 		"globals": "^17.4.0",
-		"hex-to-oklch": "https://pkg.pr.new/hex-to-oklch@19a0e4e",
+		"hex-to-oklch": "^3.2.0",
 		"typescript": "~5.9.3",
 		"typescript-eslint": "^8.56.1",
 		"vite": "^8.0.0-beta.16"
