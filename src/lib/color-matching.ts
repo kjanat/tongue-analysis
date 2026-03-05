@@ -1,46 +1,89 @@
+import { hexToOklch, isAchromatic, type Oklch, rgbToOklch } from 'hex-to-oklch';
 import type { TongueType } from '../data/tongue-types.ts';
-import { type ColorProfile, rgbToHsl } from './color-analysis.ts';
+import type { ColorProfile } from './color-analysis.ts';
 
-// ── Hex → HSL conversion ───────────────────────────────────────
+// ── HSL profile → OKLCH conversion ─────────────────────────────
 
-interface Hsl {
-	readonly h: number;
-	readonly s: number;
-	readonly l: number;
+interface Rgb {
+	readonly r: number;
+	readonly g: number;
+	readonly b: number;
 }
 
-/** Parse "#RRGGBB" hex string to HSL via shared {@linkcode rgbToHsl}. */
-function hexToHsl(hex: string): Hsl {
-	return rgbToHsl(
-		parseInt(hex.slice(1, 3), 16),
-		parseInt(hex.slice(3, 5), 16),
-		parseInt(hex.slice(5, 7), 16),
-	);
+function clamp(value: number, min: number, max: number): number {
+	return Math.min(max, Math.max(min, value));
 }
 
-// ── HSL distance ───────────────────────────────────────────────
+function normalizeHueDegrees(hue: number): number {
+	return ((hue % 360) + 360) % 360;
+}
+
+function hslToRgb(h: number, s: number, l: number): Rgb {
+	const hue = normalizeHueDegrees(h) / 360;
+	const sat = clamp(s, 0, 100) / 100;
+	const lit = clamp(l, 0, 100) / 100;
+
+	if (sat === 0) {
+		const gray = Math.round(lit * 255);
+		return { r: gray, g: gray, b: gray };
+	}
+
+	const q = lit < 0.5 ? lit * (1 + sat) : lit + sat - lit * sat;
+	const p = 2 * lit - q;
+
+	function hueToChannel(t: number): number {
+		const wrapped = (t + 1) % 1;
+		if (wrapped < 1 / 6) return p + (q - p) * 6 * wrapped;
+		if (wrapped < 1 / 2) return q;
+		if (wrapped < 2 / 3) return p + (q - p) * (2 / 3 - wrapped) * 6;
+		return p;
+	}
+
+	return {
+		r: Math.round(hueToChannel(hue + 1 / 3) * 255),
+		g: Math.round(hueToChannel(hue) * 255),
+		b: Math.round(hueToChannel(hue - 1 / 3) * 255),
+	};
+}
+
+function profileToOklch(profile: ColorProfile): Oklch {
+	const rgb = hslToRgb(profile.hue, profile.saturation, profile.lightness);
+	return rgbToOklch(rgb);
+}
+
+// ── OKLCH distance ──────────────────────────────────────────────
+
+const LIGHTNESS_WEIGHT = 1;
+const CHROMA_WEIGHT = 1;
+const HUE_WEIGHT = 1;
 
 /**
- * Compute weighted HSL distance between two colors.
+ * Typical upper bound of sRGB chroma in OKLCH.
  *
- * Hue is treated as circular (0° and 360° are identical).
- *
- * Weights emphasize hue and lightness over saturation, matching
- * how TCM tongue color categories are distinguished.
+ * Normalizing by this keeps ΔC on a comparable 0–1-ish scale with
+ * normalized ΔL and circular Δh.
  */
-function hslDistance(a: Hsl, b: Hsl): number {
-	// Circular hue difference (0–180)
+const CHROMA_SCALE = 0.4;
+
+/**
+ * Compute weighted OKLCH distance between two colors.
+ *
+ * Hue is circular (0° and 360° are identical). For achromatic
+ * colors, hue is ignored because it is perceptually meaningless.
+ */
+function oklchDistance(a: Oklch, b: Oklch): number {
+	const lightnessDiff = Math.abs(a.l - b.l);
+	const chromaDiff = Math.abs(a.c - b.c) / CHROMA_SCALE;
+
 	const rawHueDiff = Math.abs(a.h - b.h);
-	const hueDiff = Math.min(rawHueDiff, 360 - rawHueDiff) / 180; // normalize 0–1
+	const hueDiff = isAchromatic(a) || isAchromatic(b)
+		? 0
+		: Math.min(rawHueDiff, 360 - rawHueDiff) / 180;
 
-	const satDiff = Math.abs(a.s - b.s) / 100; // normalize 0–1
-	const litDiff = Math.abs(a.l - b.l) / 100; // normalize 0–1
-
-	// Weights: hue 1.0, saturation 0.5, lightness 0.8
 	return Math.sqrt(
-		hueDiff * hueDiff * 1.0
-			+ satDiff * satDiff * 0.5
-			+ litDiff * litDiff * 0.8,
+		lightnessDiff * lightnessDiff * LIGHTNESS_WEIGHT
+			+ chromaDiff * chromaDiff * CHROMA_WEIGHT
+			+ hueDiff * hueDiff * HUE_WEIGHT,
 	);
 }
 
@@ -73,10 +116,10 @@ export function colorBoosts(
 	profile: ColorProfile,
 	types: readonly TongueType[],
 ): readonly number[] {
-	const imageHsl: Hsl = { h: profile.hue, s: profile.saturation, l: profile.lightness };
+	const imageOklch = profileToOklch(profile);
 
 	return types.map((t) => {
-		const d = hslDistance(imageHsl, hexToHsl(t.color.hex));
+		const d = oklchDistance(imageOklch, hexToOklch(t.color.hex));
 		const similarity = Math.exp(-FALLOFF_K * d * d); // 0–1, absolute
 		return MIN_BOOST + similarity * (MAX_BOOST - MIN_BOOST);
 	});
