@@ -700,7 +700,7 @@ dialog.camera-modal::backdrop {
 	left: 0;
 	width: 100%;
 	text-align: center;
-	padding: 0.3rem;
+	padding: 0.3rem 0.3rem calc(0.3rem + env(safe-area-inset-bottom, 0px));
 	font-size: 0.65rem;
 	font-family: monospace;
 	color: #fff8;

@@ -69,7 +69,6 @@ export function useMediaStream(): UseMediaStreamResult {
 
 	const reset = useCallback(() => {
 		stop();
-		setMode('idle');
 		setError(null);
 	}, [stop]);
 

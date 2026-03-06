@@ -333,7 +333,7 @@ export function useLiveAnalysis(options: UseLiveAnalysisOptions): UseLiveAnalysi
 
 		const tick = (): void => {
 			if (!liveRunningRef.current) return;
-			void runLiveAnalysis().then(() => {
+			void runLiveAnalysis().finally(() => {
 				if (liveRunningRef.current) {
 					liveRafRef.current = window.requestAnimationFrame(tick);
 				}

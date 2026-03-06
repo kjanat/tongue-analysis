@@ -101,8 +101,11 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 	}, [clearLiveError, clearReleaseTimer, startCamera, stopLiveAnalysis]);
 
 	const handleOpenModal = useCallback(() => {
-		dialogRef.current?.showModal();
 		clearReleaseTimer();
+		const dialog = dialogRef.current;
+		if (dialog !== null && !dialog.open) {
+			dialog.showModal();
+		}
 		setCameraAutoPaused(false);
 		clearCameraError();
 		clearLiveError();
