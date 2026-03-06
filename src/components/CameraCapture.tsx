@@ -51,8 +51,12 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 		mode,
 		error,
 		mirrorPreview,
+		availableCameras,
+		activeCameraId,
+		canSwitchCamera,
 		videoRef,
 		start: startCamera,
+		switchToNextCamera,
 		reset: resetCamera,
 		clearError: clearCameraError,
 		setError: setCameraError,
@@ -195,6 +199,12 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 		startLiveAnalysis();
 	}, [liveMode, startLiveAnalysis, stopLiveAnalysis]);
 
+	const handleSwitchCamera = useCallback(async () => {
+		stopLiveAnalysis();
+		clearLiveError();
+		await switchToNextCamera();
+	}, [clearLiveError, stopLiveAnalysis, switchToNextCamera]);
+
 	const handleUseLiveDiagnosis = useCallback(() => {
 		if (liveDiagnosis === null || onLiveDiagnosis === undefined) return;
 		clearReleaseTimer();
@@ -210,6 +220,7 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 
 	const activeError = liveError ?? error;
 	const liveStatus = liveError !== null ? 'error' : liveMode === 'running' ? 'active' : 'idle';
+	const activeCameraLabel = availableCameras.find((device) => device.deviceId === activeCameraId)?.label;
 
 	return (
 		<>
@@ -264,6 +275,18 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 							<button type='button' className='camera-btn camera-btn--primary' onClick={() => void handleCapture()}>
 								Foto maken
 							</button>
+							{canSwitchCamera && (
+								<button
+									type='button'
+									className='camera-btn camera-btn--switch'
+									onClick={() => void handleSwitchCamera()}
+									aria-label={activeCameraLabel !== undefined && activeCameraLabel !== ''
+										? `Wissel camera. Huidig: ${activeCameraLabel}`
+										: 'Wissel camera'}
+								>
+									Wissel camera
+								</button>
+							)}
 							<button
 								type='button'
 								className='camera-btn camera-btn--live'

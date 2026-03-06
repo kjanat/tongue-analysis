@@ -7,8 +7,12 @@ interface UseMediaStreamResult {
 	readonly mode: CameraMode;
 	readonly error: string | null;
 	readonly mirrorPreview: boolean;
+	readonly availableCameras: readonly MediaDeviceInfo[];
+	readonly activeCameraId: string | null;
+	readonly canSwitchCamera: boolean;
 	readonly videoRef: RefObject<HTMLVideoElement | null>;
 	readonly start: () => Promise<void>;
+	readonly switchToNextCamera: () => Promise<void>;
 	readonly stop: () => void;
 	readonly reset: () => void;
 	readonly clearError: () => void;
@@ -22,8 +26,16 @@ function stopStream(stream: MediaStream): void {
 }
 
 function cameraErrorMessage(error: unknown): string {
+	if (error instanceof TypeError) {
+		return 'Camera vereist een beveiligde verbinding (HTTPS).';
+	}
+
 	if (error instanceof DOMException) {
 		switch (error.name) {
+			case 'AbortError':
+				return 'Camera starten afgebroken. Probeer opnieuw.';
+			case 'InvalidStateError':
+				return 'Camera is tijdelijk niet beschikbaar. Herlaad de pagina en probeer opnieuw.';
 			case 'NotAllowedError':
 				return 'Cameratoegang geweigerd. Geef toestemming en probeer opnieuw.';
 			case 'NotFoundError':
@@ -42,44 +54,96 @@ function cameraErrorMessage(error: unknown): string {
 	return 'Kon camera niet starten. Probeer opnieuw.';
 }
 
-function isMobileDevice(): boolean {
-	const userAgent = navigator.userAgent.toLowerCase();
-	const hasMobileUserAgent = /android|iphone|ipad|ipod|mobile|windows phone|iemobile|opera mini/.test(userAgent);
-	const isTouchMac = userAgent.includes('macintosh') && navigator.maxTouchPoints > 1;
-	return hasMobileUserAgent || isTouchMac;
-}
-
 function isFrontFacingTrack(track: MediaStreamTrack): boolean {
 	const facingMode = track.getSettings().facingMode;
 	if (facingMode === 'user') return true;
 	if (facingMode === 'environment') return false;
 
 	const label = track.label.toLowerCase();
-	if (label.includes('front') || label.includes('user') || label.includes('facetime')) {
-		return true;
-	}
-
 	if (label.includes('rear') || label.includes('back') || label.includes('environment')) {
 		return false;
 	}
 
-	return false;
+	return true;
 }
 
 function shouldMirrorPreview(stream: MediaStream): boolean {
-	if (!isMobileDevice()) return false;
 	const videoTrack = stream.getVideoTracks()[0];
 	if (videoTrack === undefined) return false;
 	return isFrontFacingTrack(videoTrack);
+}
+
+function getTrackDeviceId(track: MediaStreamTrack): string | null {
+	const deviceId = track.getSettings().deviceId;
+	if (typeof deviceId === 'string' && deviceId !== '') {
+		return deviceId;
+	}
+
+	return null;
+}
+
+function buildVideoConstraints(preferredCameraId: string | null): MediaTrackConstraints {
+	if (preferredCameraId !== null) {
+		return {
+			deviceId: {
+				exact: preferredCameraId,
+			},
+		};
+	}
+
+	return {
+		facingMode: 'user',
+	};
+}
+
+function toVideoInputDevices(devices: readonly MediaDeviceInfo[]): readonly MediaDeviceInfo[] {
+	return devices.filter((device) => device.kind === 'videoinput');
 }
 
 export function useMediaStream(): UseMediaStreamResult {
 	const [mode, setMode] = useState<CameraMode>('idle');
 	const [error, setError] = useState<string | null>(null);
 	const [mirrorPreview, setMirrorPreview] = useState(false);
+	const [availableCameras, setAvailableCameras] = useState<readonly MediaDeviceInfo[]>([]);
+	const [activeCameraId, setActiveCameraId] = useState<string | null>(null);
 	const streamRef = useRef<MediaStream | null>(null);
 	const videoRef = useRef<HTMLVideoElement>(null);
+	const preferredCameraIdRef = useRef<string | null>(null);
 	const requestIdRef = useRef(0);
+
+	const refreshAvailableCameras = useCallback(
+		async (isCurrentRequest: () => boolean, fallbackActiveCameraId: string | null): Promise<void> => {
+			try {
+				const devices = await navigator.mediaDevices.enumerateDevices();
+				if (!isCurrentRequest()) return;
+
+				const videoDevices = toVideoInputDevices(devices);
+				setAvailableCameras(videoDevices);
+
+				const firstCameraId = videoDevices[0]?.deviceId ?? null;
+				const requestedCameraId = fallbackActiveCameraId ?? firstCameraId;
+				const hasRequestedCamera = requestedCameraId !== null
+					? videoDevices.some((device) => device.deviceId === requestedCameraId)
+					: false;
+				const nextActiveCameraId = hasRequestedCamera
+					? requestedCameraId
+					: firstCameraId;
+
+				setActiveCameraId(nextActiveCameraId);
+				preferredCameraIdRef.current = nextActiveCameraId;
+			} catch (enumerateError: unknown) {
+				if (import.meta.env.DEV) {
+					console.warn('enumerateDevices() failed:', enumerateError);
+				}
+
+				if (!isCurrentRequest()) return;
+				setAvailableCameras([]);
+				setActiveCameraId(fallbackActiveCameraId);
+				preferredCameraIdRef.current = fallbackActiveCameraId;
+			}
+		},
+		[],
+	);
 
 	const stopCurrentStream = useCallback(() => {
 		const stream = streamRef.current;
@@ -114,8 +178,15 @@ export function useMediaStream(): UseMediaStreamResult {
 		setError(message);
 	}, []);
 
-	const start = useCallback(async () => {
+	const startWithCameraId = useCallback(async (requestedCameraId: string | null) => {
 		if (mode === 'requesting') return;
+		const previousPreferredCameraId = preferredCameraIdRef.current;
+		if (!window.isSecureContext) {
+			setError('Camera vereist een beveiligde verbinding (HTTPS).');
+			setMirrorPreview(false);
+			setMode('idle');
+			return;
+		}
 
 		const requestId = requestIdRef.current + 1;
 		requestIdRef.current = requestId;
@@ -128,9 +199,7 @@ export function useMediaStream(): UseMediaStreamResult {
 
 		try {
 			const stream = await navigator.mediaDevices.getUserMedia({
-				video: {
-					facingMode: 'user',
-				},
+				video: buildVideoConstraints(requestedCameraId),
 				audio: false,
 			});
 
@@ -140,6 +209,13 @@ export function useMediaStream(): UseMediaStreamResult {
 			}
 
 			setMirrorPreview(shouldMirrorPreview(stream));
+			const videoTrack = stream.getVideoTracks()[0];
+			const resolvedCameraId = videoTrack === undefined
+				? requestedCameraId
+				: getTrackDeviceId(videoTrack) ?? requestedCameraId;
+			setActiveCameraId(resolvedCameraId);
+			preferredCameraIdRef.current = resolvedCameraId;
+			void refreshAvailableCameras(isCurrentRequest, resolvedCameraId);
 
 			streamRef.current = stream;
 
@@ -177,11 +253,28 @@ export function useMediaStream(): UseMediaStreamResult {
 			setMode('ready');
 		} catch (cameraError) {
 			if (!isCurrentRequest()) return;
+			preferredCameraIdRef.current = previousPreferredCameraId;
 			setError(cameraErrorMessage(cameraError));
 			setMirrorPreview(false);
 			setMode('idle');
 		}
-	}, [mode, stopCurrentStream]);
+	}, [mode, refreshAvailableCameras, stopCurrentStream]);
+
+	const start = useCallback(async () => {
+		await startWithCameraId(preferredCameraIdRef.current);
+	}, [startWithCameraId]);
+
+	const switchToNextCamera = useCallback(async () => {
+		if (mode !== 'ready') return;
+		if (availableCameras.length < 2) return;
+
+		const activeIndex = availableCameras.findIndex((device) => device.deviceId === activeCameraId);
+		const nextIndex = activeIndex < 0 ? 0 : (activeIndex + 1) % availableCameras.length;
+		const nextCamera = availableCameras[nextIndex];
+		if (nextCamera === undefined) return;
+
+		await startWithCameraId(nextCamera.deviceId);
+	}, [activeCameraId, availableCameras, mode, startWithCameraId]);
 
 	useEffect(() => {
 		return () => {
@@ -194,8 +287,12 @@ export function useMediaStream(): UseMediaStreamResult {
 		mode,
 		error,
 		mirrorPreview,
+		availableCameras,
+		activeCameraId,
+		canSwitchCamera: availableCameras.length > 1,
 		videoRef,
 		start,
+		switchToNextCamera,
 		stop,
 		reset,
 		clearError,

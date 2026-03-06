@@ -202,6 +202,12 @@ dialog.camera-modal::backdrop {
 	color: #c9e7c9;
 }
 
+.camera-btn--switch {
+	background: rgba(70, 105, 165, 0.2);
+	border-color: rgba(114, 151, 218, 0.52);
+	color: #d7e6ff;
+}
+
 .camera-status {
 	font-size: 0.85rem;
 	color: #b8a080;
