@@ -240,7 +240,19 @@ export function useMediaStream(): UseMediaStreamResult {
 					}
 
 					if (playError instanceof DOMException && playError.name !== 'AbortError') {
+						stopStream(stream);
+						if (streamRef.current === stream) {
+							streamRef.current = null;
+						}
+
+						if (video.srcObject === stream) {
+							video.srcObject = null;
+						}
+
+						setMirrorPreview(false);
 						setError('Automatisch afspelen mislukt. Tik op het videobeeld om te starten.');
+						setMode('idle');
+						return;
 					}
 				}
 			}
