@@ -6,6 +6,7 @@ export type CameraMode = 'idle' | 'requesting' | 'ready';
 interface UseMediaStreamResult {
 	readonly mode: CameraMode;
 	readonly error: string | null;
+	readonly mirrorPreview: boolean;
 	readonly videoRef: RefObject<HTMLVideoElement | null>;
 	readonly start: () => Promise<void>;
 	readonly stop: () => void;
@@ -41,9 +42,41 @@ function cameraErrorMessage(error: unknown): string {
 	return 'Kon camera niet starten. Probeer opnieuw.';
 }
 
+function isMobileDevice(): boolean {
+	const userAgent = navigator.userAgent.toLowerCase();
+	const hasMobileUserAgent = /android|iphone|ipad|ipod|mobile|windows phone|iemobile|opera mini/.test(userAgent);
+	const isTouchMac = userAgent.includes('macintosh') && navigator.maxTouchPoints > 1;
+	return hasMobileUserAgent || isTouchMac;
+}
+
+function isFrontFacingTrack(track: MediaStreamTrack): boolean {
+	const facingMode = track.getSettings().facingMode;
+	if (facingMode === 'user') return true;
+	if (facingMode === 'environment') return false;
+
+	const label = track.label.toLowerCase();
+	if (label.includes('front') || label.includes('user') || label.includes('facetime')) {
+		return true;
+	}
+
+	if (label.includes('rear') || label.includes('back') || label.includes('environment')) {
+		return false;
+	}
+
+	return false;
+}
+
+function shouldMirrorPreview(stream: MediaStream): boolean {
+	if (!isMobileDevice()) return false;
+	const videoTrack = stream.getVideoTracks()[0];
+	if (videoTrack === undefined) return false;
+	return isFrontFacingTrack(videoTrack);
+}
+
 export function useMediaStream(): UseMediaStreamResult {
 	const [mode, setMode] = useState<CameraMode>('idle');
 	const [error, setError] = useState<string | null>(null);
+	const [mirrorPreview, setMirrorPreview] = useState(false);
 	const streamRef = useRef<MediaStream | null>(null);
 	const videoRef = useRef<HTMLVideoElement>(null);
 	const requestIdRef = useRef(0);
@@ -64,6 +97,7 @@ export function useMediaStream(): UseMediaStreamResult {
 	const stop = useCallback(() => {
 		requestIdRef.current += 1;
 		stopCurrentStream();
+		setMirrorPreview(false);
 		setMode('idle');
 	}, [stopCurrentStream]);
 
@@ -90,6 +124,7 @@ export function useMediaStream(): UseMediaStreamResult {
 		stopCurrentStream();
 		setMode('requesting');
 		setError(null);
+		setMirrorPreview(false);
 
 		try {
 			const stream = await navigator.mediaDevices.getUserMedia({
@@ -103,6 +138,8 @@ export function useMediaStream(): UseMediaStreamResult {
 				stopStream(stream);
 				return;
 			}
+
+			setMirrorPreview(shouldMirrorPreview(stream));
 
 			streamRef.current = stream;
 
@@ -141,6 +178,7 @@ export function useMediaStream(): UseMediaStreamResult {
 		} catch (cameraError) {
 			if (!isCurrentRequest()) return;
 			setError(cameraErrorMessage(cameraError));
+			setMirrorPreview(false);
 			setMode('idle');
 		}
 	}, [mode, stopCurrentStream]);
@@ -155,6 +193,7 @@ export function useMediaStream(): UseMediaStreamResult {
 	return {
 		mode,
 		error,
+		mirrorPreview,
 		videoRef,
 		start,
 		stop,

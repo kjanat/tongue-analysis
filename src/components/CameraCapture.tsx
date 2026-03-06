@@ -50,6 +50,7 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 	const {
 		mode,
 		error,
+		mirrorPreview,
 		videoRef,
 		start: startCamera,
 		reset: resetCamera,
@@ -280,12 +281,17 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 						<video
 							ref={videoRef}
 							className='camera-video'
+							data-mirror={mirrorPreview ? 'true' : 'false'}
 							autoPlay
 							muted
 							playsInline
 						/>
 						{import.meta.env.VITE_DEBUG_OVERLAY === 'true' && (
-							<canvas ref={overlayCanvasRef} className='camera-overlay' />
+							<canvas
+								ref={overlayCanvasRef}
+								className='camera-overlay'
+								data-mirror={mirrorPreview ? 'true' : 'false'}
+							/>
 						)}
 						{liveHasStarted && (
 							<span

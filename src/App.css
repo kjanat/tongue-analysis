@@ -234,6 +234,10 @@ dialog.camera-modal::backdrop {
 	object-fit: contain;
 }
 
+.camera-video[data-mirror="true"] {
+	transform: scaleX(-1);
+}
+
 .camera-stage {
 	position: relative;
 	width: min(100%, 700px);
@@ -245,6 +249,10 @@ dialog.camera-modal::backdrop {
 	width: 100%;
 	height: 100%;
 	pointer-events: none;
+}
+
+.camera-overlay[data-mirror="true"] {
+	transform: scaleX(-1);
 }
 
 .camera-video-error {
