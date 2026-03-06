@@ -51,7 +51,7 @@ interface ResolvedDownload {
 	readonly url: string;
 	readonly outputPath: string;
 	readonly absolutePath: string;
-	readonly runtimePath: string;
+	readonly emittedPath: string;
 }
 
 // ── Helpers ──────────────────────────────────────────────────
@@ -59,6 +59,7 @@ interface ResolvedDownload {
 const VIRTUAL_MODULE_ID = 'virtual:package-bindings';
 const RESOLVED_ID = `\0${VIRTUAL_MODULE_ID}`;
 const MOUNT_BASE = 'pkg-assets';
+const DOWNLOAD_MOUNT_BASE = 'download-assets';
 
 function parseBoolean(value: string | undefined): boolean | undefined {
 	if (value === undefined) return undefined;
@@ -95,7 +96,7 @@ function defaultDownloadOutputPath(downloadId: string, downloadUrl: string): str
 	const parsedUrl = new URL(downloadUrl);
 	const extension = path.posix.extname(parsedUrl.pathname);
 	const suffix = extension === '' ? '.bin' : extension;
-	return `public/.downloads/${downloadId}${suffix}`;
+	return `.cache/package-bindings/downloads/${downloadId}${suffix}`;
 }
 
 function resolvePackageDir(projectRoot: string, packageName: string): {
@@ -189,7 +190,6 @@ function resolveAssets(config: ResolvedConfig, options: PackageBindingsPluginOpt
 function resolveDownloads(config: ResolvedConfig, options: PackageBindingsPluginOptions): readonly ResolvedDownload[] {
 	const requestedDownloads = options.downloads ?? [];
 	const normalizedRoot = path.resolve(config.root);
-	const publicPrefix = 'public/';
 	const seenIds = new Set<string>();
 
 	return requestedDownloads.map((download) => {
@@ -208,31 +208,26 @@ function resolveDownloads(config: ResolvedConfig, options: PackageBindingsPlugin
 		if (!isWithinRoot(normalizedRoot, absolutePath)) {
 			throw new Error(`[package-bindings] download path '${outputPath}' escapes project root.`);
 		}
-		if (!outputPath.startsWith(publicPrefix)) {
-			throw new Error(`[package-bindings] download path '${outputPath}' must be within 'public/'.`);
+		if (outputPath === '') {
+			throw new Error(`[package-bindings] download path '${outputPath}' must target a file.`);
 		}
 
-		const runtimePath = outputPath.slice(publicPrefix.length);
-		if (runtimePath === '') {
-			throw new Error(`[package-bindings] download path '${outputPath}' must target a file inside 'public/'.`);
-		}
+		const outputExtension = path.posix.extname(outputPath);
+		const remoteExtension = path.posix.extname(new URL(download.url).pathname);
+		const suffix = outputExtension || remoteExtension || '.bin';
+		const emittedPath = path.posix.join(DOWNLOAD_MOUNT_BASE, `${id}${suffix}`);
 
 		return {
 			id,
 			url: download.url,
 			outputPath,
 			absolutePath,
-			runtimePath,
+			emittedPath,
 		};
 	});
 }
 
 async function ensureDownloads(downloads: readonly ResolvedDownload[]): Promise<void> {
-	if (downloads.some((download) => download.outputPath.startsWith('public/.downloads/'))) {
-		await mkdir('public/.downloads', { recursive: true });
-		await writeFile('public/.downloads/.gitignore', '*\n');
-	}
-
 	const forceDownload = parseBoolean(process.env.BUILD_REFRESH_MODELS) === true;
 
 	for (const download of downloads) {
@@ -284,7 +279,7 @@ function generateVirtualModule(assets: readonly ResolvedAsset[], downloads: read
 
 	const downloadManifest = downloads.map((download) => ({
 		id: download.id,
-		path: download.runtimePath,
+		path: download.emittedPath,
 		remoteUrl: download.url,
 	}));
 
@@ -410,6 +405,9 @@ export function packageBindingsPlugin(options: PackageBindingsPluginOptions): Pl
 					urlToFile.set(`${base}${file.emittedPath}`, file.absolutePath);
 				}
 			}
+			for (const download of downloads) {
+				urlToFile.set(`${base}${download.emittedPath}`, download.absolutePath);
+			}
 
 			server.middlewares.use((req, res, next) => {
 				if (req.url === undefined) {
@@ -447,6 +445,15 @@ export function packageBindingsPlugin(options: PackageBindingsPluginOptions): Pl
 						source: readFileSync(file.absolutePath),
 					});
 				}
+			}
+
+			for (const download of downloads) {
+				if (!existsSync(download.absolutePath)) continue;
+				this.emitFile({
+					type: 'asset',
+					fileName: download.emittedPath,
+					source: readFileSync(download.absolutePath),
+				});
 			}
 		},
 	};

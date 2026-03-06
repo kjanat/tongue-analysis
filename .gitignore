@@ -23,8 +23,8 @@ dist-ssr
 *.sln
 *.sw?
 
-# Downloaded models
-public/mediapipe/models/
+# Cache
+.cache/
 
 # Private files
 /_*
