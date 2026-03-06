@@ -44,7 +44,11 @@ function canvasToJpegBlob(canvas: HTMLCanvasElement): Promise<Blob | null> {
 export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCaptureProps) {
 	const dialogRef = useRef<HTMLDialogElement>(null);
 	const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
+	const liveAnnouncementRef = useRef<HTMLOutputElement>(null);
 	const releaseTimerRef = useRef<number | null>(null);
+	const announcedStepRef = useRef<AnalysisStep | null>(null);
+	const announcedDiagnosisRef = useRef<string | null>(null);
+	const announcedUpdatedAtRef = useRef<number | null>(null);
 	const [cameraAutoPaused, setCameraAutoPaused] = useState(false);
 
 	const {
@@ -90,12 +94,27 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 		}
 	}, []);
 
+	const announceLiveStatus = useCallback((message: string) => {
+		const output = liveAnnouncementRef.current;
+		if (output !== null) {
+			output.textContent = message;
+		}
+	}, []);
+
+	const resetLiveAnnouncement = useCallback(() => {
+		announcedStepRef.current = null;
+		announcedDiagnosisRef.current = null;
+		announcedUpdatedAtRef.current = null;
+		announceLiveStatus('');
+	}, [announceLiveStatus]);
+
 	const handleDialogClose = useCallback(() => {
 		clearReleaseTimer();
 		setCameraAutoPaused(false);
+		resetLiveAnnouncement();
 		resetLiveAnalysis();
 		resetCamera();
-	}, [clearReleaseTimer, resetCamera, resetLiveAnalysis]);
+	}, [clearReleaseTimer, resetCamera, resetLiveAnalysis, resetLiveAnnouncement]);
 
 	const handleStartCamera = useCallback(async () => {
 		clearReleaseTimer();
@@ -208,9 +227,48 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 	const handleUseLiveDiagnosis = useCallback(() => {
 		if (liveDiagnosis === null || onLiveDiagnosis === undefined) return;
 		clearReleaseTimer();
+		announceLiveStatus(`Live-resultaat geselecteerd: ${liveDiagnosis.type.name}.`);
 		dialogRef.current?.close();
 		onLiveDiagnosis(liveDiagnosis);
-	}, [clearReleaseTimer, liveDiagnosis, onLiveDiagnosis]);
+	}, [announceLiveStatus, clearReleaseTimer, liveDiagnosis, onLiveDiagnosis]);
+
+	useEffect(() => {
+		if (!liveHasStarted) {
+			resetLiveAnnouncement();
+			return;
+		}
+
+		if (liveMode === 'running' && liveStep !== null && liveStep !== announcedStepRef.current) {
+			announcedStepRef.current = liveStep;
+			announceLiveStatus(`Analyse stap: ${LIVE_STEP_LABELS[liveStep]}.`);
+			return;
+		}
+
+		if (liveDiagnosis !== null) {
+			const diagnosisKey = `${liveDiagnosis.type.id}|${liveDiagnosis.type.summary}`;
+			if (diagnosisKey !== announcedDiagnosisRef.current) {
+				announcedDiagnosisRef.current = diagnosisKey;
+				announcedUpdatedAtRef.current = liveUpdatedAt;
+				announceLiveStatus(
+					`Live-diagnose: ${liveDiagnosis.type.name}. ${liveDiagnosis.type.summary}`,
+				);
+				return;
+			}
+		}
+
+		if (liveUpdatedAt !== null && liveUpdatedAt !== announcedUpdatedAtRef.current) {
+			announcedUpdatedAtRef.current = liveUpdatedAt;
+			announceLiveStatus(`Live-resultaat bijgewerkt om ${formatUpdateTime(liveUpdatedAt)}.`);
+		}
+	}, [
+		announceLiveStatus,
+		liveDiagnosis,
+		liveHasStarted,
+		liveMode,
+		liveStep,
+		liveUpdatedAt,
+		resetLiveAnnouncement,
+	]);
 
 	const handleDialogMouseDown = useCallback((event: React.MouseEvent<HTMLDialogElement>) => {
 		if (event.target === event.currentTarget) {
@@ -331,8 +389,10 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 					<div className='camera-status'>DEBUG: mondregio-overlay actief</div>
 				)}
 
+				<output ref={liveAnnouncementRef} className='visually-hidden' aria-live='polite' aria-atomic='true' />
+
 				{liveHasStarted && (
-					<div className='camera-live' aria-live='polite'>
+					<div className='camera-live'>
 						<div className='camera-live-header'>
 							<span>Live</span>
 							{liveMode === 'running' && liveStep !== null && (
