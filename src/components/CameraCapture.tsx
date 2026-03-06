@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLiveAnalysis } from '../hooks/use-live-analysis.ts';
 import { useMediaStream } from '../hooks/use-media-stream.ts';
 import type { Diagnosis } from '../lib/diagnosis.ts';
@@ -18,6 +18,8 @@ const LIVE_STEP_LABELS: Readonly<Record<AnalysisStep, string>> = {
 	classifying_color: 'Tongkleur classificeren',
 	building_diagnosis: 'Diagnose opstellen',
 };
+
+const CAMERA_RELEASE_DELAY_MS = 20_000;
 
 function formatUpdateTime(timestampMs: number): string {
 	return new Date(timestampMs).toLocaleTimeString('nl-NL', {
@@ -42,6 +44,8 @@ function canvasToJpegBlob(canvas: HTMLCanvasElement): Promise<Blob | null> {
 export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCaptureProps) {
 	const dialogRef = useRef<HTMLDialogElement>(null);
 	const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
+	const releaseTimerRef = useRef<number | null>(null);
+	const [cameraAutoPaused, setCameraAutoPaused] = useState(false);
 
 	const {
 		mode,
@@ -74,25 +78,73 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 		dialogRef.current?.close();
 	}, []);
 
+	const clearReleaseTimer = useCallback(() => {
+		if (releaseTimerRef.current !== null) {
+			window.clearTimeout(releaseTimerRef.current);
+			releaseTimerRef.current = null;
+		}
+	}, []);
+
 	const handleDialogClose = useCallback(() => {
+		clearReleaseTimer();
+		setCameraAutoPaused(false);
 		resetLiveAnalysis();
 		resetCamera();
-	}, [resetCamera, resetLiveAnalysis]);
+	}, [clearReleaseTimer, resetCamera, resetLiveAnalysis]);
 
 	const handleStartCamera = useCallback(async () => {
+		clearReleaseTimer();
+		setCameraAutoPaused(false);
 		stopLiveAnalysis();
 		clearLiveError();
 		await startCamera();
-	}, [clearLiveError, startCamera, stopLiveAnalysis]);
+	}, [clearLiveError, clearReleaseTimer, startCamera, stopLiveAnalysis]);
 
 	const handleOpenModal = useCallback(() => {
 		dialogRef.current?.showModal();
+		clearReleaseTimer();
+		setCameraAutoPaused(false);
 		clearCameraError();
 		clearLiveError();
 		if (mode === 'idle') {
 			void handleStartCamera();
 		}
-	}, [clearCameraError, clearLiveError, handleStartCamera, mode]);
+	}, [clearCameraError, clearLiveError, clearReleaseTimer, handleStartCamera, mode]);
+
+	const scheduleCameraRelease = useCallback(() => {
+		clearReleaseTimer();
+		if (mode === 'idle' && liveMode === 'idle') return;
+		releaseTimerRef.current = window.setTimeout(() => {
+			stopLiveAnalysis();
+			resetCamera();
+			setCameraAutoPaused(true);
+			releaseTimerRef.current = null;
+		}, CAMERA_RELEASE_DELAY_MS);
+	}, [clearReleaseTimer, liveMode, mode, resetCamera, stopLiveAnalysis]);
+
+	const handlePageHidden = useCallback(() => {
+		if (mode === 'idle' && liveMode === 'idle') return;
+		stopLiveAnalysis();
+		scheduleCameraRelease();
+	}, [liveMode, mode, scheduleCameraRelease, stopLiveAnalysis]);
+
+	useEffect(() => {
+		const handleVisibilityChange = (): void => {
+			if (document.visibilityState === 'visible') {
+				clearReleaseTimer();
+				return;
+			}
+
+			handlePageHidden();
+		};
+
+		document.addEventListener('visibilitychange', handleVisibilityChange);
+
+		return () => {
+			document.removeEventListener('visibilitychange', handleVisibilityChange);
+			clearReleaseTimer();
+		};
+	}, [clearReleaseTimer, handlePageHidden]);
 
 	const handleCapture = useCallback(async () => {
 		const video = videoRef.current;
@@ -141,9 +193,10 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 
 	const handleUseLiveDiagnosis = useCallback(() => {
 		if (liveDiagnosis === null || onLiveDiagnosis === undefined) return;
+		clearReleaseTimer();
 		dialogRef.current?.close();
 		onLiveDiagnosis(liveDiagnosis);
-	}, [liveDiagnosis, onLiveDiagnosis]);
+	}, [clearReleaseTimer, liveDiagnosis, onLiveDiagnosis]);
 
 	const handleDialogMouseDown = useCallback((event: React.MouseEvent<HTMLDialogElement>) => {
 		if (event.target === event.currentTarget) {
@@ -187,8 +240,13 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 				<div className='camera-actions'>
 					{mode === 'idle' && (
 						<>
+							{cameraAutoPaused && (
+								<div className='camera-status' aria-live='polite'>
+									Camera gepauzeerd na tabwissel. Hervat wanneer je klaar bent.
+								</div>
+							)}
 							<button type='button' className='camera-btn' onClick={() => void handleStartCamera()}>
-								Start camera
+								{cameraAutoPaused ? 'Hervat camera' : 'Start camera'}
 							</button>
 							{error !== null && <div className='camera-status camera-error' role='alert'>{error}</div>}
 						</>
