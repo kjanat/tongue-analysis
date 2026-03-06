@@ -85,6 +85,26 @@ function liveErrorMessage(error: AnalysisError): string {
 	return 'Onbekende live-analysefout.';
 }
 
+function isAnalysisError(value: unknown): value is AnalysisError {
+	if (typeof value !== 'object' || value === null || !('kind' in value)) {
+		return false;
+	}
+
+	switch (value.kind) {
+		case 'image_load_failed':
+		case 'canvas_unavailable':
+		case 'mouth_crop_failed':
+		case 'face_detection_error':
+		case 'poor_lighting':
+		case 'tongue_segmentation_error':
+		case 'color_correction_error':
+		case 'inconclusive_color':
+			return true;
+		default:
+			return false;
+	}
+}
+
 function scalePoint(
 	point: Point,
 	scaleX: number,
@@ -178,6 +198,7 @@ export function useLiveAnalysis(options: UseLiveAnalysisOptions): UseLiveAnalysi
 	const liveRunningRef = useRef(false);
 	const liveRafRef = useRef<number | null>(null);
 	const liveInFlightRef = useRef(false);
+	const liveSessionIdRef = useRef(0);
 	const lastVideoTimeRef = useRef(-1);
 	const lastUpdatedAtRef = useRef(0);
 
@@ -225,64 +246,84 @@ export function useLiveAnalysis(options: UseLiveAnalysisOptions): UseLiveAnalysi
 			return;
 		}
 
+		const sessionId = liveSessionIdRef.current;
+		const isCurrentSession = (): boolean => sessionId === liveSessionIdRef.current && isLiveActive();
+
 		lastVideoTimeRef.current = video.currentTime;
 		liveInFlightRef.current = true;
 
-		const timestampMs = performance.now();
-		const result = await analyzeTongueVideoFrame(video, timestampMs, {
-			onStep: (step) => {
-				if (!isLiveActive()) return;
-				setLiveStep(step);
-			},
-		});
+		try {
+			const timestampMs = performance.now();
+			const result = await analyzeTongueVideoFrame(video, timestampMs, {
+				onStep: (step) => {
+					if (!isCurrentSession()) return;
+					setLiveStep(step);
+				},
+			});
 
-		if (!isLiveActive()) {
-			liveInFlightRef.current = false;
-			return;
-		}
-
-		if (!result.ok) {
-			if (
-				DEBUG_OVERLAY_ENABLED
-				&& result.error.kind === 'face_detection_error'
-				&& result.error.error.kind === 'model_load_failed'
-			) {
-				console.error('Live face model load failed:', result.error.error.cause);
+			if (!isCurrentSession()) {
+				return;
 			}
 
-			setLiveError(liveErrorMessage(result.error));
+			if (!result.ok) {
+				if (
+					DEBUG_OVERLAY_ENABLED
+					&& result.error.kind === 'face_detection_error'
+					&& result.error.error.kind === 'model_load_failed'
+				) {
+					console.error('Live face model load failed:', result.error.error.cause);
+				}
+
+				setLiveError(liveErrorMessage(result.error));
+				if (DEBUG_OVERLAY_ENABLED) {
+					clearOverlayCanvas(overlayCanvasRef.current);
+				}
+				return;
+			}
+
+			setLiveDiagnosis(result.value.diagnosis);
+			setLiveError(null);
+
+			const now = Date.now();
+			if (now - lastUpdatedAtRef.current >= LIVE_UPDATED_AT_THROTTLE_MS) {
+				setLiveUpdatedAt(now);
+				lastUpdatedAtRef.current = now;
+			}
+
+			if (DEBUG_OVERLAY_ENABLED) {
+				const overlayCanvas = overlayCanvasRef.current;
+				const mouthRegion = result.value.mouthRegion;
+				if (overlayCanvas !== null && mouthRegion !== null) {
+					drawMouthRegionOverlay(overlayCanvas, mouthRegion, video.videoWidth, video.videoHeight);
+				} else {
+					clearOverlayCanvas(overlayCanvas);
+				}
+			}
+		} catch (caughtError: unknown) {
+			if (!isCurrentSession()) {
+				return;
+			}
+
+			if (isAnalysisError(caughtError)) {
+				setLiveError(liveErrorMessage(caughtError));
+			} else {
+				setLiveError('Onbekende live-analysefout.');
+			}
+
 			if (DEBUG_OVERLAY_ENABLED) {
 				clearOverlayCanvas(overlayCanvasRef.current);
 			}
-			liveInFlightRef.current = false;
-			return;
-		}
-
-		setLiveDiagnosis(result.value.diagnosis);
-		setLiveError(null);
-
-		const now = Date.now();
-		if (now - lastUpdatedAtRef.current >= LIVE_UPDATED_AT_THROTTLE_MS) {
-			setLiveUpdatedAt(now);
-			lastUpdatedAtRef.current = now;
-		}
-
-		if (DEBUG_OVERLAY_ENABLED) {
-			const overlayCanvas = overlayCanvasRef.current;
-			const mouthRegion = result.value.mouthRegion;
-			if (overlayCanvas !== null && mouthRegion !== null) {
-				drawMouthRegionOverlay(overlayCanvas, mouthRegion, video.videoWidth, video.videoHeight);
-			} else {
-				clearOverlayCanvas(overlayCanvas);
+		} finally {
+			if (sessionId === liveSessionIdRef.current && isLiveActive()) {
+				liveInFlightRef.current = false;
 			}
 		}
-
-		liveInFlightRef.current = false;
 	}, [isLiveActive, overlayCanvasRef, videoRef]);
 
 	const start = useCallback(() => {
 		if (!enabled || liveRunningRef.current) return;
 
+		liveSessionIdRef.current += 1;
 		liveRunningRef.current = true;
 		setLiveHasStarted(true);
 		setLiveMode('running');

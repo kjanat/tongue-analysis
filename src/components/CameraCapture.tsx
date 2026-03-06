@@ -205,6 +205,7 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 	}, [handleCloseModal]);
 
 	const activeError = liveError ?? error;
+	const liveStatus = liveError !== null ? 'error' : liveMode === 'running' ? 'active' : 'idle';
 
 	return (
 		<>
@@ -286,7 +287,7 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 						{liveHasStarted && (
 							<span
 								className='camera-live-dot'
-								data-status={liveError !== null ? 'error' : liveMode === 'running' ? 'active' : 'idle'}
+								data-status={liveStatus}
 								aria-hidden='true'
 							/>
 						)}

@@ -46,8 +46,9 @@ export function useMediaStream(): UseMediaStreamResult {
 	const [error, setError] = useState<string | null>(null);
 	const streamRef = useRef<MediaStream | null>(null);
 	const videoRef = useRef<HTMLVideoElement>(null);
+	const requestIdRef = useRef(0);
 
-	const stop = useCallback(() => {
+	const stopCurrentStream = useCallback(() => {
 		const stream = streamRef.current;
 		if (stream !== null) {
 			stopStream(stream);
@@ -59,6 +60,12 @@ export function useMediaStream(): UseMediaStreamResult {
 			video.srcObject = null;
 		}
 	}, []);
+
+	const stop = useCallback(() => {
+		requestIdRef.current += 1;
+		stopCurrentStream();
+		setMode('idle');
+	}, [stopCurrentStream]);
 
 	const reset = useCallback(() => {
 		stop();
@@ -77,7 +84,11 @@ export function useMediaStream(): UseMediaStreamResult {
 	const start = useCallback(async () => {
 		if (mode === 'requesting') return;
 
-		stop();
+		const requestId = requestIdRef.current + 1;
+		requestIdRef.current = requestId;
+		const isCurrentRequest = (): boolean => requestIdRef.current === requestId;
+
+		stopCurrentStream();
 		setMode('requesting');
 		setError(null);
 
@@ -89,10 +100,20 @@ export function useMediaStream(): UseMediaStreamResult {
 				audio: false,
 			});
 
+			if (!isCurrentRequest()) {
+				stopStream(stream);
+				return;
+			}
+
 			streamRef.current = stream;
 
 			const video = videoRef.current;
 			if (video !== null) {
+				if (!isCurrentRequest()) {
+					stopStream(stream);
+					return;
+				}
+
 				video.srcObject = stream;
 				try {
 					await video.play();
@@ -101,24 +122,36 @@ export function useMediaStream(): UseMediaStreamResult {
 						console.warn('video.play() failed:', playError);
 					}
 
+					if (!isCurrentRequest()) {
+						stopStream(stream);
+						return;
+					}
+
 					if (playError instanceof DOMException && playError.name !== 'AbortError') {
 						setError('Automatisch afspelen mislukt. Tik op het videobeeld om te starten.');
 					}
 				}
 			}
 
+			if (!isCurrentRequest()) {
+				stopStream(stream);
+				return;
+			}
+
 			setMode('ready');
 		} catch (cameraError) {
+			if (!isCurrentRequest()) return;
 			setError(cameraErrorMessage(cameraError));
 			setMode('idle');
 		}
-	}, [mode, stop]);
+	}, [mode, stopCurrentStream]);
 
 	useEffect(() => {
 		return () => {
-			stop();
+			requestIdRef.current += 1;
+			stopCurrentStream();
 		};
-	}, [stop]);
+	}, [stopCurrentStream]);
 
 	return {
 		mode,

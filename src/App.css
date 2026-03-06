@@ -118,8 +118,11 @@
 }
 
 dialog.camera-modal {
-	width: min(860px, calc(100% - 2rem));
-	max-height: calc(100vh - 2rem);
+	position: fixed;
+	inset: 0;
+	margin: auto;
+	width: min(860px, calc(100vw - 2rem));
+	max-height: calc(100dvh - 2rem);
 	overflow: auto;
 	padding: 1rem;
 	border-radius: 12px;
