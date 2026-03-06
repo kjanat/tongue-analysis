@@ -4,6 +4,11 @@ on:
     branches: [master]
     paths: ["src/**", "public/**", "index.html", "vite.config.ts", "vite.package-bindings.ts", "package.json", "bun.lock"]
   workflow_dispatch:
+    inputs:
+      dev_mode:
+        description: "Build in development mode (unminified, with sourcemaps)"
+        type: boolean
+        default: true
 permissions: { contents: read, pages: write, id-token: write }
 concurrency: { group: pages, cancel-in-progress: true }
 jobs:
@@ -16,7 +21,7 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - run: mkdir -p public/mediapipe/models && curl -fsSL -o public/mediapipe/models/face_landmarker.task 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task'
-      - run: bun run build
+      - run: bun run build ${{ inputs.dev_mode == true && '--mode development' || '' }}
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
         with: { path: dist }
