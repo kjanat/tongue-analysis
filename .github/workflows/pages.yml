@@ -19,8 +19,7 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - run: bun run build
-        env:
-          BUILD_DEV_MODE: ${{ inputs.dev_mode == true && 'true' || '' }}
+        env: { BUILD_DEV_MODE: "${{ inputs.dev_mode == true && 'true' || '' }}" }
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
         with: { path: dist }
