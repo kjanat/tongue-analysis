@@ -211,7 +211,6 @@ function canvasToJpegBlob(canvas: HTMLCanvasElement): Promise<Blob | null> {
 
 export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCaptureProps) {
 	const [mode, setMode] = useState<CameraMode>('idle');
-	const [isModalOpen, setIsModalOpen] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [liveMode, setLiveMode] = useState<LiveMode>('idle');
 	const [liveStep, setLiveStep] = useState<AnalysisStep | null>(null);
@@ -219,6 +218,7 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 	const [liveDiagnosis, setLiveDiagnosis] = useState<Diagnosis | null>(null);
 	const [liveUpdatedAt, setLiveUpdatedAt] = useState<number | null>(null);
 	const [liveHasStarted, setLiveHasStarted] = useState(false);
+	const dialogRef = useRef<HTMLDialogElement>(null);
 	const streamRef = useRef<MediaStream | null>(null);
 	const videoRef = useRef<HTMLVideoElement>(null);
 	const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -254,6 +254,11 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 	}, []);
 
 	const handleCloseModal = useCallback(() => {
+		dialogRef.current?.close();
+	}, []);
+
+	// Single cleanup handler for the dialog close event (fires on Escape, .close(), backdrop click).
+	const handleDialogClose = useCallback(() => {
 		stopLiveAnalysis();
 		stopCurrentStream();
 		clearOverlayCanvas(overlayCanvasRef.current);
@@ -263,7 +268,6 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 		setLiveDiagnosis(null);
 		setLiveUpdatedAt(null);
 		setLiveHasStarted(false);
-		setIsModalOpen(false);
 	}, [stopCurrentStream, stopLiveAnalysis]);
 
 	// Cleanup: stop RAF loop en camera stream bij unmount.
@@ -276,21 +280,6 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 		};
 	}, [stopCurrentStream, stopLiveAnalysis]);
 
-	useEffect(() => {
-		if (!isModalOpen) return;
-
-		const handleKeyDown = (event: KeyboardEvent): void => {
-			if (event.key === 'Escape') {
-				handleCloseModal();
-			}
-		};
-
-		window.addEventListener('keydown', handleKeyDown);
-		return () => {
-			window.removeEventListener('keydown', handleKeyDown);
-		};
-	}, [handleCloseModal, isModalOpen]);
-
 	const isLiveActive = useCallback((): boolean => liveRunningRef.current, []);
 
 	const runLiveAnalysis = useCallback(async () => {
@@ -299,7 +288,7 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 		const video = videoRef.current;
 		if (video === null || video.videoWidth === 0 || video.videoHeight === 0) {
 			setLiveError('Videobeeld nog niet klaar voor analyse.');
-			if (import.meta.env.VITE_DEBUG_OVERLAY) {
+			if (import.meta.env.VITE_DEBUG_OVERLAY === 'true') {
 				clearOverlayCanvas(overlayCanvasRef.current);
 			}
 			return;
@@ -327,7 +316,7 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 
 		if (!result.ok) {
 			if (
-				import.meta.env.VITE_DEBUG_OVERLAY
+				import.meta.env.VITE_DEBUG_OVERLAY === 'true'
 				&& result.error.kind === 'face_detection_error'
 				&& result.error.error.kind === 'model_load_failed'
 			) {
@@ -335,7 +324,7 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 			}
 
 			setLiveError(liveErrorMessage(result.error));
-			if (import.meta.env.VITE_DEBUG_OVERLAY) {
+			if (import.meta.env.VITE_DEBUG_OVERLAY === 'true') {
 				clearOverlayCanvas(overlayCanvasRef.current);
 			}
 			liveInFlightRef.current = false;
@@ -351,7 +340,7 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 			lastUpdatedAtRef.current = now;
 		}
 
-		if (import.meta.env.VITE_DEBUG_OVERLAY) {
+		if (import.meta.env.VITE_DEBUG_OVERLAY === 'true') {
 			const overlayCanvas = overlayCanvasRef.current;
 			const mouthRegion = result.value.mouthRegion;
 			if (overlayCanvas !== null && mouthRegion !== null) {
@@ -428,7 +417,7 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 	}, [mode, stopCurrentStream, stopLiveAnalysis]);
 
 	const handleOpenModal = useCallback(() => {
-		setIsModalOpen(true);
+		dialogRef.current?.showModal();
 		setError(null);
 		setLiveError(null);
 		if (mode === 'idle') {
@@ -472,7 +461,7 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 		stopCurrentStream();
 		clearOverlayCanvas(overlayCanvasRef.current);
 		setMode('idle');
-		setIsModalOpen(false);
+		dialogRef.current?.close();
 		setError(null);
 		onCapture(file, objectUrl);
 	}, [onCapture, stopCurrentStream, stopLiveAnalysis]);
@@ -492,7 +481,10 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 		onLiveDiagnosis(liveDiagnosis);
 	}, [handleCloseModal, liveDiagnosis, onLiveDiagnosis]);
 
-	const handleBackdropClick = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+	// Native <dialog> receives click events on the ::backdrop as clicks on the
+	// <dialog> element itself. Closing when target === currentTarget means only
+	// clicks on the backdrop (not the modal content) dismiss the dialog.
+	const handleDialogClick = useCallback((event: React.MouseEvent<HTMLDialogElement>) => {
 		if (event.target === event.currentTarget) {
 			handleCloseModal();
 		}
@@ -508,123 +500,123 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 				</button>
 			</div>
 
-			{isModalOpen && (
-				<div className='camera-modal-backdrop' onClick={handleBackdropClick}>
-					<div
-						className='camera-modal'
-						role='dialog'
-						aria-modal='true'
-						aria-label='Live camera analyse'
-						aria-describedby='camera-modal-desc'
-					>
-						<p id='camera-modal-desc' className='visually-hidden'>
-							Maak een foto van je tong of gebruik live-analyse voor een tongdiagnose.
-						</p>
+			<dialog
+				ref={dialogRef}
+				className='camera-modal'
+				aria-label='Live camera analyse'
+				aria-describedby='camera-modal-desc'
+				onClick={handleDialogClick}
+				onClose={handleDialogClose}
+			>
+				<p id='camera-modal-desc' className='visually-hidden'>
+					Maak een foto van je tong of gebruik live-analyse voor een tongdiagnose.
+				</p>
 
-						<div className='camera-modal-header'>
-							<h3>Live camera</h3>
+				<div className='camera-modal-header'>
+					<h3>Live camera</h3>
+					<button
+						type='button'
+						className='camera-btn camera-btn--ghost'
+						onClick={handleCloseModal}
+					>
+						Sluiten
+					</button>
+				</div>
+
+				<div className='camera-actions'>
+					{mode === 'idle' && (
+						<>
+							<button type='button' className='camera-btn' onClick={() => void handleStartCamera()}>
+								Start camera
+							</button>
+							{error !== null && <div className='camera-status camera-error' role='alert'>{error}</div>}
+						</>
+					)}
+
+					{mode === 'requesting' && <div className='camera-status'>Camera wordt gestart...</div>}
+
+					{mode === 'ready' && (
+						<div className='camera-controls'>
+							<button type='button' className='camera-btn camera-btn--primary' onClick={() => void handleCapture()}>
+								Foto maken
+							</button>
 							<button
 								type='button'
-								className='camera-btn camera-btn--ghost'
-								onClick={handleCloseModal}
+								className='camera-btn camera-btn--live'
+								data-running={liveMode === 'running'}
+								onClick={handleLiveToggle}
 							>
-								Sluiten
+								{liveMode === 'running' ? 'Stop live-analyse' : 'Start live-analyse'}
 							</button>
 						</div>
+					)}
+				</div>
 
-						<div className='camera-actions'>
-							{mode === 'idle' && (
-								<button type='button' className='camera-btn' onClick={() => void handleStartCamera()}>
-									Start camera
-								</button>
-							)}
+				<div className='camera-preview' data-visible={mode === 'ready' || mode === 'requesting'}>
+					<div className='camera-stage'>
+						<video
+							ref={videoRef}
+							className='camera-video'
+							autoPlay
+							muted
+							playsInline
+						/>
+						{import.meta.env.VITE_DEBUG_OVERLAY === 'true' && (
+							<canvas ref={overlayCanvasRef} className='camera-overlay' />
+						)}
+						{liveHasStarted && (
+							<span
+								className='camera-live-dot'
+								data-status={liveError !== null ? 'error' : liveMode === 'running' ? 'active' : 'idle'}
+								aria-hidden='true'
+							/>
+						)}
+						{activeError !== null && <div className='camera-video-error' role='alert'>{activeError}</div>}
+					</div>
+				</div>
 
-							{mode === 'requesting' && <div className='camera-status'>Camera wordt gestart...</div>}
+				{import.meta.env.VITE_DEBUG_OVERLAY === 'true' && mode === 'ready' && (
+					<div className='camera-status'>DEBUG: mondregio-overlay actief</div>
+				)}
 
-							{mode === 'ready' && (
-								<div className='camera-controls'>
-									<button type='button' className='camera-btn camera-btn--primary' onClick={() => void handleCapture()}>
-										Foto maken
-									</button>
-									<button
-										type='button'
-										className='camera-btn camera-btn--live'
-										data-running={liveMode === 'running'}
-										onClick={handleLiveToggle}
-									>
-										{liveMode === 'running' ? 'Stop live-analyse' : 'Start live-analyse'}
-									</button>
-								</div>
+				{liveHasStarted && (
+					<div className='camera-live' aria-live='polite'>
+						<div className='camera-live-header'>
+							<span>Live</span>
+							{liveMode === 'running' && liveStep !== null && (
+								<span className='camera-live-step'>{LIVE_STEP_LABELS[liveStep]}</span>
 							)}
 						</div>
 
-						<div className='camera-preview' data-visible={mode === 'ready' || mode === 'requesting'}>
-							<div className='camera-stage'>
-								<video
-									ref={videoRef}
-									className='camera-video'
-									autoPlay
-									muted
-									playsInline
-								/>
-								{import.meta.env.VITE_DEBUG_OVERLAY && <canvas ref={overlayCanvasRef} className='camera-overlay' />}
-								{liveHasStarted && (
-									<span
-										className='camera-live-dot'
-										data-status={liveError !== null ? 'error' : liveMode === 'running' ? 'active' : 'idle'}
-										aria-hidden='true'
-									/>
-								)}
-								{activeError !== null && (
-									<div className='camera-video-error' role='alert'>{activeError}</div>
-								)}
-							</div>
-						</div>
-
-						{import.meta.env.VITE_DEBUG_OVERLAY && mode === 'ready' && (
-							<div className='camera-status'>DEBUG: mondregio-overlay actief</div>
+						{liveMode === 'running' && liveDiagnosis === null && liveError === null && (
+							<div className='camera-live-loading'>Analyse wordt gestart...</div>
 						)}
 
-						{liveHasStarted && (
-							<div className='camera-live' aria-live='polite'>
-								<div className='camera-live-header'>
-									<span>Live</span>
-									{liveMode === 'running' && liveStep !== null && (
-										<span className='camera-live-step'>{LIVE_STEP_LABELS[liveStep]}</span>
-									)}
+						{liveDiagnosis !== null && (
+							<div className='camera-live-diagnosis' data-stale={liveError !== null}>
+								<div className='camera-live-type'>
+									<span lang='zh'>{liveDiagnosis.type.nameZh}</span> - {liveDiagnosis.type.name}
 								</div>
-
-								{liveMode === 'running' && liveDiagnosis === null && liveError === null && (
-									<div className='camera-live-loading'>Analyse wordt gestart...</div>
-								)}
-
-								{liveDiagnosis !== null && (
-									<div className='camera-live-diagnosis' data-stale={liveError !== null}>
-										<div className='camera-live-type'>
-											<span lang='zh'>{liveDiagnosis.type.nameZh}</span> - {liveDiagnosis.type.name}
-										</div>
-										<p>{liveDiagnosis.type.summary}</p>
-										{liveUpdatedAt !== null && (
-											<div className='camera-live-updated'>
-												Laatst bijgewerkt: {formatUpdateTime(liveUpdatedAt)}
-											</div>
-										)}
-										{onLiveDiagnosis !== undefined && (
-											<button
-												type='button'
-												className='camera-btn camera-btn--primary'
-												onClick={handleUseLiveDiagnosis}
-											>
-												Toon dit live-resultaat
-											</button>
-										)}
+								<p>{liveDiagnosis.type.summary}</p>
+								{liveUpdatedAt !== null && (
+									<div className='camera-live-updated'>
+										Laatst bijgewerkt: {formatUpdateTime(liveUpdatedAt)}
 									</div>
+								)}
+								{onLiveDiagnosis !== undefined && (
+									<button
+										type='button'
+										className='camera-btn camera-btn--primary'
+										onClick={handleUseLiveDiagnosis}
+									>
+										Toon dit live-resultaat
+									</button>
 								)}
 							</div>
 						)}
 					</div>
-				</div>
-			)}
+				)}
+			</dialog>
 		</>
 	);
 }

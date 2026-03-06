@@ -278,12 +278,12 @@ export default function App() {
 					altijd een gekwalificeerde TCM-arts voor een professionele diagnose.
 				</div>
 			</main>
-		{import.meta.env.VITE_DEBUG_OVERLAY && (
-			<footer className='debug-footer'>
-				debug build &middot; {import.meta.env.VITE_COMMIT_SHA?.slice(0, 7) ?? '?'} &middot;{' '}
-				{import.meta.env.VITE_BUILD_DATE?.slice(0, 10) ?? '?'}
-			</footer>
-		)}
+			{import.meta.env.VITE_DEBUG_OVERLAY === 'true' && (
+				<footer className='debug-footer'>
+					debug build &middot; {import.meta.env.VITE_COMMIT_SHA?.slice(0, 7) ?? '?'} &middot;{' '}
+					{import.meta.env.VITE_BUILD_DATE?.slice(0, 10) ?? '?'}
+				</footer>
+			)}
 		</>
 	);
 }
