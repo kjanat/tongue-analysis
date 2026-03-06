@@ -107,7 +107,7 @@ export default function DiagnosisResults(
 				{/* Summary */}
 				<div className='result-card fade-in'>
 					<p className='summary'>{type.summary}</p>
-					{import.meta.env.DEV && (
+					{import.meta.env.VITE_DEBUG_OVERLAY && (
 						<p style={{ marginTop: '0.6rem' }}>
 							<strong>Detectiebetrouwbaarheid:</strong> {Math.round(confidence * 100)}%
 						</p>

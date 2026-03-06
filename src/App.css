@@ -689,6 +689,21 @@
 	border-top: 1px solid rgba(201, 165, 78, 0.1);
 }
 
+.debug-footer {
+	position: fixed;
+	bottom: 0;
+	left: 0;
+	width: 100%;
+	text-align: center;
+	padding: 0.3rem;
+	font-size: 0.65rem;
+	font-family: monospace;
+	color: #fff8;
+	background: #0008;
+	z-index: 9999;
+	pointer-events: none;
+}
+
 /* ── Guide section ─────────────────────────────────────────── */
 
 .guide {

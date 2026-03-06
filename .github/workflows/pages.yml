@@ -21,7 +21,11 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - run: mkdir -p public/mediapipe/models && curl -fsSL -o public/mediapipe/models/face_landmarker.task 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task'
-      - run: bun run build ${{ inputs.dev_mode == true && '--mode development' || '' }}
+      - run: bun run build
+        env:
+          VITE_DEBUG_OVERLAY: ${{ inputs.dev_mode == true && 'true' || '' }}
+          VITE_COMMIT_SHA: ${{ github.sha }}
+          VITE_BUILD_DATE: ${{ github.event.head_commit.timestamp || github.event.repository.updated_at }}
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
         with: { path: dist }

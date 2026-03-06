@@ -299,7 +299,7 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 		const video = videoRef.current;
 		if (video === null || video.videoWidth === 0 || video.videoHeight === 0) {
 			setLiveError('Videobeeld nog niet klaar voor analyse.');
-			if (import.meta.env.DEV) {
+			if (import.meta.env.VITE_DEBUG_OVERLAY) {
 				clearOverlayCanvas(overlayCanvasRef.current);
 			}
 			return;
@@ -327,7 +327,7 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 
 		if (!result.ok) {
 			if (
-				import.meta.env.DEV
+				import.meta.env.VITE_DEBUG_OVERLAY
 				&& result.error.kind === 'face_detection_error'
 				&& result.error.error.kind === 'model_load_failed'
 			) {
@@ -335,7 +335,7 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 			}
 
 			setLiveError(liveErrorMessage(result.error));
-			if (import.meta.env.DEV) {
+			if (import.meta.env.VITE_DEBUG_OVERLAY) {
 				clearOverlayCanvas(overlayCanvasRef.current);
 			}
 			liveInFlightRef.current = false;
@@ -351,7 +351,7 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 			lastUpdatedAtRef.current = now;
 		}
 
-		if (import.meta.env.DEV) {
+		if (import.meta.env.VITE_DEBUG_OVERLAY) {
 			const overlayCanvas = overlayCanvasRef.current;
 			const mouthRegion = result.value.mouthRegion;
 			if (overlayCanvas !== null && mouthRegion !== null) {
@@ -567,7 +567,7 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 									muted
 									playsInline
 								/>
-								{import.meta.env.DEV && <canvas ref={overlayCanvasRef} className='camera-overlay' />}
+								{import.meta.env.VITE_DEBUG_OVERLAY && <canvas ref={overlayCanvasRef} className='camera-overlay' />}
 								{liveHasStarted && (
 									<span
 										className='camera-live-dot'
@@ -581,8 +581,8 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 							</div>
 						</div>
 
-						{import.meta.env.DEV && mode === 'ready' && (
-							<div className='camera-status'>DEV: mondregio-overlay actief</div>
+						{import.meta.env.VITE_DEBUG_OVERLAY && mode === 'ready' && (
+							<div className='camera-status'>DEBUG: mondregio-overlay actief</div>
 						)}
 
 						{liveHasStarted && (
