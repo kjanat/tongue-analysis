@@ -1,4 +1,5 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import type { Plugin, ResolvedConfig } from 'vite';
@@ -18,8 +19,18 @@ export interface PackageAssetConfig {
 	readonly primary?: AssetPrimary;
 }
 
+export interface DownloadConfig {
+	/** Stable binding id for runtime lookup */
+	readonly id: string;
+	/** Absolute HTTP(S) URL for downloadable asset */
+	readonly url: string;
+	/** Optional project-relative file path where the asset should be stored */
+	readonly path?: string;
+}
+
 export interface PackageBindingsPluginOptions {
 	readonly assets: readonly PackageAssetConfig[];
+	readonly downloads?: readonly DownloadConfig[];
 }
 
 // ── Internal types ───────────────────────────────────────────
@@ -35,11 +46,57 @@ interface ResolvedAsset {
 	readonly files: readonly { readonly absolutePath: string; readonly emittedPath: string }[];
 }
 
+interface ResolvedDownload {
+	readonly id: string;
+	readonly url: string;
+	readonly outputPath: string;
+	readonly absolutePath: string;
+	readonly runtimePath: string;
+}
+
 // ── Helpers ──────────────────────────────────────────────────
 
 const VIRTUAL_MODULE_ID = 'virtual:package-bindings';
 const RESOLVED_ID = `\0${VIRTUAL_MODULE_ID}`;
 const MOUNT_BASE = 'pkg-assets';
+
+function parseBoolean(value: string | undefined): boolean | undefined {
+	if (value === undefined) return undefined;
+	const trueValues = new Set(['1', 'true', 'yes', 'on']);
+	const falseValues = new Set(['', '0', 'false', 'no', 'off']);
+
+	const normalized = value.trim().toLowerCase();
+	if (trueValues.has(normalized)) return true;
+	if (falseValues.has(normalized)) return false;
+
+	return undefined;
+}
+
+function isWithinRoot(rootPath: string, absolutePath: string): boolean {
+	const relativePath = path.relative(rootPath, absolutePath);
+	if (relativePath === '') return true;
+	if (relativePath.startsWith('..')) return false;
+	return !path.isAbsolute(relativePath);
+}
+
+function normalizeDownloadId(value: string): string {
+	const normalized = value.trim();
+	if (normalized === '') {
+		throw new Error('[package-bindings] download id must not be empty.');
+	}
+	if (!/^[A-Za-z0-9._-]+$/.test(normalized)) {
+		throw new Error(`[package-bindings] invalid download id '${value}'. Use [A-Za-z0-9._-].`);
+	}
+
+	return normalized;
+}
+
+function defaultDownloadOutputPath(downloadId: string, downloadUrl: string): string {
+	const parsedUrl = new URL(downloadUrl);
+	const extension = path.posix.extname(parsedUrl.pathname);
+	const suffix = extension === '' ? '.bin' : extension;
+	return `public/.downloads/${downloadId}${suffix}`;
+}
 
 function resolvePackageDir(projectRoot: string, packageName: string): {
 	readonly root: string;
@@ -129,8 +186,92 @@ function resolveAssets(config: ResolvedConfig, options: PackageBindingsPluginOpt
 	});
 }
 
+function resolveDownloads(config: ResolvedConfig, options: PackageBindingsPluginOptions): readonly ResolvedDownload[] {
+	const requestedDownloads = options.downloads ?? [];
+	const normalizedRoot = path.resolve(config.root);
+	const publicPrefix = 'public/';
+	const seenIds = new Set<string>();
+
+	return requestedDownloads.map((download) => {
+		const id = normalizeDownloadId(download.id);
+		if (seenIds.has(id)) {
+			throw new Error(`[package-bindings] duplicate download id '${id}'.`);
+		}
+		seenIds.add(id);
+
+		const outputPath = (download.path ?? defaultDownloadOutputPath(id, download.url)).replace(/\\/g, '/').replace(
+			/^\/+/,
+			'',
+		);
+		const absolutePath = path.resolve(normalizedRoot, outputPath);
+
+		if (!isWithinRoot(normalizedRoot, absolutePath)) {
+			throw new Error(`[package-bindings] download path '${outputPath}' escapes project root.`);
+		}
+		if (!outputPath.startsWith(publicPrefix)) {
+			throw new Error(`[package-bindings] download path '${outputPath}' must be within 'public/'.`);
+		}
+
+		const runtimePath = outputPath.slice(publicPrefix.length);
+		if (runtimePath === '') {
+			throw new Error(`[package-bindings] download path '${outputPath}' must target a file inside 'public/'.`);
+		}
+
+		return {
+			id,
+			url: download.url,
+			outputPath,
+			absolutePath,
+			runtimePath,
+		};
+	});
+}
+
+async function ensureDownloads(downloads: readonly ResolvedDownload[]): Promise<void> {
+	if (downloads.some((download) => download.outputPath.startsWith('public/.downloads/'))) {
+		await mkdir('public/.downloads', { recursive: true });
+		await writeFile('public/.downloads/.gitignore', '*\n');
+	}
+
+	const forceDownload = parseBoolean(process.env.BUILD_REFRESH_MODELS) === true;
+
+	for (const download of downloads) {
+		const fileExists = existsSync(download.absolutePath);
+		if (fileExists && !forceDownload) {
+			console.log(`[package-bindings] asset present: ${download.outputPath}`);
+			continue;
+		}
+
+		console.log(`[package-bindings] downloading asset: ${download.url}`);
+		try {
+			await mkdir(path.dirname(download.absolutePath), { recursive: true });
+			const response = await fetch(download.url);
+			if (!response.ok) {
+				throw new Error(`download failed with status ${String(response.status)}`);
+			}
+
+			const body = await response.arrayBuffer();
+			await writeFile(download.absolutePath, Buffer.from(body));
+			console.log(`[package-bindings] asset saved: ${download.outputPath}`);
+		} catch (error) {
+			if (fileExists) {
+				console.warn(
+					`[package-bindings] download failed, continuing with existing local file: ${download.outputPath}`,
+					error,
+				);
+				continue;
+			}
+
+			console.warn(
+				`[package-bindings] download failed and no local file: ${download.outputPath}; continuing with remote primary`,
+				error,
+			);
+		}
+	}
+}
+
 // SYNC: Runtime shape must match the declaration in src/types/package-bindings.d.ts
-function generateVirtualModule(assets: readonly ResolvedAsset[]): string {
+function generateVirtualModule(assets: readonly ResolvedAsset[], downloads: readonly ResolvedDownload[]): string {
 	const manifest = assets.map((a) => ({
 		package: a.packageName,
 		version: a.version,
@@ -141,8 +282,15 @@ function generateVirtualModule(assets: readonly ResolvedAsset[]): string {
 		primary: a.primary,
 	}));
 
+	const downloadManifest = downloads.map((download) => ({
+		id: download.id,
+		path: download.runtimePath,
+		remoteUrl: download.url,
+	}));
+
 	return `
 const manifest = ${JSON.stringify(manifest, null, '\t')};
+const downloadManifest = ${JSON.stringify(downloadManifest, null, '\t')};
 
 function withBase(localPath, kind) {
 	const base = import.meta.env.BASE_URL;
@@ -160,7 +308,16 @@ const entries = manifest.map((e) => {
 
 export const packageBindingsManifest = entries;
 
+const downloadEntries = downloadManifest.map((e) => {
+	const localUrl = withBase(e.path, 'file');
+	return { ...e, localUrl };
+});
+
+export const packageDownloadsManifest = downloadEntries;
+
 const byKey = new Map(entries.map((e) => [e.package + '::' + e.path, e]));
+const byDownloadId = new Map(downloadEntries.map((e) => [e.id, e]));
+const byDownloadPath = new Map(downloadEntries.map((e) => [e.path, e]));
 
 const byPackage = new Map();
 for (const e of entries) {
@@ -171,6 +328,18 @@ for (const e of entries) {
 export function getPackageAsset(packageName, assetPath) {
 	const entry = byKey.get(packageName + '::' + assetPath);
 	if (!entry) throw new Error('Unknown package asset: ' + packageName + '::' + assetPath);
+	return entry;
+}
+
+export function getDownloadAsset(assetPath) {
+	const entry = byDownloadPath.get(assetPath);
+	if (!entry) throw new Error('Unknown download asset: ' + assetPath);
+	return entry;
+}
+
+export function getDownloadBinding(downloadId) {
+	const entry = byDownloadId.get(downloadId);
+	if (!entry) throw new Error('Unknown download binding: ' + downloadId);
 	return entry;
 }
 
@@ -208,6 +377,7 @@ function mimeForPath(filePath: string): string {
 
 export function packageBindingsPlugin(options: PackageBindingsPluginOptions): Plugin {
 	let assets: readonly ResolvedAsset[] = [];
+	let downloads: readonly ResolvedDownload[] = [];
 	let base = '/';
 
 	return {
@@ -215,9 +385,14 @@ export function packageBindingsPlugin(options: PackageBindingsPluginOptions): Pl
 
 		configResolved(config) {
 			assets = resolveAssets(config, options);
+			downloads = resolveDownloads(config, options);
 			const b = config.base;
 			base = b === '/' ? '/' : (b.startsWith('/') ? b : `/${b}`);
 			if (!base.endsWith('/')) base = `${base}/`;
+		},
+
+		async buildStart() {
+			await ensureDownloads(downloads);
 		},
 
 		resolveId(id) {
@@ -225,7 +400,7 @@ export function packageBindingsPlugin(options: PackageBindingsPluginOptions): Pl
 		},
 
 		load(id) {
-			return id === RESOLVED_ID ? generateVirtualModule(assets) : undefined;
+			return id === RESOLVED_ID ? generateVirtualModule(assets, downloads) : undefined;
 		},
 
 		configureServer(server) {

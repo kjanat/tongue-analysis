@@ -4,7 +4,7 @@ import {
 	FilesetResolver,
 	type NormalizedLandmark,
 } from '@mediapipe/tasks-vision';
-import { type AssetSource, getPackageBinding } from 'virtual:package-bindings';
+import { type AssetSource, getDownloadBinding, getPackageBinding } from 'virtual:package-bindings';
 import { err, ok, type Result } from './result.ts';
 
 export interface Point {
@@ -48,14 +48,11 @@ type DetectionInput =
 	};
 
 // The model file isn't part of the npm package — it's downloaded from Google Storage by
-// scripts/build.ts into public/mediapipe/models/. WASM ships with @mediapipe/tasks-vision and is
-// managed by the package-bindings plugin. Both share the same primary/fallback strategy:
-// when WASM is self-hosted, the model is served locally too; when WASM uses CDN, the
-// model falls back to its canonical Google Storage URL.
-const REMOTE_MODEL_URL =
-	'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task';
-const LOCAL_MODEL_PATH = 'mediapipe/models/face_landmarker.task';
+// the package-bindings Vite plugin. WASM ships with @mediapipe/tasks-vision and is managed
+// by the same plugin. The model primary/fallback follows WASM source:
+// self-hosted WASM -> local model primary; CDN WASM -> remote model primary.
 const MEDIAPIPE_BINDING = getPackageBinding('@mediapipe/tasks-vision');
+const FACE_LANDMARKER_MODEL = getDownloadBinding('face-landmarker-model');
 const WASM_PRIMARY = MEDIAPIPE_BINDING.asset('wasm').primary;
 
 const OUTER_LIP_INDICES = /* dprint-ignore */ [
@@ -82,22 +79,16 @@ function clamp(value: number, min: number, max: number): number {
 	return Math.min(max, Math.max(min, value));
 }
 
-function localModelUrl(): string {
-	const base = import.meta.env.BASE_URL;
-	const normalizedBase = base.endsWith('/') ? base : `${base}/`;
-	return `${normalizedBase}${LOCAL_MODEL_PATH}`;
-}
-
 function wasmBaseUrl(source: AssetSource): string {
 	return MEDIAPIPE_BINDING.url('wasm', source);
 }
 
 function modelUrl(source: AssetSource): string {
 	if (source === 'primary') {
-		return WASM_PRIMARY === 'cdn' ? REMOTE_MODEL_URL : localModelUrl();
+		return WASM_PRIMARY === 'cdn' ? FACE_LANDMARKER_MODEL.remoteUrl : FACE_LANDMARKER_MODEL.localUrl;
 	}
 
-	return WASM_PRIMARY === 'cdn' ? localModelUrl() : REMOTE_MODEL_URL;
+	return WASM_PRIMARY === 'cdn' ? FACE_LANDMARKER_MODEL.localUrl : FACE_LANDMARKER_MODEL.remoteUrl;
 }
 
 function isValidDimension(value: number): boolean {

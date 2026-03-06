@@ -1,14 +1,11 @@
 #!/usr/bin/env bun
 
-import { file, write } from 'bun';
+import { file } from 'bun';
 import { spawn, spawnSync } from 'node:child_process';
 import { constants } from 'node:fs';
-import { access, mkdir, readdir, stat } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { access, readdir, stat } from 'node:fs/promises';
+import { join } from 'node:path';
 
-const MODEL_URL =
-	'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task';
-const MODEL_PATH = 'public/mediapipe/models/face_landmarker.task';
 const PRODUCTION_BRANCHES = new Set(['master', 'main']);
 
 interface BuildMetadata {
@@ -132,42 +129,6 @@ async function directorySizeBytes(directoryPath: string): Promise<number> {
 	return total;
 }
 
-async function ensureModelFile(): Promise<void> {
-	const modelExists = await exists(MODEL_PATH);
-	const forceDownload = parseBoolean(process.env.BUILD_REFRESH_MODELS) === true;
-
-	if (modelExists && !forceDownload) {
-		console.log(`[build] model present: ${MODEL_PATH}`);
-		return;
-	}
-
-	await mkdir(dirname(MODEL_PATH), { recursive: true });
-	console.log(`[build] downloading model: ${MODEL_URL}`);
-
-	try {
-		const response = await fetch(MODEL_URL);
-		if (!response.ok) {
-			throw new Error(`model download failed with status ${String(response.status)}`);
-		}
-
-		const body = await response.arrayBuffer();
-		const fileBuffer = Buffer.from(body);
-		await write(MODEL_PATH, fileBuffer);
-		console.log(`[build] model saved: ${MODEL_PATH} (${formatBytes(fileBuffer.byteLength)})`);
-	} catch (error) {
-		if (modelExists) {
-			console.warn('[build] model download failed, continuing with existing local model:', error);
-			return;
-		}
-
-		console.warn(
-			`[build] model download failed and no local model at ${MODEL_PATH}; continuing with runtime fallback (${MODEL_URL})`,
-			error,
-		);
-		return;
-	}
-}
-
 function readGitCommitSha(): string | undefined {
 	const result = spawnSync('git', ['rev-parse', 'HEAD'], {
 		encoding: 'utf8',
@@ -277,8 +238,6 @@ async function run(command: string, args: readonly string[], env?: NodeJS.Proces
 
 async function build(): Promise<void> {
 	const target = readArgValue('target') ?? trimOrUndefined(process.env.BUILD_TARGET) ?? 'default';
-
-	await ensureModelFile();
 
 	const metadata: BuildMetadata = {
 		debugOverlay: resolveDebugOverlay(target),

@@ -5,34 +5,40 @@ import svg from 'vite-svg-to-ico';
 import { packageBindingsPlugin } from './vite.package-bindings.ts';
 
 // https://vite.dev/config/
-export default defineConfig({
-	plugins: [
-		packageBindingsPlugin({
-			assets: [
-				{
+export default defineConfig(({ command }) => {
+	return {
+		plugins: [
+			packageBindingsPlugin({
+				assets: [{
 					package: '@mediapipe/tasks-vision',
 					path: 'wasm',
 					cdn: 'jsdelivr',
+					primary: command === 'serve' ? 'self' : 'cdn',
+				}],
+				downloads: [{
+					id: 'face-landmarker-model',
+					url:
+						'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',
+				}],
+			}),
+			react({
+				babel: {
+					plugins: [['babel-plugin-react-compiler']],
+					targets: { browsers: ['baseline widely available'] },
 				},
-			],
-		}),
-		react({
-			babel: {
-				plugins: [['babel-plugin-react-compiler']],
-				targets: { browsers: ['baseline widely available'] },
-			},
-		}),
-		svg({
-			input: 'src/assets/tongue.svg',
-			emit: { inject: true, source: true },
-			sharp: { resize: { kernel: 'nearest' } },
-		}),
-		robot({ preset: 'disallowAll' }),
-	],
-	server: {
-		allowedHosts: ['propc-manjaro', '192.168.1.2'],
-		host: '0.0.0.0',
-		port: 3000,
-		strictPort: true,
-	},
+			}),
+			svg({
+				input: 'src/assets/tongue.svg',
+				emit: { inject: true, source: true },
+				sharp: { resize: { kernel: 'nearest' } },
+			}),
+			robot({ preset: 'disallowAll' }),
+		],
+		server: {
+			allowedHosts: ['propc-manjaro', '192.168.1.2'],
+			host: '0.0.0.0',
+			port: 3000,
+			strictPort: true,
+		},
+	};
 });

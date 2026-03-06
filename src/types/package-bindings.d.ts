@@ -23,8 +23,18 @@ declare module 'virtual:package-bindings' {
 		readonly url: (assetPath: string, source?: AssetSource) => string;
 	}
 
+	export interface DownloadAsset {
+		readonly id: string;
+		readonly path: string;
+		readonly localUrl: string;
+		readonly remoteUrl: string;
+	}
+
 	export const packageBindingsManifest: readonly PackageAsset[];
+	export const packageDownloadsManifest: readonly DownloadAsset[];
 
 	export function getPackageAsset(packageName: string, assetPath: string): PackageAsset;
+	export function getDownloadAsset(assetPath: string): DownloadAsset;
+	export function getDownloadBinding(downloadId: string): DownloadAsset;
 	export function getPackageBinding(packageName: string): PackageAssetBinding;
 }
