@@ -7,6 +7,41 @@ import { type AnalysisError, type AnalysisStep, analyzeTongueVideoFrame } from '
 const LIVE_UPDATED_AT_THROTTLE_MS = 1000;
 const DEBUG_OVERLAY_ENABLED = import.meta.env.VITE_DEBUG_OVERLAY === 'true';
 
+const ANALYSIS_ERROR_KINDS = [
+	'image_load_failed',
+	'canvas_unavailable',
+	'mouth_crop_failed',
+	'face_detection_error',
+	'poor_lighting',
+	'tongue_segmentation_error',
+	'color_correction_error',
+	'inconclusive_color',
+] as const;
+
+const FACE_DETECTION_ERROR_KINDS = [
+	'invalid_image_dimensions',
+	'model_load_failed',
+	'detection_failed',
+	'no_face_detected',
+	'multiple_faces_detected',
+	'mouth_not_visible',
+] as const;
+
+const TONGUE_SEGMENTATION_ERROR_KINDS = [
+	'empty_input',
+	'allowed_mask_size_mismatch',
+	'no_tongue_pixels_detected',
+	'multiple_regions_detected',
+	'insufficient_pixels',
+] as const;
+
+const POOR_LIGHTING_ISSUES = ['too_dark', 'too_bright', 'high_contrast'] as const;
+
+const ANALYSIS_ERROR_KIND_SET = new Set<string>(ANALYSIS_ERROR_KINDS);
+const FACE_DETECTION_ERROR_KIND_SET = new Set<string>(FACE_DETECTION_ERROR_KINDS);
+const TONGUE_SEGMENTATION_ERROR_KIND_SET = new Set<string>(TONGUE_SEGMENTATION_ERROR_KINDS);
+const POOR_LIGHTING_ISSUE_SET = new Set<string>(POOR_LIGHTING_ISSUES);
+
 export type LiveMode = 'idle' | 'running';
 
 interface UseLiveAnalysisOptions {
@@ -90,13 +125,38 @@ function isAnalysisError(value: unknown): value is AnalysisError {
 		return false;
 	}
 
-	switch (value.kind) {
+	const kindValue = value.kind;
+	if (typeof kindValue !== 'string' || !ANALYSIS_ERROR_KIND_SET.has(kindValue)) {
+		return false;
+	}
+
+	switch (kindValue) {
+		case 'face_detection_error': {
+			if (!('error' in value) || typeof value.error !== 'object' || value.error === null || !('kind' in value.error)) {
+				return false;
+			}
+
+			const nestedKindValue = value.error.kind;
+			return typeof nestedKindValue === 'string' && FACE_DETECTION_ERROR_KIND_SET.has(nestedKindValue);
+		}
+		case 'tongue_segmentation_error': {
+			if (!('error' in value) || typeof value.error !== 'object' || value.error === null || !('kind' in value.error)) {
+				return false;
+			}
+
+			const nestedKindValue = value.error.kind;
+			return typeof nestedKindValue === 'string' && TONGUE_SEGMENTATION_ERROR_KIND_SET.has(nestedKindValue);
+		}
+		case 'poor_lighting': {
+			if (!('issue' in value)) {
+				return false;
+			}
+
+			return typeof value.issue === 'string' && POOR_LIGHTING_ISSUE_SET.has(value.issue);
+		}
 		case 'image_load_failed':
 		case 'canvas_unavailable':
 		case 'mouth_crop_failed':
-		case 'face_detection_error':
-		case 'poor_lighting':
-		case 'tongue_segmentation_error':
 		case 'color_correction_error':
 		case 'inconclusive_color':
 			return true;
