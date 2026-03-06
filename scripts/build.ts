@@ -134,7 +134,7 @@ async function directorySizeBytes(directoryPath: string): Promise<number> {
 
 async function ensureModelFile(): Promise<void> {
 	const modelExists = await exists(MODEL_PATH);
-	const forceDownload = parseBoolean(process.env.BUILD_REFRESH_MODELS) === true || process.env.CI === 'true';
+	const forceDownload = parseBoolean(process.env.BUILD_REFRESH_MODELS) === true;
 
 	if (modelExists && !forceDownload) {
 		console.log(`[build] model present: ${MODEL_PATH}`);
@@ -160,7 +160,11 @@ async function ensureModelFile(): Promise<void> {
 			return;
 		}
 
-		throw error;
+		console.warn(
+			`[build] model download failed and no local model at ${MODEL_PATH}; continuing with runtime fallback (${MODEL_URL})`,
+			error,
+		);
+		return;
 	}
 }
 
