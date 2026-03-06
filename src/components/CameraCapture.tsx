@@ -1,17 +1,13 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useRef } from 'react';
+import { useLiveAnalysis } from '../hooks/use-live-analysis.ts';
+import { useMediaStream } from '../hooks/use-media-stream.ts';
 import type { Diagnosis } from '../lib/diagnosis.ts';
-import type { MouthRegion, Point } from '../lib/face-detection.ts';
-import { type AnalysisError, type AnalysisStep, analyzeTongueVideoFrame } from '../lib/pipeline.ts';
+import type { AnalysisStep } from '../lib/pipeline.ts';
 
 interface CameraCaptureProps {
 	readonly onCapture: (file: File, objectUrl: string) => void;
 	readonly onLiveDiagnosis?: (diagnosis: Diagnosis) => void;
 }
-
-type CameraMode = 'idle' | 'requesting' | 'ready';
-type LiveMode = 'idle' | 'running';
-
-const LIVE_UPDATED_AT_THROTTLE_MS = 1000;
 
 const LIVE_STEP_LABELS: Readonly<Record<AnalysisStep, string>> = {
 	loading_image: 'Foto laden',
@@ -23,178 +19,12 @@ const LIVE_STEP_LABELS: Readonly<Record<AnalysisStep, string>> = {
 	building_diagnosis: 'Diagnose opstellen',
 };
 
-function liveErrorMessage(error: AnalysisError): string {
-	switch (error.kind) {
-		case 'image_load_failed':
-			return 'Frame laden mislukt. Houd je camera stil en probeer opnieuw.';
-		case 'canvas_unavailable':
-			return 'Canvas niet beschikbaar voor live-analyse.';
-		case 'mouth_crop_failed':
-			return 'Mondregio kon niet worden uitgesneden uit het videobeeld.';
-		case 'face_detection_error':
-			switch (error.error.kind) {
-				case 'no_face_detected':
-					return 'Geen gezicht gevonden in beeld.';
-				case 'multiple_faces_detected':
-					return 'Meerdere gezichten in beeld. Houd slechts een persoon in frame.';
-				case 'mouth_not_visible':
-					return 'Mond niet duidelijk zichtbaar. Open je mond en steek je tong uit.';
-				case 'invalid_image_dimensions':
-					return 'Videoframe heeft ongeldige afmetingen.';
-				case 'model_load_failed':
-					return 'Model kon niet geladen worden.';
-				case 'detection_failed':
-					return 'Gezichtsdetectie mislukte.';
-			}
-			return 'Gezichtsdetectie gaf een onbekende fout.';
-		case 'poor_lighting':
-			switch (error.issue) {
-				case 'too_dark':
-					return 'Te donker voor betrouwbare live-analyse.';
-				case 'too_bright':
-					return 'Te fel belicht voor betrouwbare live-analyse.';
-				case 'high_contrast':
-					return 'Te veel lichtcontrast. Gebruik egaal frontaal licht.';
-			}
-			return 'Belichting onvoldoende voor betrouwbare live-analyse.';
-		case 'tongue_segmentation_error':
-			switch (error.error.kind) {
-				case 'empty_input':
-					return 'Leeg frame ontvangen tijdens segmentatie.';
-				case 'allowed_mask_size_mismatch':
-					return 'Interne maskfout tijdens live-analyse.';
-				case 'no_tongue_pixels_detected':
-					return 'Tong niet duidelijk zichtbaar in beeld.';
-				case 'multiple_regions_detected':
-					return "Meerdere losse tongregio's gedetecteerd. Gebruik 1 duidelijke tong in beeld.";
-				case 'insufficient_pixels':
-					return 'Te weinig bruikbare tongpixels in dit frame.';
-			}
-			return 'Tongsegmentatie gaf een onbekende fout.';
-		case 'color_correction_error':
-			return 'Kleurcorrectie mislukte voor dit frame.';
-		case 'inconclusive_color':
-			return 'Frame is nog niet duidelijk genoeg. Houd je tong stil in egaal licht.';
-	}
-
-	return 'Onbekende live-analysefout.';
-}
-
 function formatUpdateTime(timestampMs: number): string {
 	return new Date(timestampMs).toLocaleTimeString('nl-NL', {
 		hour: '2-digit',
 		minute: '2-digit',
 		second: '2-digit',
 	});
-}
-
-function scalePoint(
-	point: Point,
-	scaleX: number,
-	scaleY: number,
-): Point {
-	return {
-		x: point.x * scaleX,
-		y: point.y * scaleY,
-	};
-}
-
-function drawPolygon(
-	context: CanvasRenderingContext2D,
-	points: readonly Point[],
-	strokeColor: string,
-): void {
-	const first = points[0];
-	if (first === undefined) return;
-
-	context.beginPath();
-	context.moveTo(first.x, first.y);
-	for (let i = 1; i < points.length; i++) {
-		const point = points[i];
-		if (point === undefined) continue;
-		context.lineTo(point.x, point.y);
-	}
-	context.closePath();
-	context.strokeStyle = strokeColor;
-	context.lineWidth = 2;
-	context.stroke();
-}
-
-function clearOverlayCanvas(canvas: HTMLCanvasElement | null): void {
-	if (canvas === null) return;
-	const context = canvas.getContext('2d');
-	if (context === null) return;
-	context.clearRect(0, 0, canvas.width, canvas.height);
-}
-
-function drawMouthRegionOverlay(
-	canvas: HTMLCanvasElement,
-	mouthRegion: MouthRegion,
-	sourceWidth: number,
-	sourceHeight: number,
-): void {
-	const context = canvas.getContext('2d');
-	if (context === null) return;
-
-	const displayWidth = canvas.clientWidth;
-	const displayHeight = canvas.clientHeight;
-	if (displayWidth <= 0 || displayHeight <= 0) return;
-
-	const dpr = window.devicePixelRatio || 1;
-	const targetWidth = Math.round(displayWidth * dpr);
-	const targetHeight = Math.round(displayHeight * dpr);
-	if (canvas.width !== targetWidth || canvas.height !== targetHeight) {
-		canvas.width = targetWidth;
-		canvas.height = targetHeight;
-	}
-
-	context.setTransform(dpr, 0, 0, dpr, 0, 0);
-	context.clearRect(0, 0, displayWidth, displayHeight);
-
-	const scaleX = displayWidth / sourceWidth;
-	const scaleY = displayHeight / sourceHeight;
-
-	const scaledOuter = mouthRegion.outerLipPolygon.map((point) => scalePoint(point, scaleX, scaleY));
-	const scaledInner = mouthRegion.innerLipPolygon.map((point) => scalePoint(point, scaleX, scaleY));
-
-	const boxX = mouthRegion.boundingBox.x * scaleX;
-	const boxY = mouthRegion.boundingBox.y * scaleY;
-	const boxWidth = mouthRegion.boundingBox.width * scaleX;
-	const boxHeight = mouthRegion.boundingBox.height * scaleY;
-
-	context.strokeStyle = '#ffd166';
-	context.lineWidth = 2;
-	context.strokeRect(boxX, boxY, boxWidth, boxHeight);
-
-	drawPolygon(context, scaledOuter, '#52ffa8');
-	drawPolygon(context, scaledInner, '#7dd3ff');
-}
-
-function stopStream(stream: MediaStream): void {
-	for (const track of stream.getTracks()) {
-		track.stop();
-	}
-}
-
-function cameraErrorMessage(error: unknown): string {
-	if (error instanceof DOMException) {
-		switch (error.name) {
-			case 'NotAllowedError':
-				return 'Cameratoegang geweigerd. Geef toestemming en probeer opnieuw.';
-			case 'NotFoundError':
-				return 'Geen camera gevonden op dit apparaat.';
-			case 'NotReadableError':
-				return 'Camera is in gebruik door een andere app.';
-			case 'OverconstrainedError':
-				return 'Geen geschikte camera-instellingen beschikbaar.';
-			case 'SecurityError':
-				return 'Camera werkt alleen op een beveiligde verbinding (HTTPS).';
-			default:
-				return 'Kon camera niet starten. Probeer opnieuw.';
-		}
-	}
-
-	return 'Kon camera niet starten. Probeer opnieuw.';
 }
 
 function canvasToJpegBlob(canvas: HTMLCanvasElement): Promise<Blob | null> {
@@ -210,225 +40,64 @@ function canvasToJpegBlob(canvas: HTMLCanvasElement): Promise<Blob | null> {
 }
 
 export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCaptureProps) {
-	const [mode, setMode] = useState<CameraMode>('idle');
-	const [error, setError] = useState<string | null>(null);
-	const [liveMode, setLiveMode] = useState<LiveMode>('idle');
-	const [liveStep, setLiveStep] = useState<AnalysisStep | null>(null);
-	const [liveError, setLiveError] = useState<string | null>(null);
-	const [liveDiagnosis, setLiveDiagnosis] = useState<Diagnosis | null>(null);
-	const [liveUpdatedAt, setLiveUpdatedAt] = useState<number | null>(null);
-	const [liveHasStarted, setLiveHasStarted] = useState(false);
 	const dialogRef = useRef<HTMLDialogElement>(null);
-	const streamRef = useRef<MediaStream | null>(null);
-	const videoRef = useRef<HTMLVideoElement>(null);
 	const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
-	const liveRunningRef = useRef(false);
-	const liveRafRef = useRef<number | null>(null);
-	const liveInFlightRef = useRef(false);
-	const lastVideoTimeRef = useRef(-1);
-	const lastUpdatedAtRef = useRef(0);
 
-	const stopLiveAnalysis = useCallback(() => {
-		liveRunningRef.current = false;
-		if (liveRafRef.current !== null) {
-			window.cancelAnimationFrame(liveRafRef.current);
-			liveRafRef.current = null;
-		}
-		liveInFlightRef.current = false;
-		lastVideoTimeRef.current = -1;
-		setLiveMode('idle');
-		setLiveStep(null);
-	}, []);
+	const {
+		mode,
+		error,
+		videoRef,
+		start: startCamera,
+		reset: resetCamera,
+		clearError: clearCameraError,
+		setError: setCameraError,
+	} = useMediaStream();
 
-	const stopCurrentStream = useCallback(() => {
-		const stream = streamRef.current;
-		if (stream !== null) {
-			stopStream(stream);
-			streamRef.current = null;
-		}
-
-		const video = videoRef.current;
-		if (video !== null && video.srcObject !== null) {
-			video.srcObject = null;
-		}
-	}, []);
+	const {
+		liveMode,
+		liveStep,
+		liveError,
+		liveDiagnosis,
+		liveUpdatedAt,
+		liveHasStarted,
+		start: startLiveAnalysis,
+		stop: stopLiveAnalysis,
+		clearError: clearLiveError,
+		reset: resetLiveAnalysis,
+	} = useLiveAnalysis({
+		videoRef,
+		overlayCanvasRef,
+		enabled: mode === 'ready',
+	});
 
 	const handleCloseModal = useCallback(() => {
 		dialogRef.current?.close();
 	}, []);
 
-	// Single cleanup handler for the dialog close event (fires on Escape, .close(), backdrop click).
 	const handleDialogClose = useCallback(() => {
-		stopLiveAnalysis();
-		stopCurrentStream();
-		clearOverlayCanvas(overlayCanvasRef.current);
-		setMode('idle');
-		setError(null);
-		setLiveError(null);
-		setLiveDiagnosis(null);
-		setLiveUpdatedAt(null);
-		setLiveHasStarted(false);
-	}, [stopCurrentStream, stopLiveAnalysis]);
-
-	// Cleanup: stop RAF loop en camera stream bij unmount.
-	// In-flight analyse kan voltooien na unmount, maar is veilig:
-	// liveRunningRef prevents scheduling, React 19 ignores late setState.
-	useEffect(() => {
-		return () => {
-			stopLiveAnalysis();
-			stopCurrentStream();
-		};
-	}, [stopCurrentStream, stopLiveAnalysis]);
-
-	const isLiveActive = useCallback((): boolean => liveRunningRef.current, []);
-
-	const runLiveAnalysis = useCallback(async () => {
-		if (!isLiveActive() || liveInFlightRef.current) return;
-
-		const video = videoRef.current;
-		if (video === null || video.videoWidth === 0 || video.videoHeight === 0) {
-			setLiveError('Videobeeld nog niet klaar voor analyse.');
-			if (import.meta.env.VITE_DEBUG_OVERLAY === 'true') {
-				clearOverlayCanvas(overlayCanvasRef.current);
-			}
-			return;
-		}
-
-		if (video.currentTime === lastVideoTimeRef.current) {
-			return;
-		}
-
-		lastVideoTimeRef.current = video.currentTime;
-		liveInFlightRef.current = true;
-
-		const timestampMs = performance.now();
-		const result = await analyzeTongueVideoFrame(video, timestampMs, {
-			onStep: (step) => {
-				if (!isLiveActive()) return;
-				setLiveStep(step);
-			},
-		});
-
-		if (!isLiveActive()) {
-			liveInFlightRef.current = false;
-			return;
-		}
-
-		if (!result.ok) {
-			if (
-				import.meta.env.VITE_DEBUG_OVERLAY === 'true'
-				&& result.error.kind === 'face_detection_error'
-				&& result.error.error.kind === 'model_load_failed'
-			) {
-				console.error('Live face model load failed:', result.error.error.cause);
-			}
-
-			setLiveError(liveErrorMessage(result.error));
-			if (import.meta.env.VITE_DEBUG_OVERLAY === 'true') {
-				clearOverlayCanvas(overlayCanvasRef.current);
-			}
-			liveInFlightRef.current = false;
-			return;
-		}
-
-		setLiveDiagnosis(result.value.diagnosis);
-		setLiveError(null);
-
-		const now = Date.now();
-		if (now - lastUpdatedAtRef.current >= LIVE_UPDATED_AT_THROTTLE_MS) {
-			setLiveUpdatedAt(now);
-			lastUpdatedAtRef.current = now;
-		}
-
-		if (import.meta.env.VITE_DEBUG_OVERLAY === 'true') {
-			const overlayCanvas = overlayCanvasRef.current;
-			const mouthRegion = result.value.mouthRegion;
-			if (overlayCanvas !== null && mouthRegion !== null) {
-				drawMouthRegionOverlay(overlayCanvas, mouthRegion, video.videoWidth, video.videoHeight);
-			} else {
-				clearOverlayCanvas(overlayCanvas);
-			}
-		}
-
-		liveInFlightRef.current = false;
-	}, [isLiveActive]);
-
-	const startLiveAnalysis = useCallback(() => {
-		if (mode !== 'ready' || liveRunningRef.current) return;
-
-		liveRunningRef.current = true;
-		setLiveHasStarted(true);
-		setLiveMode('running');
-		setLiveStep('loading_model');
-		setLiveError(null);
-		lastVideoTimeRef.current = -1;
-
-		const tick = (): void => {
-			if (!liveRunningRef.current) return;
-			void runLiveAnalysis().then(() => {
-				if (liveRunningRef.current) {
-					liveRafRef.current = window.requestAnimationFrame(tick);
-				}
-			});
-		};
-
-		liveRafRef.current = window.requestAnimationFrame(tick);
-	}, [mode, runLiveAnalysis]);
+		resetLiveAnalysis();
+		resetCamera();
+	}, [resetCamera, resetLiveAnalysis]);
 
 	const handleStartCamera = useCallback(async () => {
-		if (mode === 'requesting') return;
-
 		stopLiveAnalysis();
-		stopCurrentStream();
-		setMode('requesting');
-		setError(null);
-		setLiveError(null);
-
-		try {
-			const stream = await navigator.mediaDevices.getUserMedia({
-				video: {
-					facingMode: 'user',
-				},
-				audio: false,
-			});
-
-			streamRef.current = stream;
-
-			const video = videoRef.current;
-			if (video !== null) {
-				video.srcObject = stream;
-				try {
-					await video.play();
-				} catch (playError: unknown) {
-					if (import.meta.env.DEV) {
-						console.warn('video.play() failed:', playError);
-					}
-					if (playError instanceof DOMException && playError.name !== 'AbortError') {
-						setError('Automatisch afspelen mislukt. Tik op het videobeeld om te starten.');
-					}
-				}
-			}
-
-			setMode('ready');
-		} catch (cameraError) {
-			setError(cameraErrorMessage(cameraError));
-			setMode('idle');
-		}
-	}, [mode, stopCurrentStream, stopLiveAnalysis]);
+		clearLiveError();
+		await startCamera();
+	}, [clearLiveError, startCamera, stopLiveAnalysis]);
 
 	const handleOpenModal = useCallback(() => {
 		dialogRef.current?.showModal();
-		setError(null);
-		setLiveError(null);
+		clearCameraError();
+		clearLiveError();
 		if (mode === 'idle') {
 			void handleStartCamera();
 		}
-	}, [handleStartCamera, mode]);
+	}, [clearCameraError, clearLiveError, handleStartCamera, mode]);
 
 	const handleCapture = useCallback(async () => {
 		const video = videoRef.current;
 		if (video === null || video.videoWidth === 0 || video.videoHeight === 0) {
-			setError('Geen camerabeeld beschikbaar om vast te leggen.');
+			setCameraError('Geen camerabeeld beschikbaar om vast te leggen.');
 			return;
 		}
 
@@ -438,7 +107,7 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 
 		const context = canvas.getContext('2d');
 		if (context === null) {
-			setError('Kon cameraframe niet verwerken.');
+			setCameraError('Kon cameraframe niet verwerken.');
 			return;
 		}
 
@@ -446,7 +115,7 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 
 		const blob = await canvasToJpegBlob(canvas);
 		if (blob === null) {
-			setError('Kon foto niet opslaan. Probeer opnieuw.');
+			setCameraError('Kon foto niet opslaan. Probeer opnieuw.');
 			return;
 		}
 
@@ -457,14 +126,9 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 		});
 
 		const objectUrl = URL.createObjectURL(file);
-		stopLiveAnalysis();
-		stopCurrentStream();
-		clearOverlayCanvas(overlayCanvasRef.current);
-		setMode('idle');
 		dialogRef.current?.close();
-		setError(null);
 		onCapture(file, objectUrl);
-	}, [onCapture, stopCurrentStream, stopLiveAnalysis]);
+	}, [onCapture, setCameraError, videoRef]);
 
 	const handleLiveToggle = useCallback(() => {
 		if (liveMode === 'running') {
@@ -477,14 +141,11 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 
 	const handleUseLiveDiagnosis = useCallback(() => {
 		if (liveDiagnosis === null || onLiveDiagnosis === undefined) return;
-		handleCloseModal();
+		dialogRef.current?.close();
 		onLiveDiagnosis(liveDiagnosis);
-	}, [handleCloseModal, liveDiagnosis, onLiveDiagnosis]);
+	}, [liveDiagnosis, onLiveDiagnosis]);
 
-	// Native <dialog> receives click events on the ::backdrop as clicks on the
-	// <dialog> element itself. Closing when target === currentTarget means only
-	// clicks on the backdrop (not the modal content) dismiss the dialog.
-	const handleDialogClick = useCallback((event: React.MouseEvent<HTMLDialogElement>) => {
+	const handleDialogMouseDown = useCallback((event: React.MouseEvent<HTMLDialogElement>) => {
 		if (event.target === event.currentTarget) {
 			handleCloseModal();
 		}
@@ -505,7 +166,7 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 				className='camera-modal'
 				aria-label='Live camera analyse'
 				aria-describedby='camera-modal-desc'
-				onClick={handleDialogClick}
+				onMouseDown={handleDialogMouseDown}
 				onClose={handleDialogClose}
 			>
 				<p id='camera-modal-desc' className='visually-hidden'>
