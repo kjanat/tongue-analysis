@@ -2,7 +2,7 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [master]
-    paths: ["src/**", "public/**", "index.html", "vite.config.ts", "vite.package-bindings.ts", "package.json", "bun.lock"]
+    paths-ignore: ["**/*.md", ".zed/**"]
   workflow_dispatch:
     inputs:
       dev_mode:
@@ -18,12 +18,9 @@ jobs:
       - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
-      - run: mkdir -p public/mediapipe/models && curl -fsSL -o public/mediapipe/models/face_landmarker.task 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task'
       - run: bun run build
         env:
-          VITE_DEBUG_OVERLAY: ${{ inputs.dev_mode == true && 'true' || '' }}
-          VITE_COMMIT_SHA: ${{ github.sha }}
-          VITE_BUILD_DATE: ${{ github.event.head_commit.timestamp || github.event.repository.updated_at }}
+          BUILD_DEV_MODE: ${{ inputs.dev_mode == true && 'true' || '' }}
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
         with: { path: dist }

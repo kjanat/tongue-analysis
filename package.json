@@ -8,7 +8,9 @@
 	},
 	"scripts": {
 		"dev": "vite",
-		"build": "tsc -b && vite build",
+		"build": "bun bd",
+		"bd": "bun --bun scripts/build.ts",
+		"cf-build": "bun bd --target=cloudflare",
 		"lint": "eslint .",
 		"preview": "bun run build && vite preview",
 		"fmt": "dprint fmt"
@@ -24,6 +26,7 @@
 	},
 	"devDependencies": {
 		"@eslint/js": "^10.0.1",
+		"@types/bun": "^1.3.10",
 		"@types/node": "^25.3.3",
 		"@types/react": "^19.2.14",
 		"@types/react-dom": "^19.2.3",

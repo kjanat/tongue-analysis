@@ -47,8 +47,8 @@ type DetectionInput =
 		readonly timestampMs: number;
 	};
 
-// The model file isn't part of the npm package — it's downloaded from Google Storage at
-// CI time into public/mediapipe/models/. WASM ships with @mediapipe/tasks-vision and is
+// The model file isn't part of the npm package — it's downloaded from Google Storage by
+// scripts/build.ts into public/mediapipe/models/. WASM ships with @mediapipe/tasks-vision and is
 // managed by the package-bindings plugin. Both share the same primary/fallback strategy:
 // when WASM is self-hosted, the model is served locally too; when WASM uses CDN, the
 // model falls back to its canonical Google Storage URL.
