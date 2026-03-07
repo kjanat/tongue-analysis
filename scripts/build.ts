@@ -81,9 +81,20 @@ function trimOrUndefined(value: string | undefined): string | undefined {
 
 function readArgValue(name: string): string | undefined {
 	const prefix = `--${name}=`;
-	for (const arg of process.argv.slice(2)) {
-		if (!arg.startsWith(prefix)) continue;
-		return trimOrUndefined(arg.slice(prefix.length));
+	const exact = `--${name}`;
+	const args = process.argv.slice(2);
+
+	for (let i = 0; i < args.length; i++) {
+		const arg = args[i];
+		if (arg === undefined) continue;
+
+		if (arg.startsWith(prefix)) {
+			return trimOrUndefined(arg.slice(prefix.length));
+		}
+
+		if (arg === exact) {
+			return trimOrUndefined(args[i + 1]);
+		}
 	}
 
 	return undefined;

@@ -149,7 +149,7 @@ function resolveAssets(config: ResolvedConfig, options: PackageBindingsPluginOpt
 		const assetPath = asset.path.replace(/\\/g, '/');
 		const absolutePath = path.resolve(pkg.root, assetPath);
 
-		if (!absolutePath.startsWith(pkg.root)) {
+		if (!isWithinRoot(pkg.root, absolutePath)) {
 			throw new Error(`[package-bindings] asset '${asset.path}' escapes package '${asset.package}'.`);
 		}
 		if (!existsSync(absolutePath)) {
