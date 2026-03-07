@@ -266,11 +266,17 @@ dialog.camera-modal::backdrop {
 }
 
 .camera-video {
-	width: min(100%, 700px);
-	border-radius: 10px;
-	border: 1px solid rgba(201, 165, 78, 0.25);
-	background: #000;
+	width: 100%;
+	height: 100%;
+	border-radius: inherit;
+	background: transparent;
 	object-fit: contain;
+	opacity: 0;
+	transition: opacity 0.24s ease;
+}
+
+.camera-video[data-ready="true"] {
+	opacity: 1;
 }
 
 .camera-video[data-mirror="true"] {
@@ -280,6 +286,57 @@ dialog.camera-modal::backdrop {
 .camera-stage {
 	position: relative;
 	width: min(100%, 700px);
+	border-radius: 10px;
+	border: 1px solid rgba(201, 165, 78, 0.25);
+	background: linear-gradient(
+		180deg,
+		rgba(26, 18, 12, 0.96),
+		rgba(18, 12, 8, 0.96)
+	);
+	overflow: hidden;
+}
+
+.camera-skeleton {
+	position: absolute;
+	inset: 0;
+	display: grid;
+	place-items: center;
+	overflow: hidden;
+	background:
+		radial-gradient(
+			circle at 18% 18%,
+			rgba(201, 165, 78, 0.12),
+			transparent 56%
+		),
+		radial-gradient(
+		circle at 84% 74%,
+		rgba(166, 106, 52, 0.1),
+		transparent 56%
+	),
+		rgba(22, 14, 9, 0.9);
+}
+
+.camera-skeleton::before {
+	content: "";
+	position: absolute;
+	inset: 0;
+	background: linear-gradient(
+		100deg,
+		transparent 20%,
+		rgba(245, 219, 177, 0.2) 46%,
+		transparent 74%
+	);
+	transform: translateX(-100%);
+	animation: camera-skeleton-shimmer 1.5s ease-in-out infinite;
+}
+
+.camera-skeleton-label {
+	position: relative;
+	z-index: 1;
+	font-size: 0.82rem;
+	letter-spacing: 0.04em;
+	color: #cfb387;
+	text-transform: uppercase;
 }
 
 .camera-overlay {
@@ -364,6 +421,15 @@ dialog.camera-modal::backdrop {
 	display: grid;
 	gap: 0.55rem;
 	transition: opacity 0.25s ease;
+	view-transition-name: camera-live-diagnosis;
+}
+
+.camera-live-diagnosis[data-reveal-phase="a"] {
+	animation: camera-live-reveal-a 0.36s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.camera-live-diagnosis[data-reveal-phase="b"] {
+	animation: camera-live-reveal-b 0.36s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .camera-live-diagnosis[data-stale="true"] {
@@ -396,8 +462,38 @@ dialog.camera-modal::backdrop {
 	font-style: italic;
 }
 
+@keyframes camera-skeleton-shimmer {
+	to {
+		transform: translateX(100%);
+	}
+}
+
+@keyframes camera-live-reveal-a {
+	from {
+		opacity: 0;
+		transform: translateY(6px) scale(0.985);
+	}
+
+	to {
+		opacity: 1;
+		transform: translateY(0) scale(1);
+	}
+}
+
+@keyframes camera-live-reveal-b {
+	from {
+		opacity: 0;
+		transform: translateY(6px) scale(0.985);
+	}
+
+	to {
+		opacity: 1;
+		transform: translateY(0) scale(1);
+	}
+}
+
 @media (max-height: 600px) {
-	.camera-video {
+	.camera-stage {
 		max-height: 50vh;
 	}
 }
@@ -405,10 +501,6 @@ dialog.camera-modal::backdrop {
 @media (orientation: portrait) and (max-width: 600px) {
 	dialog.camera-modal {
 		padding: 0.75rem;
-	}
-
-	.camera-video {
-		width: 100%;
 	}
 
 	.camera-controls {
@@ -954,6 +1046,7 @@ dialog.camera-modal::backdrop {
 
 	.upload-area,
 	.camera-btn,
+	.camera-video,
 	.analyze-btn,
 	.restart-btn,
 	.guide summary,
@@ -965,5 +1058,11 @@ dialog.camera-modal::backdrop {
 	.camera-live-diagnosis,
 	.guide summary::before {
 		transition: none;
+	}
+
+	.camera-skeleton::before,
+	.camera-live-diagnosis[data-reveal-phase="a"],
+	.camera-live-diagnosis[data-reveal-phase="b"] {
+		animation: none;
 	}
 }

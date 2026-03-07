@@ -16,13 +16,26 @@ import type { Diagnosis } from '../lib/diagnosis.ts';
 import { formatUpdateTime } from '../lib/format-time.ts';
 import { ANALYSIS_STEP_LABELS } from '../lib/pipeline.ts';
 import type { AnalysisStep } from '../lib/pipeline.ts';
-import { withViewTransitionAndWait } from '../lib/view-transition.ts';
+import { withViewTransition, withViewTransitionAndWait } from '../lib/view-transition.ts';
 
 /**
  * Delay (ms) before the camera stream is automatically released after a tab switch.
  * Gives users time to return before requiring a manual restart.
  */
 const CAMERA_RELEASE_DELAY_MS = 20_000;
+const DESKTOP_PREVIEW_ASPECT_RATIO = 16 / 9;
+const MOBILE_PREVIEW_ASPECT_RATIO = 3 / 4;
+const MOBILE_PREVIEW_MEDIA_QUERY = '(max-width: 700px) and (orientation: portrait)';
+
+function getFallbackPreviewAspectRatio(): number {
+	if (typeof window === 'undefined') {
+		return DESKTOP_PREVIEW_ASPECT_RATIO;
+	}
+
+	return window.matchMedia(MOBILE_PREVIEW_MEDIA_QUERY).matches
+		? MOBILE_PREVIEW_ASPECT_RATIO
+		: DESKTOP_PREVIEW_ASPECT_RATIO;
+}
 
 type HeroOwner = 'button' | 'dialog';
 
@@ -127,6 +140,12 @@ function CameraReadyControls({
 interface CameraStageProps {
 	/** Ref to the `<video>` element receiving the camera stream. */
 	readonly videoRef: RefObject<HTMLVideoElement | null>;
+	/** Aspect ratio used to reserve preview layout before stream metadata is available. */
+	readonly previewAspectRatio: number;
+	/** Whether a loading skeleton should overlay the preview area. */
+	readonly showSkeleton: boolean;
+	/** Whether the video has enough metadata to render at its final dimensions. */
+	readonly videoReady: boolean;
 	/** Ref to the debug overlay canvas (only rendered when `VITE_DEBUG_OVERLAY` is enabled). */
 	readonly overlayCanvasRef: RefObject<HTMLCanvasElement | null>;
 	/** Whether the preview should be horizontally mirrored (true for user-facing cameras). */
@@ -146,6 +165,9 @@ interface CameraStageProps {
  */
 function CameraStage({
 	videoRef,
+	previewAspectRatio,
+	showSkeleton,
+	videoReady,
 	overlayCanvasRef,
 	mirrorPreview,
 	liveHasStarted,
@@ -153,17 +175,29 @@ function CameraStage({
 	activeError,
 }: CameraStageProps) {
 	const mirrorValue = mirrorPreview ? 'true' : 'false';
+	const skeletonVisible = showSkeleton ? 'true' : 'false';
+	const videoReadyValue = videoReady ? 'true' : 'false';
 
 	return (
-		<div className='camera-stage'>
+		<div
+			className='camera-stage'
+			data-skeleton-visible={skeletonVisible}
+			style={{ aspectRatio: String(previewAspectRatio) }}
+		>
 			<video
 				ref={videoRef}
 				className='camera-video'
 				data-mirror={mirrorValue}
+				data-ready={videoReadyValue}
 				autoPlay
 				muted
 				playsInline
 			/>
+			{showSkeleton && (
+				<div className='camera-skeleton' aria-hidden='true'>
+					<span className='camera-skeleton-label'>Camera wordt voorbereid...</span>
+				</div>
+			)}
 			{import.meta.env.VITE_DEBUG_OVERLAY === 'true' && (
 				<canvas
 					ref={overlayCanvasRef}
@@ -219,6 +253,23 @@ function LiveDiagnosisPanel({
 	onUseLiveDiagnosis,
 }: LiveDiagnosisPanelProps) {
 	const isLiveRunning = liveMode === 'running';
+	const [revealPhase, setRevealPhase] = useState<'a' | 'b'>('a');
+	const previousRevealTimestampRef = useRef<number | null>(null);
+
+	useEffect(() => {
+		if (liveDiagnosis === null || liveUpdatedAt === null) {
+			return;
+		}
+
+		if (previousRevealTimestampRef.current === liveUpdatedAt) {
+			return;
+		}
+
+		previousRevealTimestampRef.current = liveUpdatedAt;
+		withViewTransition(() => {
+			setRevealPhase((previous) => previous === 'a' ? 'b' : 'a');
+		});
+	}, [liveDiagnosis, liveUpdatedAt]);
 
 	return (
 		<div className='camera-live'>
@@ -234,7 +285,11 @@ function LiveDiagnosisPanel({
 			)}
 
 			{liveDiagnosis !== null && (
-				<div className='camera-live-diagnosis' data-stale={liveError !== null}>
+				<div
+					className='camera-live-diagnosis'
+					data-stale={liveError !== null}
+					data-reveal-phase={revealPhase}
+				>
 					<div className='camera-live-type'>
 						<span lang='zh'>{liveDiagnosis.type.nameZh}</span> - {liveDiagnosis.type.name}
 					</div>
@@ -297,6 +352,8 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 	const pendingCloseRef = useRef(false);
 	const [cameraAutoPaused, setCameraAutoPaused] = useState(false);
 	const [heroOwner, setHeroOwner] = useState<HeroOwner>('button');
+	const [previewAspectRatio, setPreviewAspectRatio] = useState(getFallbackPreviewAspectRatio);
+	const [videoReady, setVideoReady] = useState(false);
 	/** Set to `true` when camera switch interrupted live analysis, so it auto-restarts. */
 	const restartLiveAfterSwitchRef = useRef(false);
 
@@ -347,6 +404,7 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 	const isIdle = mode === 'idle';
 	const isReady = mode === 'ready';
 	const isRequesting = mode === 'requesting';
+	const showPreviewSkeleton = isRequesting || (isReady && !videoReady);
 	const isLiveRunning = liveMode === 'running';
 	const cameraActive = !isIdle;
 	const activeError = liveError ?? error;
@@ -489,6 +547,66 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 			startLiveAnalysis();
 		}
 	}, [isReady, startLiveAnalysis]);
+
+	useEffect(() => {
+		if (!cameraActive) {
+			setPreviewAspectRatio(getFallbackPreviewAspectRatio());
+			setVideoReady(false);
+			return;
+		}
+
+		const video = videoRef.current;
+		if (video === null) {
+			setVideoReady(false);
+			return;
+		}
+
+		const updateVideoGeometry = (): void => {
+			if (video.videoWidth <= 0 || video.videoHeight <= 0) {
+				return;
+			}
+
+			const detectedAspectRatio = video.videoWidth / video.videoHeight;
+
+			if (!videoReady) {
+				withViewTransition(() => {
+					setPreviewAspectRatio(detectedAspectRatio);
+					setVideoReady(true);
+				});
+				return;
+			}
+
+			setPreviewAspectRatio(detectedAspectRatio);
+		};
+
+		updateVideoGeometry();
+		video.addEventListener('loadedmetadata', updateVideoGeometry);
+		video.addEventListener('resize', updateVideoGeometry);
+
+		return () => {
+			video.removeEventListener('loadedmetadata', updateVideoGeometry);
+			video.removeEventListener('resize', updateVideoGeometry);
+		};
+	}, [cameraActive, videoReady, videoRef]);
+
+	useEffect(() => {
+		if (cameraActive || videoReady) {
+			return;
+		}
+
+		const mediaQuery = window.matchMedia(MOBILE_PREVIEW_MEDIA_QUERY);
+
+		const syncFallbackAspectRatio = (): void => {
+			setPreviewAspectRatio(mediaQuery.matches ? MOBILE_PREVIEW_ASPECT_RATIO : DESKTOP_PREVIEW_ASPECT_RATIO);
+		};
+
+		syncFallbackAspectRatio();
+		mediaQuery.addEventListener('change', syncFallbackAspectRatio);
+
+		return () => {
+			mediaQuery.removeEventListener('change', syncFallbackAspectRatio);
+		};
+	}, [cameraActive, videoReady]);
 
 	useEffect(() => {
 		const handleVisibilityChange = (): void => {
@@ -638,6 +756,9 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 				<div className='camera-preview' data-visible={isReady || isRequesting}>
 					<CameraStage
 						videoRef={videoRef}
+						previewAspectRatio={previewAspectRatio}
+						showSkeleton={showPreviewSkeleton}
+						videoReady={videoReady}
 						overlayCanvasRef={overlayCanvasRef}
 						mirrorPreview={mirrorPreview}
 						liveHasStarted={liveHasStarted}
