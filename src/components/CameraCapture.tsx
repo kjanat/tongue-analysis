@@ -623,6 +623,22 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 		void closeModalWithTransition();
 	}, [closeModalWithTransition]);
 
+	const closeModalImmediately = useCallback(() => {
+		pendingCloseRef.current = false;
+		modalTransitioningRef.current = false;
+		transitionClosingRef.current = false;
+		setModalClosing(false);
+		setLivePanelClosing(false);
+
+		const dialog = dialogRef.current;
+		if (dialog?.open === true) {
+			dialog.close();
+			return;
+		}
+
+		finalizeModalClose(activeCloseRequestSequenceRef.current);
+	}, [finalizeModalClose]);
+
 	const handleDialogClose = useCallback(() => {
 		if (transitionClosingRef.current) {
 			return;
@@ -802,10 +818,10 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 
 			// Ownership: caller (App.tsx) is responsible for revoking this URL via objectUrlRef
 			const objectUrl = URL.createObjectURL(result.value);
-			await closeModalWithTransition();
+			closeModalImmediately();
 			onCapture(result.value, objectUrl);
 		})();
-	}, [closeModalWithTransition, onCapture, setCameraError, videoRef]);
+	}, [closeModalImmediately, onCapture, setCameraError, videoRef]);
 
 	const handleLiveToggle = useCallback(() => {
 		if (isLiveRunning) {
@@ -827,11 +843,9 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 		if (liveDiagnosis === null || onLiveDiagnosis === undefined) return;
 		clearReleaseTimer();
 		announceLiveStatus(`Live-resultaat geselecteerd: ${liveDiagnosis.type.name}.`);
-		void (async () => {
-			await closeModalWithTransition();
-			onLiveDiagnosis(liveDiagnosis);
-		})();
-	}, [announceLiveStatus, clearReleaseTimer, closeModalWithTransition, liveDiagnosis, onLiveDiagnosis]);
+		closeModalImmediately();
+		onLiveDiagnosis(liveDiagnosis);
+	}, [announceLiveStatus, clearReleaseTimer, closeModalImmediately, liveDiagnosis, onLiveDiagnosis]);
 
 	const handleDialogMouseDown = useCallback((event: MouseEvent<HTMLDialogElement>) => {
 		const dialog = event.currentTarget;
