@@ -6,6 +6,7 @@
 	"bin": {
 		"tongue-analysis": "cli/analyze.ts"
 	},
+	"homepage": "https://tong.kajkowalski.nl",
 	"scripts": {
 		"dev": "vite",
 		"build": "bun bd",

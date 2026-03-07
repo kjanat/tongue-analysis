@@ -1,6 +1,6 @@
 # PROJECT KNOWLEDGE BASE
 
-**Generated:** 2026-03-07 **Commit:** e362520 **Branch:** master
+**Generated:** 2026-03-07 **Commit:** 051c50b **Branch:** master
 
 ## OVERVIEW
 
@@ -20,9 +20,9 @@ tongue-analysis/
 │   ├── App.tsx                   # Root: 5-phase state machine (upload→preview→loading→results|error)
 │   ├── App.css                   # All component styles (~930 lines, plain CSS)
 │   ├── index.css                 # Global reset
-│   ├── components/
+│   ├── components/               # 6 components, flat structure
 │   │   ├── CameraCapture.tsx     # Live camera with real-time analysis (430 lines)
-│   │   ├── DiagnosisResults.tsx  # Results display
+│   │   ├── DiagnosisResults.tsx  # Results display (216 lines)
 │   │   ├── Guide.tsx             # Interactive TCM guide
 │   │   ├── LoadingSequence.tsx   # 7-step analysis progress animation
 │   │   ├── TongueMap.tsx         # Tongue zone SVG visualization
@@ -43,7 +43,7 @@ tongue-analysis/
 │   └── build.ts                  # Custom build orchestrator (replaces raw `vite build`)
 ├── vite.package-bindings.ts      # 460-line custom Vite plugin for MediaPipe WASM asset resolution
 ├── public/                       # Static assets (icons, OG image)
-├── integration/                  # Manual test fixture images (not automated tests)
+├── integration/                  # Manual test fixture images (NOT automated tests, all gitignored)
 ├── .github/workflows/pages.yml   # CI: bun install → build → GitHub Pages deploy
 ├── index.html                    # Vite entry HTML (Dutch meta, OG tags, Google Fonts)
 └── vite.config.ts                # React plugin + React Compiler + package-bindings + svg-to-ico
@@ -51,29 +51,21 @@ tongue-analysis/
 
 ## WHERE TO LOOK
 
-| Task                 | Location                          | Notes                                                      |
-| -------------------- | --------------------------------- | ---------------------------------------------------------- |
-| Analysis pipeline    | `src/lib/pipeline.ts`             | Orchestrates all ML steps; `Result<T,E>` error handling    |
-| Face detection       | `src/lib/face-detection.ts`       | MediaPipe FaceLandmarker, mouth region extraction          |
-| Tongue segmentation  | `src/lib/tongue-segmentation.ts`  | HSV thresholding, connected components, centroid heuristic |
-| Color correction     | `src/lib/color-correction.ts`     | Gray-world algorithm on masked tongue pixels               |
-| Color classification | `src/lib/color-classification.ts` | OKLCh distance to TCM tongue types, confidence scoring     |
-| Diagnosis generator  | `src/lib/diagnosis.ts`            | Seeded PRNG, maps classification → TCM diagnosis           |
-| Legacy color         | `src/lib/color-analysis.ts`       | Canvas center-crop RGB→HSL extraction                      |
-| Legacy matching      | `src/lib/color-matching.ts`       | HSL distance, weight boosting (used by old PRNG path)      |
-| Result type          | `src/lib/result.ts`               | 17-line `Result<T,E>` discriminated union (`ok`/`err`)     |
-| App state machine    | `src/App.tsx`                     | `Phase` discriminated union, 5 variants with `kind` tag    |
-| Live camera          | `src/hooks/use-live-analysis.ts`  | Real-time video frame analysis loop                        |
-| Camera stream        | `src/hooks/use-media-stream.ts`   | getUserMedia lifecycle, device enumeration                 |
-| Domain data (TCM)    | `src/data/tongue-types.ts`        | Organs, elements, meridians, tongue type definitions       |
-| Styles               | `src/App.css`                     | Single file, all component styles, section-divided         |
-| MediaPipe assets     | `vite.package-bindings.ts`        | WASM copy, model download, CDN fallback, virtual module    |
-| Build script         | `scripts/build.ts`                | Resolves env (GH Actions / CF Pages), runs tsc+vite        |
-| CLI tool             | `cli/analyze.ts`                  | Headless analysis, polyfills `ImageData` for Bun runtime   |
-| CI/deploy            | `.github/workflows/pages.yml`     | Triggers on `master`, path-filtered, no lint/test gates    |
-| TS strictness        | `tsconfig.app.json`               | `noUncheckedIndexedAccess`, `erasableSyntaxOnly`           |
-| Lint rules           | `eslint.config.js`                | Flat config, `strictTypeChecked` + 4 React plugins         |
-| Formatting           | `.dprint.jsonc`                   | Remote shared config from kjanat/kjanat repo               |
+| Task              | Location                         | Notes                                                    |
+| ----------------- | -------------------------------- | -------------------------------------------------------- |
+| Analysis pipeline | `src/lib/`                       | See `src/lib/AGENTS.md` for full pipeline breakdown      |
+| App state machine | `src/App.tsx`                    | `Phase` discriminated union, 5 variants with `kind` tag  |
+| Live camera       | `src/hooks/use-live-analysis.ts` | Real-time video frame analysis loop                      |
+| Camera stream     | `src/hooks/use-media-stream.ts`  | getUserMedia lifecycle, device enumeration               |
+| Domain data (TCM) | `src/data/tongue-types.ts`       | Organs, elements, meridians, tongue type definitions     |
+| Styles            | `src/App.css`                    | Single file, all component styles, section-divided       |
+| MediaPipe assets  | `vite.package-bindings.ts`       | WASM copy, model download, CDN fallback, virtual module  |
+| Build script      | `scripts/build.ts`               | Resolves env (GH Actions / CF Pages), runs tsc+vite      |
+| CLI tool          | `cli/analyze.ts`                 | Headless analysis, polyfills `ImageData` for Bun runtime |
+| CI/deploy         | `.github/workflows/pages.yml`    | Triggers on `master`, path-filtered, no lint/test gates  |
+| TS strictness     | `tsconfig.app.json`              | `noUncheckedIndexedAccess`, `erasableSyntaxOnly`         |
+| Lint rules        | `eslint.config.js`               | Flat config, `strictTypeChecked` + 4 React plugins       |
+| Formatting        | `.dprint.jsonc`                  | Remote shared config from kjanat/kjanat repo             |
 
 ## CONVENTIONS
 
@@ -104,6 +96,7 @@ tongue-analysis/
 
 - Components: **PascalCase** `.tsx`
 - Logic/data modules: **kebab-case** `.ts`
+- Hooks: **`use-kebab-case`** `.ts`
 - Module-level constants: **SCREAMING_SNAKE_CASE**
 - CSS classes: **kebab-case**, BEM-ish
 - Section dividers: `// ── Section Title ──────────────────`
@@ -116,15 +109,11 @@ tongue-analysis/
 
 ## ANTI-PATTERNS (THIS PROJECT)
 
-- **No `any`** — enforced by `strictTypeChecked`
-- **No `!` non-null assertions** — use `?.` or explicit null checks
-- **No `as Type` assertions** — only `as const` allowed
-- **No enums/namespaces** — enforced by `erasableSyntaxOnly`
 - **No Prettier** — dprint only
 - **No CSS modules/Tailwind/CSS-in-JS** — plain CSS with `data-*` state attributes
-- **No barrel files** — no `index.ts` re-exports
 - **No implicit coercion in templates** — use `String()` explicitly
-- **No try/catch for expected failures** — use `Result<T,E>` from `src/lib/result.ts`
+- **No `@ts-ignore`** — use `@ts-expect-error` with justification if unavoidable
+- **No `eslint-disable`** — zero instances; fix the code instead
 
 ## COMMANDS
 
@@ -145,11 +134,16 @@ bun run cf-build  # Cloudflare Pages build variant
 - **`master` branch**: Default branch is `master`, not `main`.
 - **Robots blocked**: `vite-robots-txt` with `disallowAll` preset.
 - **Empty `catch` blocks intentional**: SessionStorage may be unavailable in restricted browsing.
-- **Build plugins in wrong section**: `vite-robots-txt`, `vite-svg-to-ico`, `hex-to-oklch` in `dependencies` instead of `devDependencies`.
+- **Build plugins in wrong section**: `vite-robots-txt`, `vite-svg-to-ico` in `dependencies` instead of `devDependencies`. This is intentional by user. They are the user's own packages, and here for promo-type-shizz.
 - **Dutch locale**: `lang="nl"` on HTML, all UI text in Dutch.
 - **Sole `@ts-expect-error`**: `cli/analyze.ts:10` — intentional `ImageData` global polyfill for Bun runtime.
 - **Two input paths**: File upload (`UploadArea`) and live camera (`CameraCapture`). Camera can bypass preview/loading via `onLiveDiagnosis`.
 - **Closeup fallback**: If face detection fails, pipeline retries with full-image analysis and relaxed thresholds.
 - **Build-time env vars**: `VITE_COMMIT_SHA`, `VITE_BUILD_DATE`, `VITE_DEBUG_OVERLAY` injected by `scripts/build.ts`.
 - **Cloudflare support**: `cf-build` script and `CF_PAGES_*` env var support exist but no CF workflow deployed.
-- **`types/package-bindings.d.ts`**: Must stay in sync with `virtualModuleSource()` in `vite.package-bindings.ts`.
+- **`types/package-bindings.d.ts`**: Must stay in sync with `virtualModuleSource()` in `vite.package-bindings.ts`. No automated verification — enforced by `SYNC:` comments only.
+- **Three tsconfig zones**: `app` (src), `node` (vite config), `cli` (cli + scripts) — all via project references.
+- **CLI shares browser source**: `cli/analyze.ts` imports from `src/lib/` and `src/data/` across tsconfig boundary.
+- **Dual-purpose**: SPA + CLI tool (`bunx tongue-analysis`). Registered via `bin` field in package.json.
+- **Build indirection**: `bun run build` → `bun bd` → `bun --bun scripts/build.ts` → spawns `tsc -b` + `vite build`.
+- **`integration/` is misleading**: Contains local-only fixture images, not automated tests. All files gitignored.

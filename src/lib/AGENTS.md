@@ -5,9 +5,9 @@ Client-side ML pipeline: image → face detection → tongue segmentation → co
 ## PIPELINE FLOW
 
 ```tree
-analyzeTongueFromUrl(url)           pipeline.ts (orchestrator, 498 lines)
+analyzeTongueFromUrl(url)           pipeline.ts (orchestrator, 101 lines)
   │
-  ├─ loadImage(url)                 pipeline.ts internal
+  ├─ loadImage(url)                 pipeline/frame-source.ts
   ├─ detectMouthRegion(image)       face-detection.ts   → Result<MouthRegion, MouthDetectionError>
   │    └─ closeup fallback: if face detection fails, retries with full-image crop + relaxed thresholds
   ├─ segmentTongue(imageData)       tongue-segmentation.ts → Result<TongueMask, TongueSegmentationError>
@@ -26,17 +26,31 @@ All return `Result<AnalysisSuccess, AnalysisError>`.
 
 ## WHERE TO LOOK
 
-| File                      | Lines | Role                                                                  |
-| ------------------------- | ----- | --------------------------------------------------------------------- |
-| `pipeline.ts`             | 498   | Orchestrator. 7-step `AnalysisStep` enum. Closeup fallback.           |
-| `face-detection.ts`       | 344   | MediaPipe FaceLandmarker. Singleton model. Mouth landmark extraction. |
-| `tongue-segmentation.ts`  | 362   | HSV thresholding → connected components → centroid heuristic.         |
-| `color-correction.ts`     | 158   | Gray-world on masked pixels. Returns corrected `ImageData` + avg RGB. |
-| `color-classification.ts` | 95    | RGB→OKLCh conversion. Distance to TCM type reference colors.          |
-| `diagnosis.ts`            | 106   | Maps `TongueColorClassification` → satirical TCM `Diagnosis`.         |
-| `result.ts`               | 17    | `Result<T,E>` discriminated union. `ok(value)` / `err(error)`.        |
-| `color-analysis.ts`       | 136   | **Legacy.** Canvas center-crop RGB→HSL. Used by old PRNG path.        |
-| `color-matching.ts`       | 126   | **Legacy.** HSL distance + weight boosting for old diagnosis.         |
+| File                      | Lines | Role                                                                      |
+| ------------------------- | ----- | ------------------------------------------------------------------------- |
+| `pipeline.ts`             | 101   | Orchestrator. Delegates to `pipeline/analysis-core.ts`. Closeup fallback. |
+| `face-detection.ts`       | 344   | MediaPipe FaceLandmarker. Singleton model. Mouth landmark extraction.     |
+| `tongue-segmentation.ts`  | 362   | HSV thresholding → connected components → centroid heuristic.             |
+| `color-correction.ts`     | 158   | Gray-world on masked pixels. Returns corrected `ImageData` + avg RGB.     |
+| `color-classification.ts` | 95    | RGB→OKLCh conversion. Distance to TCM type reference colors.              |
+| `diagnosis.ts`            | 106   | Maps `TongueColorClassification` → satirical TCM `Diagnosis`.             |
+| `result.ts`               | 17    | `Result<T,E>` discriminated union. `ok(value)` / `err(error)`.            |
+| `color-analysis.ts`       | 136   | **Legacy.** Canvas center-crop RGB→HSL. Used by old PRNG path.            |
+| `color-matching.ts`       | 126   | **Legacy.** HSL distance + weight boosting for old diagnosis.             |
+
+### pipeline/ subdirectory
+
+Decomposed pipeline internals, extracted from the former monolithic `pipeline.ts`:
+
+| File                        | Lines | Role                                                              |
+| --------------------------- | ----- | ----------------------------------------------------------------- |
+| `pipeline/analysis-core.ts` | 149   | Core analysis logic: step orchestration, closeup fallback.        |
+| `pipeline/crop.ts`          | 72    | Image cropping from mouth landmarks to canvas `ImageData`.        |
+| `pipeline/frame-source.ts`  | 30    | Unified frame acquisition (URL load / direct ImageData / video).  |
+| `pipeline/lighting.ts`      | 102   | Luminance histogram analysis, poor-lighting detection.            |
+| `pipeline/mask.ts`          | 71    | Tongue mask application, allowed-region mask construction.        |
+| `pipeline/thresholds.ts`    | 13    | Threshold constants for segmentation and lighting checks.         |
+| `pipeline/types.ts`         | 27    | Shared types: `AnalysisStep`, `AnalysisSuccess`, `AnalysisError`. |
 
 ## ERROR TYPES
 
@@ -51,8 +65,6 @@ Every pipeline stage has its own discriminated union error type (`kind` tag):
 
 ## CONVENTIONS (beyond root)
 
-- **`Result<T,E>` everywhere**: No `throw` for expected failures. Pipeline uses `ok()`/`err()` from `result.ts`.
-- **`readonly` on all data**: Every interface field, every array. No mutation after creation.
 - **Singleton model**: `face-detection.ts` caches the MediaPipe `FaceLandmarker` instance. Call `releaseFaceLandmarker()` to free.
 - **Two detection modes**: `detectMouthRegion(image)` for stills, `detectMouthRegionForVideo(video, timestamp)` for live frames. Different MediaPipe API calls.
 - **Legacy modules**: `color-analysis.ts` and `color-matching.ts` are from the old PRNG-only path. Still imported by the diagnosis generator for seeded randomness.
