@@ -30,6 +30,8 @@ function pointInPolygon(point: Point2D, polygon: readonly Point2D[]): boolean {
 		if (a === undefined || b === undefined) continue;
 
 		const deltaY = b.y - a.y;
+		// When deltaY is 0, the !== check is false (horizontal edge) so
+		// short-circuit evaluation never reaches the division.
 		const intersects = (a.y > point.y) !== (b.y > point.y)
 			&& point.x < ((b.x - a.x) * (point.y - a.y)) / deltaY + a.x;
 
