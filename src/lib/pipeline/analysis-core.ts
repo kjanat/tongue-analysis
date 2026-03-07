@@ -77,13 +77,7 @@ function mapLightingError(
 	const issue = detectLightingIssue(imageData, allowedMask);
 	if (issue === undefined) return undefined;
 
-	return {
-		kind: 'poor_lighting',
-		issue: issue.issue,
-		meanLuminance: issue.meanLuminance,
-		darkRatio: issue.darkRatio,
-		brightRatio: issue.brightRatio,
-	};
+	return { kind: 'poor_lighting', ...issue };
 }
 
 export function analyzeTongueFrame(

@@ -2,6 +2,7 @@ import type { TongueColorClassification } from './color-classification.ts';
 import type { Diagnosis } from './diagnosis.ts';
 import type { MouthDetectionError, MouthRegion } from './face-detection.ts';
 import { detectMouthRegion, detectMouthRegionForVideo } from './face-detection.ts';
+import type { LightingIssue } from './pipeline/lighting.ts';
 import { err, type Result } from './result.ts';
 
 import { analyzeTongueFrame } from './pipeline/analysis-core.ts';
@@ -21,13 +22,7 @@ export type AnalysisError =
 	| { readonly kind: 'canvas_unavailable' }
 	| { readonly kind: 'mouth_crop_failed' }
 	| { readonly kind: 'face_detection_error'; readonly error: MouthDetectionError }
-	| {
-		readonly kind: 'poor_lighting';
-		readonly issue: 'too_dark' | 'too_bright' | 'high_contrast';
-		readonly meanLuminance: number;
-		readonly darkRatio: number;
-		readonly brightRatio: number;
-	}
+	| ({ readonly kind: 'poor_lighting' } & LightingIssue)
 	| {
 		readonly kind: 'tongue_segmentation_error';
 		readonly error: import('./tongue-segmentation.ts').TongueSegmentationError;
