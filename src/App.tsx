@@ -46,7 +46,6 @@ function errorMessage(error: AnalysisError): string {
 				case 'detection_failed':
 					return 'Gezichtsdetectie mislukte. Probeer een foto met beter licht.';
 			}
-			return 'Gezichtsdetectie gaf een onbekende fout.';
 		case 'poor_lighting':
 			switch (error.issue) {
 				case 'too_dark':
@@ -56,7 +55,6 @@ function errorMessage(error: AnalysisError): string {
 				case 'high_contrast':
 					return 'Belichting heeft te harde schaduwen. Gebruik egaal licht van voren zonder sterke contrasten.';
 			}
-			return 'Belichting onvoldoende voor betrouwbare analyse.';
 		case 'tongue_segmentation_error':
 			switch (error.error.kind) {
 				case 'empty_input':
@@ -70,7 +68,6 @@ function errorMessage(error: AnalysisError): string {
 				case 'insufficient_pixels':
 					return 'Te weinig bruikbare tongpixels gevonden. Ga dichterbij en zorg voor egaal frontaal licht zonder harde schaduwen.';
 			}
-			return 'Tongsegmentatie gaf een onbekende fout.';
 		case 'color_correction_error':
 			switch (error.error.kind) {
 				case 'mask_size_mismatch':
@@ -78,12 +75,9 @@ function errorMessage(error: AnalysisError): string {
 				case 'no_masked_pixels':
 					return 'Geen bruikbare tongpixels na kleurcorrectie. Probeer beter licht.';
 			}
-			return 'Kleurcorrectie gaf een onbekende fout.';
 		case 'inconclusive_color':
 			return 'Kleurmeting was te onzeker. Zorg voor zichtbaar uitgestoken tong in egaal licht.';
 	}
-
-	return 'Onbekende analysefout opgetreden.';
 }
 
 function startLoadingPhase(imageUrl: string, analysisId: number): Phase {
