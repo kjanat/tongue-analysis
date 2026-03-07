@@ -78,7 +78,7 @@ export default function LoadingSequence({ step }: LoadingSequenceProps) {
 			>
 				<div
 					className='progress-fill'
-					style={{ width: `${String(progress)}%` }}
+					style={{ width: `${progress}%` }}
 				/>
 			</div>
 		</div>

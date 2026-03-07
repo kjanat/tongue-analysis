@@ -83,9 +83,7 @@ export default function DiagnosisResults(
 							className='detected-color-swatch'
 							aria-hidden='true'
 							style={{
-								backgroundColor: `rgb(${String(observedColor.r)} ${String(observedColor.g)} ${
-									String(observedColor.b)
-								})`,
+								backgroundColor: `rgb(${observedColor.r} ${observedColor.g} ${observedColor.b})`,
 							}}
 						/>
 						<span>
