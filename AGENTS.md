@@ -1,6 +1,6 @@
 # PROJECT KNOWLEDGE BASE
 
-**Generated:** 2026-03-07 **Commit:** 5cddae8 **Branch:** master
+**Generated:** 2026-03-07 **Commit:** 6e6333b **Branch:** master
 
 ## OVERVIEW
 
@@ -22,7 +22,7 @@ tongue-analysis/
 │   ├── index.css                 # Global reset + button font-family inherit
 │   ├── components/               # 6 components — see src/components/AGENTS.md
 │   │   ├── CameraCapture.tsx     # Live camera + real-time analysis (564 lines)
-│   │   ├── DiagnosisResults.tsx  # Results display (181 lines)
+│   │   ├── DiagnosisResults.tsx  # Results display (179 lines)
 │   │   ├── Guide.tsx             # Interactive TCM guide (127 lines)
 │   │   ├── LoadingSequence.tsx   # 7-step analysis progress animation (86 lines)
 │   │   ├── TongueMap.tsx         # Tongue zone SVG visualization (115 lines)
@@ -31,7 +31,7 @@ tongue-analysis/
 │   │   ├── use-deferred-camera-release.ts  # Delayed camera cleanup on tab switch (81 lines)
 │   │   ├── use-live-analysis.ts  # Real-time tongue analysis rAF loop (421 lines)
 │   │   ├── use-live-announcements.ts  # ARIA screen reader announcements (123 lines)
-│   │   └── use-media-stream.ts   # Camera stream lifecycle + device switching (413 lines)
+│   │   └── use-media-stream.ts   # Camera stream lifecycle + device switching (426 lines)
 │   ├── data/
 │   │   └── tongue-types.ts       # TCM domain data (organs, elements, zones, tongue types)
 │   ├── lib/                      # Core pipeline + utilities — see src/lib/AGENTS.md
@@ -137,6 +137,7 @@ tongue-analysis/
 ```bash
 bun run dev       # Vite dev server (port 3000, strict)
 bun run build     # Custom build: tsc -b → vite build (via scripts/build.ts)
+bun run typecheck # tsgo --noEmit (native TS compiler preview)
 bun run lint      # eslint .
 bun run preview   # Full build + vite preview
 bun run fmt       # dprint fmt
@@ -164,3 +165,7 @@ bun run cf-build  # Cloudflare Pages build variant
 - **Build indirection**: `bun run build` → `bun bd` → `bun --bun scripts/build.ts` → spawns `tsc -b` + `vite build`.
 - **`integration/` is misleading**: Contains local-only fixture images, not automated tests. All files gitignored.
 - **Duplicated utilities**: `readGitCommitSha` in both `scripts/build.ts` and `vite.config.ts`; `parseBoolean` in both `scripts/build.ts` and `vite.package-bindings.ts`. Not shared — drift risk.
+- **`tsgo` for typecheck**: `@typescript/native-preview` used for `bun run typecheck`, but `tsc -b` used in actual build. Two different TS compilers.
+- **`gl` in devDependencies**: Native OpenGL bindings for headless WebGL / CLI canvas support.
+- **Volta pin**: Node 24.13.0 pinned in package.json `volta` field.
+- **Zero anti-pattern annotations**: No `TODO`, `FIXME`, `HACK`, `eslint-disable`, `@ts-ignore`, `as any` in entire codebase. Only `SYNC:` comments (manual cross-file verification markers).

@@ -1,13 +1,13 @@
 # src/hooks — React Hooks
 
-Bridge between React UI and the ML analysis pipeline. 4 hooks, ~1,040 lines total.
+Bridge between React UI and the ML analysis pipeline. 4 hooks, ~1,051 lines total.
 
 ## WHERE TO LOOK
 
 | File                             | Lines | Role                                                                       |
 | -------------------------------- | ----- | -------------------------------------------------------------------------- |
 | `use-live-analysis.ts`           | 421   | rAF loop driving `analyzeTongueVideoFrame()` on live video. Heaviest hook. |
-| `use-media-stream.ts`            | 413   | `getUserMedia` lifecycle: acquire, enumerate, switch, mirror-detect.       |
+| `use-media-stream.ts`            | 426   | `getUserMedia` lifecycle: acquire, enumerate, switch, mirror-detect.       |
 | `use-live-announcements.ts`      | 123   | ARIA live-region announcements for screen readers during analysis.         |
 | `use-deferred-camera-release.ts` | 81    | Cancellable timer for delayed camera cleanup on tab switch.                |
 

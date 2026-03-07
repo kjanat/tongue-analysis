@@ -33,7 +33,7 @@ All return `Result<AnalysisSuccess, AnalysisError>`.
 | `face-detection.ts`         | 619   | MediaPipe FaceLandmarker. Singleton model. Mouth landmark extraction.     |
 | `tongue-segmentation.ts`    | 590   | HSV thresholding → erode/dilate → connected-component BFS → centroid.     |
 | `color-correction.ts`       | 260   | Gray-world on masked pixels. Returns corrected `ImageData` + avg RGB.     |
-| `color-classification.ts`   | 134   | RGB→OKLCh conversion. Distance to TCM type reference colors.              |
+| `color-classification.ts`   | 181   | RGB→OKLCh conversion. Distance to TCM type reference colors.              |
 | `diagnosis.ts`              | 193   | Maps `TongueColorClassification` → satirical TCM `Diagnosis`.             |
 | `oklch-distance.ts`         | 72    | Weighted Euclidean distance in OKLCh with circular hue handling.          |
 | `result.ts`                 | 71    | `Result<T,E>` discriminated union. `ok(value)` / `err(error)`.            |
