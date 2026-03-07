@@ -294,6 +294,7 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 	const dialogRef = useRef<HTMLDialogElement>(null);
 	const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
 	const modalTransitioningRef = useRef(false);
+	const pendingCloseRef = useRef(false);
 	const [cameraAutoPaused, setCameraAutoPaused] = useState(false);
 	const [heroOwner, setHeroOwner] = useState<HeroOwner>('button');
 	/** Set to `true` when camera switch interrupted live analysis, so it auto-restarts. */
@@ -383,15 +384,31 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 
 	const closeModalWithTransition = useCallback(async (): Promise<void> => {
 		const dialog = dialogRef.current;
-		if (dialog === null || !dialog.open || modalTransitioningRef.current) return;
+		if (dialog?.open !== true) {
+			pendingCloseRef.current = false;
+			return;
+		}
+		if (modalTransitioningRef.current) {
+			pendingCloseRef.current = true;
+			return;
+		}
 
 		modalTransitioningRef.current = true;
+		pendingCloseRef.current = false;
 
 		try {
-			await withViewTransitionAndWait(() => {
+			try {
+				await withViewTransitionAndWait(() => {
+					setHeroOwner('button');
+					dialog.close();
+				});
+			} catch {
 				setHeroOwner('button');
-				dialog.close();
-			});
+				const currentDialog = dialogRef.current;
+				if (currentDialog?.open === true) {
+					currentDialog.close();
+				}
+			}
 		} finally {
 			modalTransitioningRef.current = false;
 		}
@@ -404,6 +421,7 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 	const handleDialogClose = useCallback(() => {
 		clearReleaseTimer();
 		modalTransitioningRef.current = false;
+		pendingCloseRef.current = false;
 		setHeroOwner('button');
 		setCameraAutoPaused(false);
 		endSession();
@@ -431,19 +449,32 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 				setCameraAutoPaused(false);
 				clearAllErrors();
 
-				await withViewTransitionAndWait(() => {
+				try {
+					await withViewTransitionAndWait(() => {
+						setHeroOwner('dialog');
+						dialog.showModal();
+					});
+				} catch {
+					const currentDialog = dialogRef.current;
+					if (currentDialog?.open !== true) {
+						currentDialog?.showModal();
+					}
 					setHeroOwner('dialog');
-					dialog.showModal();
-				});
+				}
 			} finally {
 				modalTransitioningRef.current = false;
 			}
 
-			if (isIdle) {
+			if (pendingCloseRef.current) {
+				void closeModalWithTransition();
+				return;
+			}
+
+			if (isIdle && dialogRef.current?.open === true) {
 				handleStartCamera();
 			}
 		})();
-	}, [clearAllErrors, clearReleaseTimer, handleStartCamera, isIdle]);
+	}, [clearAllErrors, clearReleaseTimer, closeModalWithTransition, handleStartCamera, isIdle]);
 
 	const handlePageHidden = useCallback(() => {
 		if (!cameraActive) return;
@@ -538,6 +569,10 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 	}, [closeModalWithTransition]);
 
 	const handleDialogCancel = useCallback((event: SyntheticEvent<HTMLDialogElement>) => {
+		if (dialogRef.current?.open !== true) {
+			return;
+		}
+
 		event.preventDefault();
 		void closeModalWithTransition();
 	}, [closeModalWithTransition]);

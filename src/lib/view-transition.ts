@@ -13,6 +13,10 @@ import { flushSync } from 'react-dom';
 
 const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
 
+function isAbortError(error: unknown): boolean {
+	return error instanceof DOMException && error.name === 'AbortError';
+}
+
 /** Tracks the in-flight transition so rapid phase changes skip stale animations. */
 let activeTransition: ViewTransition | undefined;
 
@@ -85,5 +89,11 @@ export function withViewTransitionAndWait(update: () => void): Promise<void> {
 		return Promise.resolve();
 	}
 
-	return transition.finished.then(() => undefined, () => undefined);
+	return transition.finished.then(() => undefined).catch((error: unknown) => {
+		if (isAbortError(error)) {
+			return;
+		}
+
+		throw error;
+	});
 }

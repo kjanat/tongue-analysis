@@ -240,15 +240,14 @@ dialog.camera-modal::backdrop {
 	margin-top: 0;
 	display: flex;
 	justify-content: center;
-	max-height: 0;
+	height: 0;
 	opacity: 0;
-	overflow: clip;
+	overflow: hidden;
 	visibility: hidden;
 	pointer-events: none;
 	transform: translateY(8px);
 	transition:
 		margin-top 0.3s ease,
-		max-height 0.3s ease,
 		opacity 0.25s ease,
 		transform 0.25s ease,
 		visibility 0s linear 0.3s;
@@ -256,7 +255,8 @@ dialog.camera-modal::backdrop {
 
 .camera-preview[data-visible="true"] {
 	margin-top: 0.9rem;
-	max-height: min(75dvh, 760px);
+	height: auto;
+	overflow: visible;
 	opacity: 1;
 	visibility: visible;
 	pointer-events: auto;
