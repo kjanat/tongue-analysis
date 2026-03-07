@@ -57,7 +57,7 @@ export default function DiagnosisResults(
 		<>
 			<div className='results' aria-live='polite'>
 				{/* Header with type name */}
-				<div className='results-header fade-in'>
+				<div className='results-header'>
 					<h2 lang='zh'>診斷結果</h2>
 					<div className='diagnosis-name'>
 						<span lang='zh'>{type.nameZh}</span> — {type.name}
@@ -66,7 +66,7 @@ export default function DiagnosisResults(
 				</div>
 
 				{/* Summary */}
-				<div className='result-card fade-in'>
+				<div className='result-card'>
 					<p className='summary'>{type.summary}</p>
 					{import.meta.env.VITE_DEBUG_OVERLAY === 'true' && (
 						<p className='result-card-debug'>
@@ -76,7 +76,7 @@ export default function DiagnosisResults(
 				</div>
 
 				{/* Visual observation */}
-				<div className='result-card fade-in'>
+				<div className='result-card'>
 					<h3>Visuele Observatie</h3>
 					<div className='detected-color'>
 						<span
@@ -109,7 +109,7 @@ export default function DiagnosisResults(
 				</div>
 
 				{/* Five-element balance */}
-				<div className='result-card fade-in'>
+				<div className='result-card'>
 					<h3>Vijf-Elementenbalans</h3>
 					<div className='element-badges'>
 						{elements.map((e) => (
@@ -121,7 +121,7 @@ export default function DiagnosisResults(
 				</div>
 
 				{/* Meridian activity */}
-				<div className='result-card fade-in'>
+				<div className='result-card'>
 					<h3>Meridiaan-Activiteit</h3>
 					<div className='meridian-chart'>
 						{meridians.map((m) => (
@@ -143,7 +143,7 @@ export default function DiagnosisResults(
 
 				{/* Organ zones */}
 				{organZones.length > 0 && (
-					<div className='result-card fade-in'>
+					<div className='result-card'>
 						<h3>Orgaanzones</h3>
 						<p>
 							{organZones.map((o, i) => (
@@ -157,7 +157,7 @@ export default function DiagnosisResults(
 				)}
 
 				{/* TCM patterns */}
-				<div className='result-card fade-in'>
+				<div className='result-card'>
 					<h3>TCM-Patroonherkenning</h3>
 					<ul>
 						{patterns.map((p) => <li key={p}>{p}</li>)}
@@ -165,7 +165,7 @@ export default function DiagnosisResults(
 				</div>
 
 				{/* Recommendations */}
-				<div className='result-card fade-in'>
+				<div className='result-card'>
 					<h3>Aanbevelingen</h3>
 					<ul>
 						{tips.map((t) => <li key={t}>{t}</li>)}

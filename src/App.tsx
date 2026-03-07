@@ -14,6 +14,7 @@ import { analysisErrorMessage } from './lib/analysis-error-message.ts';
 import type { Diagnosis } from './lib/diagnosis.ts';
 import { releaseFaceLandmarker } from './lib/face-detection.ts';
 import { type AnalysisError, type AnalysisStep, analyzeTongueFromUrl } from './lib/pipeline.ts';
+import { withViewTransition } from './lib/view-transition.ts';
 
 /**
  * Discriminated union driving the entire UI state machine.
@@ -123,23 +124,25 @@ export default function App() {
 				},
 			});
 
-			setPhase((previous) => {
-				if (previous.kind !== 'loading' || previous.analysisId !== loadingAnalysisId) {
-					return previous;
-				}
+			withViewTransition(() => {
+				setPhase((previous) => {
+					if (previous.kind !== 'loading' || previous.analysisId !== loadingAnalysisId) {
+						return previous;
+					}
 
-				if (!result.ok) {
+					if (!result.ok) {
+						return {
+							kind: 'error',
+							imageUrl: loadingImageUrl,
+							error: result.error,
+						};
+					}
+
 					return {
-						kind: 'error',
-						imageUrl: loadingImageUrl,
-						error: result.error,
+						kind: 'results',
+						diagnosis: result.value.diagnosis,
 					};
-				}
-
-				return {
-					kind: 'results',
-					diagnosis: result.value.diagnosis,
-				};
+				});
 			});
 		})();
 
@@ -149,33 +152,43 @@ export default function App() {
 	}, [loadingAnalysisId, loadingImageUrl]);
 
 	const handleImageSelected = useCallback((_file: File, imageUrl: string) => {
-		setPhase({ kind: 'preview', imageUrl });
+		withViewTransition(() => {
+			setPhase({ kind: 'preview', imageUrl });
+		});
 	}, []);
 
 	const handleAnalyze = useCallback(() => {
-		setPhase((previous) => {
-			if (previous.kind !== 'preview') return previous;
-			nextAnalysisIdRef.current += 1;
-			return startLoadingPhase(previous.imageUrl, nextAnalysisIdRef.current);
+		withViewTransition(() => {
+			setPhase((previous) => {
+				if (previous.kind !== 'preview') return previous;
+				nextAnalysisIdRef.current += 1;
+				return startLoadingPhase(previous.imageUrl, nextAnalysisIdRef.current);
+			});
 		});
 	}, []);
 
 	const handleRetry = useCallback(() => {
-		setPhase((previous) => {
-			if (previous.kind !== 'error') return previous;
-			nextAnalysisIdRef.current += 1;
-			return startLoadingPhase(previous.imageUrl, nextAnalysisIdRef.current);
+		withViewTransition(() => {
+			setPhase((previous) => {
+				if (previous.kind !== 'error') return previous;
+				nextAnalysisIdRef.current += 1;
+				return startLoadingPhase(previous.imageUrl, nextAnalysisIdRef.current);
+			});
 		});
 	}, []);
 
 	const handleRestart = useCallback(() => {
-		setPhase(INITIAL);
+		withViewTransition(() => {
+			setPhase(INITIAL);
+		});
 	}, []);
 
 	const handleUseLiveDiagnosis = useCallback((diagnosis: Diagnosis) => {
-		setPhase({
-			kind: 'results',
-			diagnosis,
+		withViewTransition(() => {
+			setPhase({
+				kind: 'results',
+				diagnosis,
+			});
 		});
 	}, []);
 

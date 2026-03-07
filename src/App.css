@@ -31,6 +31,7 @@
 .app-header {
 	text-align: center;
 	margin-bottom: 2.5rem;
+	view-transition-name: app-header;
 }
 
 .chinese-title {
@@ -909,47 +910,19 @@ dialog.camera-modal::backdrop {
 	color: #c9a54e;
 }
 
-/* ── Animations ────────────────────────────────────────────── */
+/* ── View Transitions ──────────────────────────────────────── */
 
-@keyframes fadeIn {
-	from {
-		opacity: 0;
-		transform: translateY(10px);
-	}
-	to {
-		opacity: 1;
-		transform: translateY(0);
-	}
+::view-transition-group(*) {
+	animation-duration: 0.3s;
 }
 
-.fade-in {
-	opacity: 0;
-	animation: fadeIn 0.6s ease forwards;
-}
-
-.fade-in:nth-child(2) {
-	animation-delay: 0.1s;
-}
-.fade-in:nth-child(3) {
-	animation-delay: 0.2s;
-}
-.fade-in:nth-child(4) {
-	animation-delay: 0.3s;
-}
-.fade-in:nth-child(5) {
-	animation-delay: 0.4s;
-}
-.fade-in:nth-child(6) {
-	animation-delay: 0.5s;
-}
-.fade-in:nth-child(7) {
-	animation-delay: 0.6s;
-}
+/* ── Reduced Motion ───────────────────────────────────────── */
 
 @media (prefers-reduced-motion: reduce) {
-	.fade-in {
-		animation: none;
-		opacity: 1;
+	::view-transition-group(*),
+	::view-transition-old(*),
+	::view-transition-new(*) {
+		animation: none !important;
 	}
 
 	.upload-area,
