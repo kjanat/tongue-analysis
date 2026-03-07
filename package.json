@@ -14,7 +14,8 @@
 		"cf-build": "bun bd --target=cloudflare",
 		"lint": "eslint .",
 		"preview": "bun run build && vite preview",
-		"fmt": "dprint fmt"
+		"fmt": "dprint fmt",
+		"typecheck": "tsgo --noEmit"
 	},
 	"repository": "kjanat/tongue-analysis",
 	"dependencies": {
@@ -31,6 +32,7 @@
 		"@types/node": "^25.3.3",
 		"@types/react": "^19.2.14",
 		"@types/react-dom": "^19.2.3",
+		"@typescript/native-preview": "^7.0.0-dev.20260306.1",
 		"@vitejs/plugin-react": "^5.1.4",
 		"babel-plugin-react-compiler": "^1.0.0",
 		"dprint": "^0.52.0",
