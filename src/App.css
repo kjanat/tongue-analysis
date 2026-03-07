@@ -1,5 +1,9 @@
 /* ── Background pattern ─────────────────────────────────────── */
 
+:root {
+	--camera-live-collapse-ms: 180ms;
+}
+
 .bg-pattern {
 	position: fixed;
 	inset: 0;
@@ -393,21 +397,23 @@ dialog.camera-modal::backdrop {
 	max-height: 14rem;
 	overflow-y: auto;
 	transition:
-		max-height 0.18s ease,
-		opacity 0.16s ease,
-		margin-top 0.18s ease,
-		padding 0.18s ease,
-		border-color 0.18s ease;
+		max-height var(--camera-live-collapse-ms) ease,
+		opacity var(--camera-live-collapse-ms) ease,
+		margin-top var(--camera-live-collapse-ms) ease,
+		padding var(--camera-live-collapse-ms) ease,
+		border-color var(--camera-live-collapse-ms) ease;
 }
 
 .camera-live[data-closing="true"] {
 	margin-top: 0;
 	padding-top: 0;
 	padding-bottom: 0;
+	min-height: 0;
 	max-height: 0;
 	opacity: 0;
 	border-color: transparent;
 	overflow: hidden;
+	pointer-events: none;
 }
 
 .camera-live-header {
