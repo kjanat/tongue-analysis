@@ -16,7 +16,7 @@ import type { Diagnosis } from '../lib/diagnosis.ts';
 import { formatUpdateTime } from '../lib/format-time.ts';
 import { ANALYSIS_STEP_LABELS } from '../lib/pipeline.ts';
 import type { AnalysisStep } from '../lib/pipeline.ts';
-import { withViewTransitionAndWait } from '../lib/view-transition.ts';
+import { skipActiveViewTransition, withViewTransitionAndWait } from '../lib/view-transition.ts';
 
 /**
  * Delay (ms) before the camera stream is automatically released after a tab switch.
@@ -562,9 +562,11 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 		const { promise, sequence } = closeRequest;
 		const dialog = dialogRef.current;
 
+		// Dialog not yet open (early opening phase before showModal).
 		if (dialog?.open !== true) {
 			if (modalTransitioningRef.current && !transitionClosingRef.current) {
 				pendingCloseRef.current = true;
+				skipActiveViewTransition();
 				return promise;
 			}
 
@@ -575,30 +577,41 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 			return promise;
 		}
 
-		if (modalTransitioningRef.current) {
-			if (!transitionClosingRef.current) {
-				pendingCloseRef.current = true;
-			}
+		// Already closing — attach to the in-flight close operation.
+		if (transitionClosingRef.current) {
 			return promise;
 		}
 
+		// Open transition still in flight — defer close but skip animation.
+		if (modalTransitioningRef.current) {
+			pendingCloseRef.current = true;
+			skipActiveViewTransition();
+			return promise;
+		}
+
+		// Freeze interaction immediately: transitionClosingRef gates all handlers.
 		modalTransitioningRef.current = true;
 		transitionClosingRef.current = true;
 		pendingCloseRef.current = false;
 
 		void (async () => {
 			try {
-				const collapseDelayMs = getLivePanelCloseCollapseMs(dialog);
-				if (liveHasStarted && collapseDelayMs > 0) {
-					closeButtonRef.current?.focus();
+				// Move focus out of controls that are about to collapse.
+				closeButtonRef.current?.focus();
+
+				// Start all close animations concurrently.
+				setModalClosing(true);
+				if (liveHasStarted) {
 					setLivePanelClosing(true);
-					await delay(collapseDelayMs);
 				}
 
+				// Wait for the longest animation to finish.
+				const collapseDelayMs = liveHasStarted ? getLivePanelCloseCollapseMs(dialog) : 0;
 				const modalCloseDelayMs = getModalCloseMs(dialog);
-				if (modalCloseDelayMs > 0) {
-					setModalClosing(true);
-					await delay(modalCloseDelayMs);
+				const longestDelay = Math.max(collapseDelayMs, modalCloseDelayMs);
+
+				if (longestDelay > 0) {
+					await delay(longestDelay);
 				}
 
 				const currentDialog = dialogRef.current;
@@ -612,6 +625,7 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 				if (dialogRef.current?.open !== true) {
 					finalizeModalClose(sequence);
 				} else {
+					setModalClosing(false);
 					setLivePanelClosing(false);
 					settleCloseRequest(sequence);
 				}
@@ -804,6 +818,8 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 	}, [clearReleaseTimer, handlePageHidden]);
 
 	const handleCapture = useCallback(() => {
+		if (transitionClosingRef.current) return;
+
 		const video = videoRef.current;
 		if (video === null) {
 			setCameraError('Geen camerabeeld beschikbaar om vast te leggen.');
@@ -826,6 +842,8 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 	}, [closeModalImmediately, onCapture, setCameraError, videoRef]);
 
 	const handleLiveToggle = useCallback(() => {
+		if (transitionClosingRef.current) return;
+
 		if (isLiveRunning) {
 			resetLiveAnalysis();
 			return;
@@ -835,6 +853,8 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 	}, [isLiveRunning, resetLiveAnalysis, startLiveAnalysis]);
 
 	const handleSwitchCamera = useCallback(() => {
+		if (transitionClosingRef.current) return;
+
 		restartLiveAfterSwitchRef.current = isLiveRunning;
 		stopLiveAnalysis();
 		clearLiveError();

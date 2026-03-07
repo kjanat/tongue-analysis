@@ -78,6 +78,16 @@ export function withViewTransition(update: () => void): void {
 }
 
 /**
+ * Skip the in-flight View Transition animation, if any.
+ *
+ * The transition's callback has already executed, so DOM updates are committed;
+ * only the visual animation is aborted (jumps to end state). No-op when idle.
+ */
+export function skipActiveViewTransition(): void {
+	activeTransition?.skipTransition();
+}
+
+/**
  * Run an update in a managed View Transition and resolve when animation settles.
  *
  * Resolves immediately when transitions are unavailable or reduced motion is active.
