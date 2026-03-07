@@ -186,6 +186,20 @@ function buildVideoConstraints(preferredCameraId: string | null): MediaTrackCons
 }
 
 /**
+ * Grace period (ms) after stopping camera tracks before requesting new ones.
+ * Mobile camera HALs (especially Android) release hardware asynchronously;
+ * an immediate `getUserMedia` can fail with `NotReadableError`.
+ */
+const CAMERA_RELEASE_DELAY_MS = 300;
+
+/** Resolve after `ms` milliseconds. */
+function delay(ms: number): Promise<void> {
+	return new Promise((resolve) => {
+		setTimeout(resolve, ms);
+	});
+}
+
+/**
  * Filter a device list down to video-input devices only.
  *
  * @param devices - Full list from `navigator.mediaDevices.enumerateDevices()`.
@@ -223,6 +237,18 @@ export function useMediaStream(): UseMediaStreamResult {
 	const videoRef = useRef<HTMLVideoElement>(null);
 	const preferredCameraIdRef = useRef<string | null>(null);
 	const requestIdRef = useRef(0);
+	/**
+	 * Synchronous mirror of {@link mode} that is always current,
+	 * even inside stale closures. Prevents overlapping `getUserMedia`
+	 * calls when rapid taps outrace React's batched re-renders.
+	 */
+	const modeRef = useRef<CameraMode>('idle');
+
+	/** Update both React state and synchronous ref in lockstep. */
+	const updateMode = useCallback((next: CameraMode) => {
+		modeRef.current = next;
+		setMode(next);
+	}, []);
 
 	const refreshAvailableCameras = useCallback(
 		async (isCurrentRequest: () => boolean, fallbackActiveCameraId: string | null): Promise<void> => {
@@ -275,8 +301,8 @@ export function useMediaStream(): UseMediaStreamResult {
 		requestIdRef.current += 1;
 		stopCurrentStream();
 		setMirrorPreview(false);
-		setMode('idle');
-	}, [stopCurrentStream]);
+		updateMode('idle');
+	}, [stopCurrentStream, updateMode]);
 
 	const reset = useCallback(() => {
 		stop();
@@ -292,12 +318,13 @@ export function useMediaStream(): UseMediaStreamResult {
 	}, []);
 
 	const startWithCameraId = useCallback(async (requestedCameraId: string | null) => {
-		if (mode === 'requesting') return;
+		// Guard uses ref — immune to stale closures from React's batched renders.
+		if (modeRef.current === 'requesting') return;
 		const previousPreferredCameraId = preferredCameraIdRef.current;
 		if (!window.isSecureContext) {
 			setError('Camera vereist een beveiligde verbinding (HTTPS).');
 			setMirrorPreview(false);
-			setMode('idle');
+			updateMode('idle');
 			return;
 		}
 
@@ -305,12 +332,22 @@ export function useMediaStream(): UseMediaStreamResult {
 		requestIdRef.current = requestId;
 		const isCurrentRequest = (): boolean => requestIdRef.current === requestId;
 
+		// Track whether an old stream was active — mobile hardware needs a
+		// grace period between track.stop() and the next getUserMedia call.
+		const hadActiveStream = streamRef.current !== null;
 		stopCurrentStream();
-		setMode('requesting');
+		updateMode('requesting');
 		setError(null);
 		setMirrorPreview(false);
 
 		try {
+			// Mobile camera HALs release hardware asynchronously after track.stop().
+			// Without a grace period, getUserMedia can fail with NotReadableError.
+			if (hadActiveStream) {
+				await delay(CAMERA_RELEASE_DELAY_MS);
+				if (!isCurrentRequest()) return;
+			}
+
 			const stream = await navigator.mediaDevices.getUserMedia({
 				video: buildVideoConstraints(requestedCameraId),
 				audio: false,
@@ -370,7 +407,7 @@ export function useMediaStream(): UseMediaStreamResult {
 
 						setMirrorPreview(false);
 						setError('Automatisch afspelen mislukt. Tik op het videobeeld om te starten.');
-						setMode('idle');
+						updateMode('idle');
 						return;
 					}
 				}
@@ -381,22 +418,83 @@ export function useMediaStream(): UseMediaStreamResult {
 				return;
 			}
 
-			setMode('ready');
+			updateMode('ready');
 		} catch (cameraError) {
 			if (!isCurrentRequest()) return;
+
+			// On OverconstrainedError (stale deviceId, iOS quirks), retry with
+			// relaxed constraints instead of giving up. Also helps on iOS Safari
+			// where facingMode is more reliable than deviceId.
+			if (
+				requestedCameraId !== null
+				&& cameraError instanceof DOMException
+				&& cameraError.name === 'OverconstrainedError'
+			) {
+				try {
+					const fallbackStream = await navigator.mediaDevices.getUserMedia({
+						video: { facingMode: 'environment' },
+						audio: false,
+					});
+					if (!isCurrentRequest()) {
+						stopStream(fallbackStream);
+						return;
+					}
+					// Continue with the fallback stream — reuse the success
+					// path below by assigning and returning early.
+					setMirrorPreview(shouldMirrorPreview(fallbackStream));
+					const fallbackTrack = fallbackStream.getVideoTracks()[0];
+					const fallbackDeviceId = fallbackTrack === undefined
+						? null
+						: getTrackDeviceId(fallbackTrack);
+					setActiveCameraId(fallbackDeviceId);
+					preferredCameraIdRef.current = fallbackDeviceId;
+					void refreshAvailableCameras(isCurrentRequest, fallbackDeviceId);
+
+					streamRef.current = fallbackStream;
+					const video = videoRef.current;
+					if (video !== null) {
+						video.srcObject = fallbackStream;
+						try {
+							await video.play();
+						} catch (playError: unknown) {
+							// AbortError from rapid switching is benign; real
+							// autoplay failures mean the stream is unusable.
+							if (playError instanceof DOMException && playError.name !== 'AbortError') {
+								stopStream(fallbackStream);
+								if (streamRef.current === fallbackStream) streamRef.current = null;
+								if (video.srcObject === fallbackStream) video.srcObject = null;
+								setMirrorPreview(false);
+								setError('Automatisch afspelen mislukt. Tik op het videobeeld om te starten.');
+								updateMode('idle');
+								return;
+							}
+						}
+					}
+					if (!isCurrentRequest()) {
+						stopStream(fallbackStream);
+						return;
+					}
+					updateMode('ready');
+					return;
+				} catch {
+					// Fallback also failed — fall through to normal error handling
+					if (!isCurrentRequest()) return;
+				}
+			}
+
 			preferredCameraIdRef.current = previousPreferredCameraId;
 			setError(cameraErrorMessage(cameraError));
 			setMirrorPreview(false);
-			setMode('idle');
+			updateMode('idle');
 		}
-	}, [mode, refreshAvailableCameras, stopCurrentStream]);
+	}, [refreshAvailableCameras, stopCurrentStream, updateMode]);
 
 	const start = useCallback(async () => {
 		await startWithCameraId(preferredCameraIdRef.current);
 	}, [startWithCameraId]);
 
 	const switchToNextCamera = useCallback(async () => {
-		if (mode !== 'ready') return;
+		if (modeRef.current !== 'ready') return;
 		if (availableCameras.length < 2) return;
 
 		const activeIndex = availableCameras.findIndex((device) => device.deviceId === activeCameraId);
@@ -405,7 +503,7 @@ export function useMediaStream(): UseMediaStreamResult {
 		if (nextCamera === undefined) return;
 
 		await startWithCameraId(nextCamera.deviceId);
-	}, [activeCameraId, availableCameras, mode, startWithCameraId]);
+	}, [activeCameraId, availableCameras, startWithCameraId]);
 
 	useEffect(() => {
 		return () => {

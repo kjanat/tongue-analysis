@@ -291,6 +291,8 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 	const dialogRef = useRef<HTMLDialogElement>(null);
 	const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
 	const [cameraAutoPaused, setCameraAutoPaused] = useState(false);
+	/** Set to `true` when camera switch interrupted live analysis, so it auto-restarts. */
+	const restartLiveAfterSwitchRef = useRef(false);
 
 	const {
 		mode,
@@ -411,6 +413,14 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 		scheduleCameraRelease();
 	}, [cameraActive, scheduleCameraRelease, stopLiveAnalysis]);
 
+	// Restart live analysis after a camera switch completes.
+	useEffect(() => {
+		if (isReady && restartLiveAfterSwitchRef.current) {
+			restartLiveAfterSwitchRef.current = false;
+			startLiveAnalysis();
+		}
+	}, [isReady, startLiveAnalysis]);
+
 	useEffect(() => {
 		const handleVisibilityChange = (): void => {
 			if (document.visibilityState === 'visible') {
@@ -459,10 +469,11 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 	}, [isLiveRunning, startLiveAnalysis, stopLiveAnalysis]);
 
 	const handleSwitchCamera = useCallback(() => {
+		restartLiveAfterSwitchRef.current = isLiveRunning;
 		stopLiveAnalysis();
 		clearLiveError();
 		void switchToNextCamera();
-	}, [clearLiveError, stopLiveAnalysis, switchToNextCamera]);
+	}, [clearLiveError, isLiveRunning, stopLiveAnalysis, switchToNextCamera]);
 
 	const handleUseLiveDiagnosis = useCallback(() => {
 		if (liveDiagnosis === null || onLiveDiagnosis === undefined) return;
