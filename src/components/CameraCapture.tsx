@@ -352,6 +352,7 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 	const pendingCloseRef = useRef(false);
 	const [cameraAutoPaused, setCameraAutoPaused] = useState(false);
 	const [heroOwner, setHeroOwner] = useState<HeroOwner>('button');
+	const [previewPrimed, setPreviewPrimed] = useState(false);
 	const [previewAspectRatio, setPreviewAspectRatio] = useState(getFallbackPreviewAspectRatio);
 	const [videoReady, setVideoReady] = useState(false);
 	/** Set to `true` when camera switch interrupted live analysis, so it auto-restarts. */
@@ -404,7 +405,8 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 	const isIdle = mode === 'idle';
 	const isReady = mode === 'ready';
 	const isRequesting = mode === 'requesting';
-	const showPreviewSkeleton = isRequesting || (isReady && !videoReady);
+	const showPreviewSkeleton = previewPrimed || isRequesting || (isReady && !videoReady);
+	const isPreviewVisible = previewPrimed || isReady || isRequesting;
 	const isLiveRunning = liveMode === 'running';
 	const cameraActive = !isIdle;
 	const activeError = liveError ?? error;
@@ -480,6 +482,7 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 		clearReleaseTimer();
 		modalTransitioningRef.current = false;
 		pendingCloseRef.current = false;
+		setPreviewPrimed(false);
 		setHeroOwner('button');
 		setCameraAutoPaused(false);
 		endSession();
@@ -487,10 +490,14 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 
 	const handleStartCamera = useCallback(() => {
 		clearReleaseTimer();
+		setPreviewPrimed(true);
+		setVideoReady(false);
 		setCameraAutoPaused(false);
 		stopLiveAnalysis();
 		clearLiveError();
-		void startCamera();
+		void startCamera().finally(() => {
+			setPreviewPrimed(false);
+		});
 	}, [clearLiveError, clearReleaseTimer, startCamera, stopLiveAnalysis]);
 
 	const handleOpenModal = useCallback(() => {
@@ -510,6 +517,8 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 				try {
 					await withViewTransitionAndWait(() => {
 						setHeroOwner('dialog');
+						setPreviewPrimed(true);
+						setVideoReady(false);
 						dialog.showModal();
 					});
 				} catch {
@@ -517,6 +526,8 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 					if (currentDialog?.open !== true) {
 						currentDialog?.showModal();
 					}
+					setPreviewPrimed(true);
+					setVideoReady(false);
 					setHeroOwner('dialog');
 				}
 			} finally {
@@ -753,7 +764,7 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 					)}
 				</div>
 
-				<div className='camera-preview' data-visible={isReady || isRequesting}>
+				<div className='camera-preview' data-visible={isPreviewVisible}>
 					<CameraStage
 						videoRef={videoRef}
 						previewAspectRatio={previewAspectRatio}
