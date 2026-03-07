@@ -261,7 +261,8 @@ export function useLiveAnalysis(options: UseLiveAnalysisOptions): UseLiveAnalysi
 		setLiveUpdatedAt(null);
 		// Intentionally does NOT reset liveHasStarted — preserves the live
 		// diagnosis panel across camera switches. Use reset() for full teardown.
-	}, [overlayCanvasRef]);
+		// eslint-disable-next-line react-hooks/exhaustive-deps -- overlayCanvasRef is a useRef return (identity-stable)
+	}, []);
 
 	const clearError = useCallback(() => {
 		setLiveError(null);
@@ -370,7 +371,8 @@ export function useLiveAnalysis(options: UseLiveAnalysisOptions): UseLiveAnalysi
 				liveInFlightRef.current = false;
 			}
 		}
-	}, [isLiveActive, overlayCanvasRef, videoRef]);
+		// eslint-disable-next-line react-hooks/exhaustive-deps -- overlayCanvasRef, videoRef are useRef returns (identity-stable)
+	}, [isLiveActive]);
 
 	const start = useCallback(() => {
 		if (!enabled || liveRunningRef.current) return;
