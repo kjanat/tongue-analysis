@@ -1,14 +1,15 @@
+import { ANALYSIS_STEP_LABELS } from '../lib/pipeline.ts';
 import type { AnalysisStep } from '../lib/pipeline.ts';
 
-const STEPS: readonly { readonly step: AnalysisStep; readonly label: string }[] = [
-	{ step: 'loading_image', label: 'Foto laden' },
-	{ step: 'loading_model', label: 'Model initialiseren' },
-	{ step: 'detecting_mouth', label: 'Mondregio detecteren' },
-	{ step: 'segmenting_tongue', label: 'Tong segmenteren' },
-	{ step: 'correcting_color', label: 'Kleur normaliseren' },
-	{ step: 'classifying_color', label: 'Tongkleur classificeren' },
-	{ step: 'building_diagnosis', label: 'Diagnose opstellen' },
-] as const;
+const STEP_ORDER: readonly AnalysisStep[] = [
+	'loading_image',
+	'loading_model',
+	'detecting_mouth',
+	'segmenting_tongue',
+	'correcting_color',
+	'classifying_color',
+	'building_diagnosis',
+];
 
 type StepStatus = 'pending' | 'active' | 'done';
 
@@ -17,19 +18,19 @@ interface LoadingSequenceProps {
 }
 
 function activeStepIndex(step: AnalysisStep): number {
-	const index = STEPS.findIndex((entry) => entry.step === step);
+	const index = STEP_ORDER.indexOf(step);
 	return index === -1 ? 0 : index;
 }
 
 export default function LoadingSequence({ step }: LoadingSequenceProps) {
 	const index = activeStepIndex(step);
-	const progress = ((index + 1) / STEPS.length) * 100;
+	const progress = ((index + 1) / STEP_ORDER.length) * 100;
 
 	return (
 		<div className='loading'>
 			<div className='loading-text'>Analyse loopt...</div>
 			<div className='loading-steps'>
-				{STEPS.map((entry, i) => {
+				{STEP_ORDER.map((stepKey, i) => {
 					const status: StepStatus = i < index
 						? 'done'
 						: i === index
@@ -37,8 +38,8 @@ export default function LoadingSequence({ step }: LoadingSequenceProps) {
 						: 'pending';
 
 					return (
-						<div key={entry.step} className='loading-step' data-status={status}>
-							{entry.label}
+						<div key={stepKey} className='loading-step' data-status={status}>
+							{ANALYSIS_STEP_LABELS[stepKey]}
 						</div>
 					);
 				})}

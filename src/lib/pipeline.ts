@@ -17,6 +17,16 @@ export type AnalysisStep =
 	| 'classifying_color'
 	| 'building_diagnosis';
 
+export const ANALYSIS_STEP_LABELS: Readonly<Record<AnalysisStep, string>> = {
+	loading_image: 'Foto laden',
+	loading_model: 'Model initialiseren',
+	detecting_mouth: 'Mondregio detecteren',
+	segmenting_tongue: 'Tong segmenteren',
+	correcting_color: 'Kleur normaliseren',
+	classifying_color: 'Tongkleur classificeren',
+	building_diagnosis: 'Diagnose opstellen',
+};
+
 export type AnalysisError =
 	| { readonly kind: 'image_load_failed'; readonly cause: unknown }
 	| { readonly kind: 'canvas_unavailable' }

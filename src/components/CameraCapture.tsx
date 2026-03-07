@@ -7,19 +7,8 @@ import { useLiveAnnouncements } from '../hooks/use-live-announcements.ts';
 import { useMediaStream } from '../hooks/use-media-stream.ts';
 import { captureErrorMessage, captureVideoFrame } from '../lib/capture-video-frame.ts';
 import type { Diagnosis } from '../lib/diagnosis.ts';
+import { ANALYSIS_STEP_LABELS } from '../lib/pipeline.ts';
 import type { AnalysisStep } from '../lib/pipeline.ts';
-
-// ── Constants ──────────────────────────────────
-
-const LIVE_STEP_LABELS: Readonly<Record<AnalysisStep, string>> = {
-	loading_image: 'Foto laden',
-	loading_model: 'Model initialiseren',
-	detecting_mouth: 'Mondregio detecteren',
-	segmenting_tongue: 'Tong segmenteren',
-	correcting_color: 'Kleur normaliseren',
-	classifying_color: 'Tongkleur classificeren',
-	building_diagnosis: 'Diagnose opstellen',
-};
 
 const CAMERA_RELEASE_DELAY_MS = 20_000;
 
@@ -174,7 +163,9 @@ function LiveDiagnosisPanel({
 		<div className='camera-live'>
 			<div className='camera-live-header'>
 				<span>Live</span>
-				{isLiveRunning && liveStep !== null && <span className='camera-live-step'>{LIVE_STEP_LABELS[liveStep]}</span>}
+				{isLiveRunning && liveStep !== null && (
+					<span className='camera-live-step'>{ANALYSIS_STEP_LABELS[liveStep]}</span>
+				)}
 			</div>
 
 			{isLiveRunning && liveDiagnosis === null && liveError === null && (
@@ -258,7 +249,7 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 			liveStep,
 			liveDiagnosis,
 			liveUpdatedAt,
-			stepLabels: LIVE_STEP_LABELS,
+			stepLabels: ANALYSIS_STEP_LABELS,
 		});
 
 	// ── Derived state ──────────────────────────
