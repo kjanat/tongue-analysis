@@ -8,6 +8,7 @@
 	},
 	"homepage": "https://tong.kajkowalski.nl",
 	"scripts": {
+		"analyze": "bun cli/analyze.ts",
 		"dev": "vite",
 		"build": "bun bd",
 		"bd": "bun --bun scripts/build.ts",
