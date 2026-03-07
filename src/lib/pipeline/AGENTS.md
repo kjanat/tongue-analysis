@@ -1,17 +1,17 @@
 # src/lib/pipeline — Pipeline Internals
 
-Decomposed pipeline stages extracted from the former monolithic `pipeline.ts`. 7 files, ~915 lines total.
+Decomposed pipeline stages extracted from the former monolithic `pipeline.ts`. 7 files, ~900 lines total.
 
 ## WHERE TO LOOK
 
 | File               | Lines | Role                                                             |
 | ------------------ | ----- | ---------------------------------------------------------------- |
-| `analysis-core.ts` | 234   | Core analysis loop: step orchestration, closeup fallback logic.  |
+| `analysis-core.ts` | 237   | Core analysis loop: step orchestration, closeup fallback logic.  |
 | `mask.ts`          | 174   | Inner lip polygon rasterization + fallback ellipse mask.         |
 | `lighting.ts`      | 171   | Luminance histogram analysis, poor-lighting detection threshold. |
-| `crop.ts`          | 128   | Mouth region → canvas `ImageData` cropping with padding.         |
-| `frame-source.ts`  | 84    | Unified frame acquisition: URL load, direct ImageData, video.    |
+| `crop.ts`          | 129   | Mouth region → canvas `ImageData` cropping with padding.         |
 | `types.ts`         | 70    | Shared ADTs: `FrameSource`, `FrameDimensions`, `MouthCrop`, etc. |
+| `frame-source.ts`  | 66    | Unified frame acquisition: URL load, direct ImageData, video.    |
 | `thresholds.ts`    | 54    | Numeric constants for segmentation, lighting, and confidence.    |
 
 ## DATA FLOW

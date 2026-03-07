@@ -1,6 +1,6 @@
 # PROJECT KNOWLEDGE BASE
 
-**Generated:** 2026-03-07 **Commit:** 9d09416 **Branch:** master
+**Generated:** 2026-03-07 **Commit:** 5cddae8 **Branch:** master
 
 ## OVERVIEW
 
@@ -18,18 +18,18 @@ tongue-analysis/
 ├── src/
 │   ├── main.tsx                  # React 19 entry (StrictMode + createRoot)
 │   ├── App.tsx                   # Root: 5-phase state machine (upload→preview→loading→results|error)
-│   ├── App.css                   # All component styles (~930 lines, plain CSS)
+│   ├── App.css                   # All component styles (~980 lines, plain CSS)
 │   ├── index.css                 # Global reset + button font-family inherit
 │   ├── components/               # 6 components — see src/components/AGENTS.md
-│   │   ├── CameraCapture.tsx     # Live camera + real-time analysis (563 lines)
-│   │   ├── DiagnosisResults.tsx  # Results display (177 lines)
-│   │   ├── Guide.tsx             # Interactive TCM guide (130 lines)
+│   │   ├── CameraCapture.tsx     # Live camera + real-time analysis (564 lines)
+│   │   ├── DiagnosisResults.tsx  # Results display (181 lines)
+│   │   ├── Guide.tsx             # Interactive TCM guide (127 lines)
 │   │   ├── LoadingSequence.tsx   # 7-step analysis progress animation (86 lines)
 │   │   ├── TongueMap.tsx         # Tongue zone SVG visualization (115 lines)
 │   │   └── UploadArea.tsx        # File upload with drag/drop (120 lines)
 │   ├── hooks/                    # 4 hooks — see src/hooks/AGENTS.md
 │   │   ├── use-deferred-camera-release.ts  # Delayed camera cleanup on tab switch (81 lines)
-│   │   ├── use-live-analysis.ts  # Real-time tongue analysis rAF loop (492 lines)
+│   │   ├── use-live-analysis.ts  # Real-time tongue analysis rAF loop (421 lines)
 │   │   ├── use-live-announcements.ts  # ARIA screen reader announcements (123 lines)
 │   │   └── use-media-stream.ts   # Camera stream lifecycle + device switching (413 lines)
 │   ├── data/
@@ -63,6 +63,7 @@ tongue-analysis/
 | Camera cleanup     | `src/hooks/use-deferred-camera-release.ts` | Delayed camera release on tab switch                     |
 | Debug overlay      | `src/lib/debug-overlay.ts`                 | DPR-aware bounding box + lip polygon canvas drawing      |
 | Time formatting    | `src/lib/format-time.ts`                   | Shared Dutch locale time formatter                       |
+| Math utilities     | `src/lib/math-utils.ts`                    | Shared `clamp()` used across pipeline stages             |
 | Domain data (TCM)  | `src/data/tongue-types.ts`                 | Organs, elements, meridians, tongue type definitions     |
 | Styles             | `src/App.css`                              | Single file, all component styles, section-divided       |
 | MediaPipe assets   | `vite.package-bindings.ts`                 | WASM copy, model download, CDN fallback, virtual module  |
@@ -149,7 +150,6 @@ bun run cf-build  # Cloudflare Pages build variant
 - **Vite 8 beta**: Pinned pre-release via `overrides` in package.json.
 - **`master` branch**: Default branch is `master`, not `main`.
 - **Robots blocked**: `vite-robots-txt` with `disallowAll` preset.
-- **Empty `catch` blocks intentional**: SessionStorage may be unavailable in restricted browsing.
 - **Build plugins in wrong section**: `vite-robots-txt`, `vite-svg-to-ico` in `dependencies` instead of `devDependencies`. This is intentional by user. They are the user's own packages, and here for promo-type-shizz.
 - **Dutch locale**: `lang="nl"` on HTML, all UI text in Dutch.
 - **Sole `@ts-expect-error`**: `cli/analyze.ts:20` — intentional `ImageData` global polyfill for Bun runtime.
@@ -163,3 +163,4 @@ bun run cf-build  # Cloudflare Pages build variant
 - **Dual-purpose**: SPA + CLI tool (`bunx tongue-analysis`). Registered via `bin` field in package.json.
 - **Build indirection**: `bun run build` → `bun bd` → `bun --bun scripts/build.ts` → spawns `tsc -b` + `vite build`.
 - **`integration/` is misleading**: Contains local-only fixture images, not automated tests. All files gitignored.
+- **Duplicated utilities**: `readGitCommitSha` in both `scripts/build.ts` and `vite.config.ts`; `parseBoolean` in both `scripts/build.ts` and `vite.package-bindings.ts`. Not shared — drift risk.
