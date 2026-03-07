@@ -5,6 +5,7 @@
  * bounding box, {@link cropFullImage} uses the entire frame (closeup fallback).
  * Both produce a {@link MouthCrop} containing pixel data and source coordinates.
  *
+ * @browser Uses `document.createElement('canvas')` — browser-only by design.
  * @module
  */
 
