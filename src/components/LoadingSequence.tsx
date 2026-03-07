@@ -68,7 +68,14 @@ export default function LoadingSequence({ step }: LoadingSequenceProps) {
 					);
 				})}
 			</div>
-			<div className='progress-bar'>
+			<div
+				className='progress-bar'
+				role='progressbar'
+				aria-valuenow={progress}
+				aria-valuemin={0}
+				aria-valuemax={100}
+				aria-label='Analyse voortgang'
+			>
 				<div
 					className='progress-fill'
 					style={{ width: `${String(progress)}%` }}

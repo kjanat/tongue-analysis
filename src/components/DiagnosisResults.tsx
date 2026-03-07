@@ -55,7 +55,7 @@ export default function DiagnosisResults(
 
 	return (
 		<>
-			<div className='results' aria-live='polite' aria-atomic='true'>
+			<div className='results' aria-live='polite'>
 				{/* Header with type name */}
 				<div className='results-header fade-in'>
 					<h2 lang='zh'>診斷結果</h2>
@@ -155,8 +155,8 @@ export default function DiagnosisResults(
 				{/* TCM patterns */}
 				<div className='result-card fade-in'>
 					<h3>TCM-Patroonherkenning</h3>
-					{patterns.map((p) => (
-						<p key={p} className='result-card-spaced'>
+					{patterns.map((p, i) => (
+						<p key={`${String(i)}-${p}`} className='result-card-spaced'>
 							{p}
 						</p>
 					))}
@@ -165,7 +165,7 @@ export default function DiagnosisResults(
 				{/* Recommendations */}
 				<div className='result-card fade-in'>
 					<h3>Aanbevelingen</h3>
-					{tips.map((t) => <p key={t}>&bull; {t}</p>)}
+					{tips.map((t, i) => <p key={`${String(i)}-${t}`}>&bull; {t}</p>)}
 				</div>
 			</div>
 

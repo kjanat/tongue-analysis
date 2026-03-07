@@ -13,6 +13,7 @@ import { useLiveAnnouncements } from '../hooks/use-live-announcements.ts';
 import { useMediaStream } from '../hooks/use-media-stream.ts';
 import { captureErrorMessage, captureVideoFrame } from '../lib/capture-video-frame.ts';
 import type { Diagnosis } from '../lib/diagnosis.ts';
+import { formatUpdateTime } from '../lib/format-time.ts';
 import { ANALYSIS_STEP_LABELS } from '../lib/pipeline.ts';
 import type { AnalysisStep } from '../lib/pipeline.ts';
 
@@ -21,20 +22,6 @@ import type { AnalysisStep } from '../lib/pipeline.ts';
  * Gives users time to return before requiring a manual restart.
  */
 const CAMERA_RELEASE_DELAY_MS = 20_000;
-
-/**
- * Format a timestamp as a Dutch locale time string (HH:MM:SS).
- *
- * @param timestampMs - Unix timestamp in milliseconds.
- * @returns Formatted time string, e.g. "14:32:07".
- */
-function formatUpdateTime(timestampMs: number): string {
-	return new Date(timestampMs).toLocaleTimeString('nl-NL', {
-		hour: '2-digit',
-		minute: '2-digit',
-		second: '2-digit',
-	});
-}
 
 // ── Presentational Components ──────────────────
 

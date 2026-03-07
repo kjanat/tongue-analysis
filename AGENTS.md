@@ -1,6 +1,6 @@
 # PROJECT KNOWLEDGE BASE
 
-**Generated:** 2026-03-07 **Commit:** a766f5a **Branch:** master
+**Generated:** 2026-03-07 **Commit:** 9d09416 **Branch:** master
 
 ## OVERVIEW
 
@@ -19,22 +19,22 @@ tongue-analysis/
 │   ├── main.tsx                  # React 19 entry (StrictMode + createRoot)
 │   ├── App.tsx                   # Root: 5-phase state machine (upload→preview→loading→results|error)
 │   ├── App.css                   # All component styles (~930 lines, plain CSS)
-│   ├── index.css                 # Global reset
+│   ├── index.css                 # Global reset + button font-family inherit
 │   ├── components/               # 6 components — see src/components/AGENTS.md
-│   │   ├── CameraCapture.tsx     # Live camera + real-time analysis (576 lines)
+│   │   ├── CameraCapture.tsx     # Live camera + real-time analysis (563 lines)
 │   │   ├── DiagnosisResults.tsx  # Results display (177 lines)
 │   │   ├── Guide.tsx             # Interactive TCM guide (130 lines)
-│   │   ├── LoadingSequence.tsx   # 7-step analysis progress animation (79 lines)
-│   │   ├── TongueMap.tsx         # Tongue zone SVG visualization (106 lines)
-│   │   └── UploadArea.tsx        # File upload with drag/drop (119 lines)
+│   │   ├── LoadingSequence.tsx   # 7-step analysis progress animation (86 lines)
+│   │   ├── TongueMap.tsx         # Tongue zone SVG visualization (115 lines)
+│   │   └── UploadArea.tsx        # File upload with drag/drop (120 lines)
 │   ├── hooks/                    # 4 hooks — see src/hooks/AGENTS.md
-│   │   ├── use-deferred-camera-release.ts  # Delayed camera cleanup on tab switch (77 lines)
-│   │   ├── use-live-analysis.ts  # Real-time tongue analysis rAF loop (583 lines)
-│   │   ├── use-live-announcements.ts  # ARIA screen reader announcements (136 lines)
+│   │   ├── use-deferred-camera-release.ts  # Delayed camera cleanup on tab switch (81 lines)
+│   │   ├── use-live-analysis.ts  # Real-time tongue analysis rAF loop (492 lines)
+│   │   ├── use-live-announcements.ts  # ARIA screen reader announcements (123 lines)
 │   │   └── use-media-stream.ts   # Camera stream lifecycle + device switching (413 lines)
 │   ├── data/
 │   │   └── tongue-types.ts       # TCM domain data (organs, elements, zones, tongue types)
-│   ├── lib/                      # Core pipeline — see src/lib/AGENTS.md
+│   ├── lib/                      # Core pipeline + utilities — see src/lib/AGENTS.md
 │   ├── types/
 │   │   ├── package-bindings.d.ts # SYNC: must match vite.package-bindings.ts virtualModuleSource()
 │   │   └── vite-env.d.ts
@@ -43,7 +43,7 @@ tongue-analysis/
 │   └── analyze.ts                # Bun CLI entry (headless analysis, `bunx tongue-analysis`)
 ├── scripts/
 │   └── build.ts                  # Custom build orchestrator (replaces raw `vite build`)
-├── vite.package-bindings.ts      # 460-line custom Vite plugin for MediaPipe WASM asset resolution
+├── vite.package-bindings.ts      # 683-line custom Vite plugin for MediaPipe WASM asset resolution
 ├── public/                       # Static assets (icons, OG image)
 ├── integration/                  # Manual test fixture images (NOT automated tests, all gitignored)
 ├── .github/workflows/pages.yml   # CI: bun install → build → GitHub Pages deploy
@@ -61,6 +61,8 @@ tongue-analysis/
 | Camera stream      | `src/hooks/use-media-stream.ts`            | getUserMedia lifecycle, device enumeration               |
 | ARIA announcements | `src/hooks/use-live-announcements.ts`      | Screen reader support during live analysis               |
 | Camera cleanup     | `src/hooks/use-deferred-camera-release.ts` | Delayed camera release on tab switch                     |
+| Debug overlay      | `src/lib/debug-overlay.ts`                 | DPR-aware bounding box + lip polygon canvas drawing      |
+| Time formatting    | `src/lib/format-time.ts`                   | Shared Dutch locale time formatter                       |
 | Domain data (TCM)  | `src/data/tongue-types.ts`                 | Organs, elements, meridians, tongue type definitions     |
 | Styles             | `src/App.css`                              | Single file, all component styles, section-divided       |
 | MediaPipe assets   | `vite.package-bindings.ts`                 | WASM copy, model download, CDN fallback, virtual module  |
@@ -84,6 +86,7 @@ tongue-analysis/
 - **Discriminated unions**: `Phase`, `Result`, all error types use `kind` tag
 - **`as const` only**: No `as Type` assertions, no `any`, no `!` non-null assertions
 - **`Result<T,E>` for expected failures**: Pipeline uses `ok()`/`err()`, not try/catch
+- **`as const satisfies`**: Const arrays with derived type aliases for runtime+compile-time safety
 
 ### React
 
@@ -95,6 +98,15 @@ tongue-analysis/
 - **Explicit `type='button'`** on all `<button>` elements
 - **`lang='zh'`** on Chinese text spans
 - **React Compiler** enabled (`babel-plugin-react-compiler`)
+- **`useId()`** for DOM IDs referenced by ARIA/SVG (no hardcoded ID strings)
+
+### Accessibility
+
+- **`role='progressbar'`** with `aria-valuenow/min/max` on stepped progress indicators
+- **`role='alert'`** on error containers for screen reader announcement
+- **`role='img'`** with `aria-labelledby` on informational SVGs
+- **`:focus-visible`** on interactive elements (not `:focus`)
+- **`prefers-reduced-motion`** resets all animations/transitions
 
 ### Naming
 

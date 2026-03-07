@@ -11,6 +11,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import type { RefObject } from 'react';
 import type { Diagnosis } from '../lib/diagnosis.ts';
+import { formatUpdateTime } from '../lib/format-time.ts';
 import type { AnalysisStep } from '../lib/pipeline.ts';
 import type { LiveMode } from './use-live-analysis.ts';
 
@@ -38,20 +39,6 @@ interface UseLiveAnnouncementsResult {
 	readonly announce: (message: string) => void;
 	/** Clear all tracked state and the live region text. */
 	readonly reset: () => void;
-}
-
-/**
- * Format a millisecond timestamp as Dutch locale time (`HH:MM:SS`).
- *
- * @param timestampMs - Unix timestamp in milliseconds.
- * @returns Formatted time string.
- */
-function formatUpdateTime(timestampMs: number): string {
-	return new Date(timestampMs).toLocaleTimeString('nl-NL', {
-		hour: '2-digit',
-		minute: '2-digit',
-		second: '2-digit',
-	});
 }
 
 /**

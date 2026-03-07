@@ -78,6 +78,7 @@ export default function UploadArea({ onFileSelected }: UploadAreaProps) {
 		(e: React.ChangeEvent<HTMLInputElement>) => {
 			const file = e.target.files?.[0];
 			if (file) handleFile(file);
+			e.target.value = '';
 		},
 		[handleFile],
 	);

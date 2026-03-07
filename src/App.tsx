@@ -222,7 +222,7 @@ export default function App() {
 						<div className='preview-container'>
 							<img src={phase.imageUrl} alt='Tongfoto voor foutmelding' />
 						</div>
-						<div className='analysis-error'>
+						<div className='analysis-error' role='alert'>
 							<h3>Analyse mislukt</h3>
 							<p>{analysisErrorMessage(phase.error)}</p>
 						</div>

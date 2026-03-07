@@ -8,8 +8,8 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { RefObject } from 'react';
+import { clearOverlayCanvas, drawMouthRegionOverlay } from '../lib/debug-overlay.ts';
 import type { Diagnosis } from '../lib/diagnosis.ts';
-import type { MouthRegion, Point } from '../lib/face-detection.ts';
 import { type AnalysisError, type AnalysisStep, analyzeTongueVideoFrame } from '../lib/pipeline.ts';
 
 /**
@@ -25,9 +25,15 @@ const LIVE_UPDATED_AT_THROTTLE_MS = 1000;
  */
 const DEBUG_OVERLAY_ENABLED = import.meta.env.VITE_DEBUG_OVERLAY === 'true';
 
+// Derived nested discriminant types for compile-time validation of runtime arrays.
+type FaceDetectionErrorKind = Extract<AnalysisError, { readonly kind: 'face_detection_error' }>['error']['kind'];
+type SegmentationErrorKind = Extract<AnalysisError, { readonly kind: 'tongue_segmentation_error' }>['error']['kind'];
+type LightingIssueValue = Extract<AnalysisError, { readonly kind: 'poor_lighting' }>['issue'];
+
 /**
  * All top-level {@link AnalysisError} `kind` discriminants.
  * Used by {@link isAnalysisError} to validate unknown values at runtime.
+ * `satisfies` ensures every element is a valid `AnalysisError['kind']`.
  */
 const ANALYSIS_ERROR_KINDS = [
 	'image_load_failed',
@@ -38,7 +44,7 @@ const ANALYSIS_ERROR_KINDS = [
 	'tongue_segmentation_error',
 	'color_correction_error',
 	'inconclusive_color',
-] as const;
+] as const satisfies readonly AnalysisError['kind'][];
 
 /**
  * Nested `kind` values for the `face_detection_error` variant of {@link AnalysisError}.
@@ -51,7 +57,7 @@ const FACE_DETECTION_ERROR_KINDS = [
 	'no_face_detected',
 	'multiple_faces_detected',
 	'mouth_not_visible',
-] as const;
+] as const satisfies readonly FaceDetectionErrorKind[];
 
 /**
  * Nested `kind` values for the `tongue_segmentation_error` variant of {@link AnalysisError}.
@@ -63,13 +69,17 @@ const TONGUE_SEGMENTATION_ERROR_KINDS = [
 	'no_tongue_pixels_detected',
 	'multiple_regions_detected',
 	'insufficient_pixels',
-] as const;
+] as const satisfies readonly SegmentationErrorKind[];
 
 /**
  * Possible `issue` values for the `poor_lighting` variant of {@link AnalysisError}.
  * @see {@link isAnalysisError}
  */
-const POOR_LIGHTING_ISSUES = ['too_dark', 'too_bright', 'high_contrast'] as const;
+const POOR_LIGHTING_ISSUES = [
+	'too_dark',
+	'too_bright',
+	'high_contrast',
+] as const satisfies readonly LightingIssueValue[];
 
 /** O(1) lookup set derived from {@link ANALYSIS_ERROR_KINDS}. */
 const ANALYSIS_ERROR_KIND_SET = new Set<string>(ANALYSIS_ERROR_KINDS);
@@ -164,8 +174,11 @@ function liveErrorMessage(error: AnalysisError): string {
 					return 'Model kon niet geladen worden.';
 				case 'detection_failed':
 					return 'Gezichtsdetectie mislukte.';
+				default: {
+					const _exhaustive: never = error.error;
+					return _exhaustive;
+				}
 			}
-			return 'Gezichtsdetectie gaf een onbekende fout.';
 		case 'poor_lighting':
 			switch (error.issue) {
 				case 'too_dark':
@@ -174,8 +187,11 @@ function liveErrorMessage(error: AnalysisError): string {
 					return 'Te fel belicht voor betrouwbare live-analyse.';
 				case 'high_contrast':
 					return 'Te veel lichtcontrast. Gebruik egaal frontaal licht.';
+				default: {
+					const _exhaustive: never = error.issue;
+					return _exhaustive;
+				}
 			}
-			return 'Belichting onvoldoende voor betrouwbare live-analyse.';
 		case 'tongue_segmentation_error':
 			switch (error.error.kind) {
 				case 'empty_input':
@@ -188,15 +204,20 @@ function liveErrorMessage(error: AnalysisError): string {
 					return "Meerdere losse tongregio's gedetecteerd. Gebruik 1 duidelijke tong in beeld.";
 				case 'insufficient_pixels':
 					return 'Te weinig bruikbare tongpixels in dit frame.';
+				default: {
+					const _exhaustive: never = error.error;
+					return _exhaustive;
+				}
 			}
-			return 'Tongsegmentatie gaf een onbekende fout.';
 		case 'color_correction_error':
 			return 'Kleurcorrectie mislukte voor dit frame.';
 		case 'inconclusive_color':
 			return 'Frame is nog niet duidelijk genoeg. Houd je tong stil in egaal licht.';
+		default: {
+			const _exhaustive: never = error;
+			return _exhaustive;
+		}
 	}
-
-	return 'Onbekende live-analysefout.';
 }
 
 /**
@@ -251,123 +272,6 @@ function isAnalysisError(value: unknown): value is AnalysisError {
 		default:
 			return false;
 	}
-}
-
-/**
- * Scale a {@link Point} from source (video) coordinates to display (canvas CSS) coordinates.
- *
- * @param point - Original point in video-pixel space.
- * @param scaleX - Horizontal ratio `displayWidth / sourceWidth`.
- * @param scaleY - Vertical ratio `displayHeight / sourceHeight`.
- * @returns New {@link Point} in display-pixel space.
- */
-function scalePoint(
-	point: Point,
-	scaleX: number,
-	scaleY: number,
-): Point {
-	return {
-		x: point.x * scaleX,
-		y: point.y * scaleY,
-	};
-}
-
-/**
- * Stroke a closed polygon path on the debug overlay canvas.
- *
- * @param context - 2D rendering context of the overlay canvas.
- * @param points - Ordered vertices (already in display-pixel space).
- * @param strokeColor - CSS color string for the outline.
- */
-function drawPolygon(
-	context: CanvasRenderingContext2D,
-	points: readonly Point[],
-	strokeColor: string,
-): void {
-	const first = points[0];
-	if (first === undefined) return;
-
-	context.beginPath();
-	context.moveTo(first.x, first.y);
-	for (let i = 1; i < points.length; i++) {
-		const point = points[i];
-		if (point === undefined) continue;
-		context.lineTo(point.x, point.y);
-	}
-	context.closePath();
-	context.strokeStyle = strokeColor;
-	context.lineWidth = 2;
-	context.stroke();
-}
-
-/**
- * Erase all content from the debug overlay canvas.
- * Safe to call with `null` (no-ops silently).
- *
- * @param canvas - The overlay canvas element, or `null`.
- */
-function clearOverlayCanvas(canvas: HTMLCanvasElement | null): void {
-	if (canvas === null) return;
-	const context = canvas.getContext('2d');
-	if (context === null) return;
-	context.clearRect(0, 0, canvas.width, canvas.height);
-}
-
-/**
- * Render a debug overlay for a detected {@link MouthRegion}.
- * Draws three elements scaled from video to display coordinates:
- * - Yellow (`#ffd166`) bounding box around the mouth.
- * - Green (`#52ffa8`) outer lip polygon.
- * - Blue (`#7dd3ff`) inner lip polygon.
- *
- * Handles DPR scaling so lines stay sharp on high-density displays.
- *
- * @param canvas - Overlay `<canvas>` positioned over the video.
- * @param mouthRegion - Detected mouth geometry in video-pixel space.
- * @param sourceWidth - Width of the source video in pixels.
- * @param sourceHeight - Height of the source video in pixels.
- */
-function drawMouthRegionOverlay(
-	canvas: HTMLCanvasElement,
-	mouthRegion: MouthRegion,
-	sourceWidth: number,
-	sourceHeight: number,
-): void {
-	const context = canvas.getContext('2d');
-	if (context === null) return;
-
-	const displayWidth = canvas.clientWidth;
-	const displayHeight = canvas.clientHeight;
-	if (displayWidth <= 0 || displayHeight <= 0) return;
-
-	const dpr = window.devicePixelRatio || 1;
-	const targetWidth = Math.round(displayWidth * dpr);
-	const targetHeight = Math.round(displayHeight * dpr);
-	if (canvas.width !== targetWidth || canvas.height !== targetHeight) {
-		canvas.width = targetWidth;
-		canvas.height = targetHeight;
-	}
-
-	context.setTransform(dpr, 0, 0, dpr, 0, 0);
-	context.clearRect(0, 0, displayWidth, displayHeight);
-
-	const scaleX = displayWidth / sourceWidth;
-	const scaleY = displayHeight / sourceHeight;
-
-	const scaledOuter = mouthRegion.outerLipPolygon.map((point) => scalePoint(point, scaleX, scaleY));
-	const scaledInner = mouthRegion.innerLipPolygon.map((point) => scalePoint(point, scaleX, scaleY));
-
-	const boxX = mouthRegion.boundingBox.x * scaleX;
-	const boxY = mouthRegion.boundingBox.y * scaleY;
-	const boxWidth = mouthRegion.boundingBox.width * scaleX;
-	const boxHeight = mouthRegion.boundingBox.height * scaleY;
-
-	context.strokeStyle = '#ffd166';
-	context.lineWidth = 2;
-	context.strokeRect(boxX, boxY, boxWidth, boxHeight);
-
-	drawPolygon(context, scaledOuter, '#52ffa8');
-	drawPolygon(context, scaledInner, '#7dd3ff');
 }
 
 /**

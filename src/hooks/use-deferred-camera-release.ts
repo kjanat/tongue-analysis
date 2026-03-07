@@ -8,7 +8,7 @@
  * @module
  */
 
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 
 /** Input configuration for {@link useDeferredCameraRelease}. */
 interface UseDeferredCameraReleaseInput {
@@ -53,6 +53,10 @@ export function useDeferredCameraRelease({
 	delayMs,
 }: UseDeferredCameraReleaseInput): UseDeferredCameraReleaseResult {
 	const timerRef = useRef<number | null>(null);
+	const onReleaseRef = useRef(onRelease);
+	useLayoutEffect(() => {
+		onReleaseRef.current = onRelease;
+	});
 
 	const clear = useCallback(() => {
 		if (timerRef.current !== null) {
@@ -66,10 +70,10 @@ export function useDeferredCameraRelease({
 		if (!active) return;
 
 		timerRef.current = window.setTimeout(() => {
-			onRelease();
+			onReleaseRef.current();
 			timerRef.current = null;
 		}, delayMs);
-	}, [active, clear, delayMs, onRelease]);
+	}, [active, clear, delayMs]);
 
 	useEffect(() => clear, [clear]);
 

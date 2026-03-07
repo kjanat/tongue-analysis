@@ -103,24 +103,24 @@ export default function Guide() {
 				<div className='guide-content'>
 					<ul className='axes-list'>
 						<li>
-							<strong>Kleur (色 s&egrave;):</strong>{' '}
+							<strong>Kleur (色 sè):</strong>{' '}
 							Een gezonde tong is lichtroze. Rood duidt op hitte, bleek op tekort (Qi of Bloed), paars op
 							bloed-stagnatie.
 						</li>
 						<li>
-							<strong>Beslag (苔 t&aacute;i):</strong>{' '}
+							<strong>Beslag (苔 tái):</strong>{' '}
 							Een dun wit laagje is normaal. Dik wit beslag wijst op Damp, geel op Hitte. Geen beslag duidt op
 							Yin-tekort.
 						</li>
 						<li>
-							<strong>Vorm (形 x&iacute;ng):</strong>{' '}
+							<strong>Vorm (形 xíng):</strong>{' '}
 							Gezwollen met tandafdrukken wijst op Milt-Qi-tekort. Dun en smal op Bloed-tekort. Scheurtjes op
-							Yin-defici&euml;ntie.
+							Yin-deficiëntie.
 						</li>
 						<li>
-							<strong>Vochtigheid (津 j&imacr;n):</strong>{' '}
+							<strong>Vochtigheid (津 jīn):</strong>{' '}
 							Balans is ideaal. Een natte tong wijst op verstoorde Yang-energie. Een droge tong op te veel hitte
-							(Yin-defici&euml;ntie).
+							(Yin-deficiëntie).
 						</li>
 					</ul>
 				</div>
