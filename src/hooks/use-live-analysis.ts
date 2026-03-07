@@ -388,11 +388,18 @@ export function useLiveAnalysis(options: UseLiveAnalysisOptions): UseLiveAnalysi
 
 		const tick = (): void => {
 			if (!liveRunningRef.current) return;
-			void runLiveAnalysis().finally(() => {
-				if (liveRunningRef.current) {
-					liveRafRef.current = window.requestAnimationFrame(tick);
-				}
-			});
+			void runLiveAnalysis()
+				.catch((error: unknown) => {
+					// runLiveAnalysis handles all expected errors internally.
+					// This catch prevents silent swallowing if catch/finally
+					// blocks themselves throw (e.g. setState after unmount).
+					console.error('Unhandled live-analysis rejection:', error);
+				})
+				.finally(() => {
+					if (liveRunningRef.current) {
+						liveRafRef.current = window.requestAnimationFrame(tick);
+					}
+				});
 		};
 
 		liveRafRef.current = window.requestAnimationFrame(tick);
