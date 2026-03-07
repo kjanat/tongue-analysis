@@ -8,24 +8,21 @@ import { err, type Result } from './result.ts';
 import { analyzeTongueFrame } from './pipeline/analysis-core.ts';
 import { loadImage } from './pipeline/frame-source.ts';
 
-export type AnalysisStep =
-	| 'loading_image'
-	| 'loading_model'
-	| 'detecting_mouth'
-	| 'segmenting_tongue'
-	| 'correcting_color'
-	| 'classifying_color'
-	| 'building_diagnosis';
+export const ANALYSIS_STEPS = [
+	{ step: 'loading_image', label: 'Foto laden' },
+	{ step: 'loading_model', label: 'Model initialiseren' },
+	{ step: 'detecting_mouth', label: 'Mondregio detecteren' },
+	{ step: 'segmenting_tongue', label: 'Tong segmenteren' },
+	{ step: 'correcting_color', label: 'Kleur normaliseren' },
+	{ step: 'classifying_color', label: 'Tongkleur classificeren' },
+	{ step: 'building_diagnosis', label: 'Diagnose opstellen' },
+] as const;
 
-export const ANALYSIS_STEP_LABELS: Readonly<Record<AnalysisStep, string>> = {
-	loading_image: 'Foto laden',
-	loading_model: 'Model initialiseren',
-	detecting_mouth: 'Mondregio detecteren',
-	segmenting_tongue: 'Tong segmenteren',
-	correcting_color: 'Kleur normaliseren',
-	classifying_color: 'Tongkleur classificeren',
-	building_diagnosis: 'Diagnose opstellen',
-};
+export type AnalysisStep = (typeof ANALYSIS_STEPS)[number]['step'];
+
+export const ANALYSIS_STEP_LABELS: Readonly<Record<AnalysisStep, string>> = Object.fromEntries(
+	ANALYSIS_STEPS.map(({ step, label }) => [step, label]),
+) as Record<AnalysisStep, string>;
 
 export type AnalysisError =
 	| { readonly kind: 'image_load_failed'; readonly cause: unknown }
