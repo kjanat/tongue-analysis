@@ -5,6 +5,7 @@ import DiagnosisResults from './components/DiagnosisResults.tsx';
 import Guide from './components/Guide.tsx';
 import LoadingSequence from './components/LoadingSequence.tsx';
 import UploadArea from './components/UploadArea.tsx';
+import { analysisErrorMessage } from './lib/analysis-error-message.ts';
 import type { Diagnosis } from './lib/diagnosis.ts';
 import { releaseFaceLandmarker } from './lib/face-detection.ts';
 import { type AnalysisError, type AnalysisStep, analyzeTongueFromUrl } from './lib/pipeline.ts';
@@ -22,63 +23,6 @@ type Phase =
 	| { readonly kind: 'error'; readonly imageUrl: string; readonly error: AnalysisError };
 
 const INITIAL: Phase = { kind: 'upload' };
-
-function errorMessage(error: AnalysisError): string {
-	switch (error.kind) {
-		case 'image_load_failed':
-			return 'Kon de afbeelding niet laden. Kies een andere foto en probeer opnieuw.';
-		case 'canvas_unavailable':
-			return 'Canvas niet beschikbaar in deze browser. Gebruik een moderne browser.';
-		case 'mouth_crop_failed':
-			return 'Mondregio kon niet worden uitgesneden. Gebruik een scherpere foto van dichterbij.';
-		case 'face_detection_error':
-			switch (error.error.kind) {
-				case 'no_face_detected':
-					return 'Geen gezicht gevonden. Zorg dat je gezicht volledig zichtbaar is.';
-				case 'multiple_faces_detected':
-					return 'Meerdere gezichten gedetecteerd. Gebruik een foto met slechts één persoon.';
-				case 'mouth_not_visible':
-					return 'Mond niet duidelijk zichtbaar. Open je mond en steek je tong uit.';
-				case 'invalid_image_dimensions':
-					return 'Ongeldige afbeeldingsafmetingen gedetecteerd. Gebruik een andere foto.';
-				case 'model_load_failed':
-					return 'Model kon niet geladen worden. Controleer je internetverbinding en probeer opnieuw.';
-				case 'detection_failed':
-					return 'Gezichtsdetectie mislukte. Probeer een foto met beter licht.';
-			}
-		case 'poor_lighting':
-			switch (error.issue) {
-				case 'too_dark':
-					return 'Belichting is te donker voor betrouwbare tonganalyse. Gebruik helder frontaal licht zonder tegenlicht.';
-				case 'too_bright':
-					return 'Belichting is te fel of overbelicht. Vermijd directe flits en gebruik zacht, egaal licht.';
-				case 'high_contrast':
-					return 'Belichting heeft te harde schaduwen. Gebruik egaal licht van voren zonder sterke contrasten.';
-			}
-		case 'tongue_segmentation_error':
-			switch (error.error.kind) {
-				case 'empty_input':
-					return 'Lege mondregio ontvangen. Probeer een andere foto.';
-				case 'allowed_mask_size_mismatch':
-					return 'Interne mondmaskerfout opgetreden. Probeer opnieuw.';
-				case 'no_tongue_pixels_detected':
-					return 'Tong niet duidelijk zichtbaar in de mondregio. Gebruik egaal licht van voren, open je mond verder en steek je tong uit.';
-				case 'multiple_regions_detected':
-					return "Meerdere losse tongregio's gevonden. Gebruik een close-up van slechts één tong.";
-				case 'insufficient_pixels':
-					return 'Te weinig bruikbare tongpixels gevonden. Ga dichterbij en zorg voor egaal frontaal licht zonder harde schaduwen.';
-			}
-		case 'color_correction_error':
-			switch (error.error.kind) {
-				case 'mask_size_mismatch':
-					return 'Interne maskfout tijdens kleurcorrectie. Probeer opnieuw.';
-				case 'no_masked_pixels':
-					return 'Geen bruikbare tongpixels na kleurcorrectie. Probeer beter licht.';
-			}
-		case 'inconclusive_color':
-			return 'Kleurmeting was te onzeker. Zorg voor zichtbaar uitgestoken tong in egaal licht.';
-	}
-}
 
 function startLoadingPhase(imageUrl: string, analysisId: number): Phase {
 	return {
@@ -166,8 +110,7 @@ export default function App() {
 		};
 	}, [loadingAnalysisId, loadingImageUrl]);
 
-	const handleFileSelected = useCallback((file: File, imageUrl: string) => {
-		void file;
+	const handleImageSelected = useCallback((_file: File, imageUrl: string) => {
 		setPhase({ kind: 'preview', imageUrl });
 	}, []);
 
@@ -212,9 +155,11 @@ export default function App() {
 					</p>
 				</header>
 
-				{phase.kind === 'upload' && <UploadArea onFileSelected={handleFileSelected} />}
 				{phase.kind === 'upload' && (
-					<CameraCapture onCapture={handleFileSelected} onLiveDiagnosis={handleUseLiveDiagnosis} />
+					<>
+						<UploadArea onFileSelected={handleImageSelected} />
+						<CameraCapture onCapture={handleImageSelected} onLiveDiagnosis={handleUseLiveDiagnosis} />
+					</>
 				)}
 
 				{phase.kind === 'preview' && (
@@ -241,7 +186,7 @@ export default function App() {
 						</div>
 						<div className='analysis-error'>
 							<h3>Analyse mislukt</h3>
-							<p>{errorMessage(phase.error)}</p>
+							<p>{analysisErrorMessage(phase.error)}</p>
 						</div>
 						<div className='error-actions'>
 							<button
