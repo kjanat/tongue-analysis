@@ -67,5 +67,13 @@ export function makeFallbackAllowedMask(width: number, height: number): Uint8Arr
 }
 
 export function fallbackMinimumPixels(width: number, height: number): number {
-	return Math.max(200, Math.floor(width * height * 0.03));
+	const minimumPixels = Math.max(200, Math.floor(width * height * 0.03));
+	const allowedMask = makeFallbackAllowedMask(width, height);
+
+	let allowedPixels = 0;
+	for (const pixel of allowedMask) {
+		allowedPixels += pixel;
+	}
+
+	return Math.min(allowedPixels, minimumPixels);
 }
