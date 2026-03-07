@@ -96,12 +96,23 @@ export function cropMouth(
 		return err({ kind: 'mouth_crop_failed' });
 	}
 
-	const x = clamp(Math.floor(mouth.boundingBox.x), 0, width - 1);
-	const y = clamp(Math.floor(mouth.boundingBox.y), 0, height - 1);
-	const cropWidth = clamp(Math.floor(mouth.boundingBox.width), 1, width - x);
-	const cropHeight = clamp(Math.floor(mouth.boundingBox.height), 1, height - y);
+	// Compute the intersection of the bounding box with the image bounds.
+	// Clamping left/right and top/bottom independently avoids the over-wide
+	// crop that the old independent x + width clamping produced when the
+	// bounding box started outside the image (e.g. negative x).
+	const left = clamp(Math.floor(mouth.boundingBox.x), 0, width);
+	const top = clamp(Math.floor(mouth.boundingBox.y), 0, height);
+	const right = clamp(Math.ceil(mouth.boundingBox.x + mouth.boundingBox.width), 0, width);
+	const bottom = clamp(Math.ceil(mouth.boundingBox.y + mouth.boundingBox.height), 0, height);
 
-	return createCanvasCrop(source, x, y, cropWidth, cropHeight);
+	const cropWidth = right - left;
+	const cropHeight = bottom - top;
+
+	if (cropWidth <= 0 || cropHeight <= 0) {
+		return err({ kind: 'mouth_crop_failed' });
+	}
+
+	return createCanvasCrop(source, left, top, cropWidth, cropHeight);
 }
 
 /**

@@ -43,19 +43,12 @@ export type AnalysisStep = (typeof ANALYSIS_STEPS)[number]['step'];
 /**
  * Lookup table mapping each {@link AnalysisStep} to its Dutch display label.
  *
- * Used by UI components (e.g. `LoadingSequence`) to render progress text.
- * Written as an explicit object literal so TypeScript can verify exhaustiveness
- * without a type assertion; `satisfies` enforces full coverage at compile time.
+ * Derived from {@link ANALYSIS_STEPS} so labels are defined in one place.
+ * The `satisfies` constraint guarantees the resulting record covers every step.
  */
-export const ANALYSIS_STEP_LABELS = {
-	loading_image: 'Foto laden',
-	loading_model: 'Model initialiseren',
-	detecting_mouth: 'Mondregio detecteren',
-	segmenting_tongue: 'Tong segmenteren',
-	correcting_color: 'Kleur normaliseren',
-	classifying_color: 'Tongkleur classificeren',
-	building_diagnosis: 'Diagnose opstellen',
-} satisfies Record<AnalysisStep, string>;
+export const ANALYSIS_STEP_LABELS = Object.fromEntries(
+	ANALYSIS_STEPS.map((entry) => [entry.step, entry.label]),
+) as Record<AnalysisStep, string>;
 
 /**
  * Discriminated union of all failure modes in the analysis pipeline.

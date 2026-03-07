@@ -670,6 +670,7 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 
 	const handleStartCamera = useCallback(() => {
 		clearReleaseTimer();
+		restartLiveAfterSwitchRef.current = false;
 		setPreviewPrimed(true);
 		setVideoReady(false);
 		setCameraAutoPaused(false);
