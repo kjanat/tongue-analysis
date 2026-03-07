@@ -1,7 +1,10 @@
 import type { MouseEvent } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useDeferredCameraRelease } from '../hooks/use-deferred-camera-release.ts';
 import { useLiveAnalysis } from '../hooks/use-live-analysis.ts';
+import { useLiveAnnouncements } from '../hooks/use-live-announcements.ts';
 import { useMediaStream } from '../hooks/use-media-stream.ts';
+import { captureErrorMessage, captureVideoFrame } from '../lib/capture-video-frame.ts';
 import type { Diagnosis } from '../lib/diagnosis.ts';
 import type { AnalysisStep } from '../lib/pipeline.ts';
 
@@ -30,26 +33,9 @@ function formatUpdateTime(timestampMs: number): string {
 	});
 }
 
-function canvasToJpegBlob(canvas: HTMLCanvasElement): Promise<Blob | null> {
-	return new Promise((resolve) => {
-		canvas.toBlob(
-			(blob) => {
-				resolve(blob);
-			},
-			'image/jpeg',
-			0.92,
-		);
-	});
-}
-
 export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCaptureProps) {
 	const dialogRef = useRef<HTMLDialogElement>(null);
 	const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
-	const liveAnnouncementRef = useRef<HTMLOutputElement>(null);
-	const releaseTimerRef = useRef<number | null>(null);
-	const announcedStepRef = useRef<AnalysisStep | null>(null);
-	const announcedDiagnosisRef = useRef<string | null>(null);
-	const announcedUpdatedAtRef = useRef<number | null>(null);
 	const [cameraAutoPaused, setCameraAutoPaused] = useState(false);
 
 	const {
@@ -84,30 +70,33 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 		enabled: mode === 'ready',
 	});
 
+	const { outputRef: liveAnnouncementRef, announce: announceLiveStatus, reset: resetLiveAnnouncement } =
+		useLiveAnnouncements({
+			liveHasStarted,
+			liveMode,
+			liveStep,
+			liveDiagnosis,
+			liveUpdatedAt,
+			stepLabels: LIVE_STEP_LABELS,
+		});
+
+	const cameraActive = mode !== 'idle' || liveMode !== 'idle';
+
+	const handleRelease = useCallback(() => {
+		stopLiveAnalysis();
+		resetCamera();
+		setCameraAutoPaused(true);
+	}, [resetCamera, stopLiveAnalysis]);
+
+	const { clear: clearReleaseTimer, schedule: scheduleCameraRelease } = useDeferredCameraRelease({
+		active: cameraActive,
+		onRelease: handleRelease,
+		delayMs: CAMERA_RELEASE_DELAY_MS,
+	});
+
 	const handleCloseModal = useCallback(() => {
 		dialogRef.current?.close();
 	}, []);
-
-	const clearReleaseTimer = useCallback(() => {
-		if (releaseTimerRef.current !== null) {
-			window.clearTimeout(releaseTimerRef.current);
-			releaseTimerRef.current = null;
-		}
-	}, []);
-
-	const announceLiveStatus = useCallback((message: string) => {
-		const output = liveAnnouncementRef.current;
-		if (output !== null) {
-			output.textContent = message;
-		}
-	}, []);
-
-	const resetLiveAnnouncement = useCallback(() => {
-		announcedStepRef.current = null;
-		announcedDiagnosisRef.current = null;
-		announcedUpdatedAtRef.current = null;
-		announceLiveStatus('');
-	}, [announceLiveStatus]);
 
 	const handleDialogClose = useCallback(() => {
 		clearReleaseTimer();
@@ -139,22 +128,11 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 		}
 	}, [clearCameraError, clearLiveError, clearReleaseTimer, handleStartCamera, mode]);
 
-	const scheduleCameraRelease = useCallback(() => {
-		clearReleaseTimer();
-		if (mode === 'idle' && liveMode === 'idle') return;
-		releaseTimerRef.current = window.setTimeout(() => {
-			stopLiveAnalysis();
-			resetCamera();
-			setCameraAutoPaused(true);
-			releaseTimerRef.current = null;
-		}, CAMERA_RELEASE_DELAY_MS);
-	}, [clearReleaseTimer, liveMode, mode, resetCamera, stopLiveAnalysis]);
-
 	const handlePageHidden = useCallback(() => {
-		if (mode === 'idle' && liveMode === 'idle') return;
+		if (!cameraActive) return;
 		stopLiveAnalysis();
 		scheduleCameraRelease();
-	}, [liveMode, mode, scheduleCameraRelease, stopLiveAnalysis]);
+	}, [cameraActive, scheduleCameraRelease, stopLiveAnalysis]);
 
 	useEffect(() => {
 		const handleVisibilityChange = (): void => {
@@ -176,38 +154,20 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 
 	const handleCapture = useCallback(async () => {
 		const video = videoRef.current;
-		if (video === null || video.videoWidth === 0 || video.videoHeight === 0) {
+		if (video === null) {
 			setCameraError('Geen camerabeeld beschikbaar om vast te leggen.');
 			return;
 		}
 
-		const canvas = document.createElement('canvas');
-		canvas.width = video.videoWidth;
-		canvas.height = video.videoHeight;
-
-		const context = canvas.getContext('2d');
-		if (context === null) {
-			setCameraError('Kon cameraframe niet verwerken.');
+		const result = await captureVideoFrame(video);
+		if (!result.ok) {
+			setCameraError(captureErrorMessage(result.error));
 			return;
 		}
 
-		context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-		const blob = await canvasToJpegBlob(canvas);
-		if (blob === null) {
-			setCameraError('Kon foto niet opslaan. Probeer opnieuw.');
-			return;
-		}
-
-		const capturedAt = Date.now();
-		const file = new File([blob], `tong-camera-${String(capturedAt)}.jpg`, {
-			type: 'image/jpeg',
-			lastModified: capturedAt,
-		});
-
-		const objectUrl = URL.createObjectURL(file);
+		const objectUrl = URL.createObjectURL(result.value);
 		dialogRef.current?.close();
-		onCapture(file, objectUrl);
+		onCapture(result.value, objectUrl);
 	}, [onCapture, setCameraError, videoRef]);
 
 	const handleLiveToggle = useCallback(() => {
@@ -232,44 +192,6 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 		dialogRef.current?.close();
 		onLiveDiagnosis(liveDiagnosis);
 	}, [announceLiveStatus, clearReleaseTimer, liveDiagnosis, onLiveDiagnosis]);
-
-	useEffect(() => {
-		if (!liveHasStarted) {
-			resetLiveAnnouncement();
-			return;
-		}
-
-		if (liveMode === 'running' && liveStep !== null && liveStep !== announcedStepRef.current) {
-			announcedStepRef.current = liveStep;
-			announceLiveStatus(`Analyse stap: ${LIVE_STEP_LABELS[liveStep]}.`);
-			return;
-		}
-
-		if (liveDiagnosis !== null) {
-			const diagnosisKey = `${liveDiagnosis.type.id}|${liveDiagnosis.type.summary}`;
-			if (diagnosisKey !== announcedDiagnosisRef.current) {
-				announcedDiagnosisRef.current = diagnosisKey;
-				announcedUpdatedAtRef.current = liveUpdatedAt;
-				announceLiveStatus(
-					`Live-diagnose: ${liveDiagnosis.type.name}. ${liveDiagnosis.type.summary}`,
-				);
-				return;
-			}
-		}
-
-		if (liveUpdatedAt !== null && liveUpdatedAt !== announcedUpdatedAtRef.current) {
-			announcedUpdatedAtRef.current = liveUpdatedAt;
-			announceLiveStatus(`Live-resultaat bijgewerkt om ${formatUpdateTime(liveUpdatedAt)}.`);
-		}
-	}, [
-		announceLiveStatus,
-		liveDiagnosis,
-		liveHasStarted,
-		liveMode,
-		liveStep,
-		liveUpdatedAt,
-		resetLiveAnnouncement,
-	]);
 
 	const handleDialogMouseDown = useCallback((event: MouseEvent<HTMLDialogElement>) => {
 		if (event.target === event.currentTarget) {
