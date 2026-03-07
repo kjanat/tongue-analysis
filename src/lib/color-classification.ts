@@ -14,6 +14,38 @@ import type { RgbColor } from './color-correction.ts';
 import { clamp } from './math-utils.ts';
 import { MAX_DISTANCE, oklchDistance } from './oklch-distance.ts';
 
+// ── Palette geometry ─────────────────────────────
+
+/**
+ * Median pairwise OKLCH distance between all reference tongue types.
+ *
+ * Computed once at module load from {@link TONGUE_TYPES}. Represents the
+ * "typical separation" in the palette — robust to outliers (e.g. Bloed
+ * Stagnatie's purple) unlike mean or max. Used by {@link computeConfidence}
+ * as the absolute-fit normalization scale.
+ */
+export const ABS_SCALE: number = (() => {
+	const refs = TONGUE_TYPES.map(t => hexToOklch(t.color.hex));
+	const distances: number[] = [];
+	for (let i = 0; i < refs.length; i++) {
+		const a = refs[i];
+		if (a === undefined) continue;
+		for (let j = i + 1; j < refs.length; j++) {
+			const b = refs[j];
+			if (b === undefined) continue;
+			distances.push(oklchDistance(a, b));
+		}
+	}
+	distances.sort((a, b) => a - b);
+	const mid = Math.floor(distances.length / 2);
+	const lo = distances[mid - 1];
+	const hi = distances[mid];
+	if (hi === undefined) return 0;
+	return distances.length % 2 === 0 && lo !== undefined
+		? (lo + hi) / 2
+		: hi;
+})();
+
 /**
  * A single candidate match between the sample color and a tongue type.
  */
@@ -57,12 +89,24 @@ function distanceToScore(distance: number): number {
 	return clamp(1 - distance / MAX_DISTANCE, 0, 1);
 }
 
+/** Weight of the absolute-fit component in the confidence blend. */
+const ABSOLUTE_WEIGHT = 0.35;
+
+/** Weight of the relative-separation component in the confidence blend. */
+const SEPARATION_WEIGHT = 0.65;
+
 /**
  * Compute classification confidence from ranked matches.
  *
- * Blends absolute score (70%) with margin between 1st and 2nd place (30%).
- * High confidence requires both a close absolute match AND clear separation
- * from the runner-up.
+ * Two components:
+ * - **Absolute fit** (35%) — how close the best match is relative to the
+ *   palette's typical inter-class distance ({@link ABS_SCALE}).
+ * - **Relative separation** (65%) — ratio of the gap between 1st and 2nd
+ *   place to the runner-up distance. Dominates because "how unambiguous
+ *   is this?" is what humans expect from "confidence."
+ *
+ * Neither component depends on {@link MAX_DISTANCE} (theoretical OKLCH max),
+ * so the output spans the full [0, 1] range for real-world inputs.
  *
  * @param rankings - Type matches sorted by distance ascending.
  * @returns Confidence in [0, 1], rounded to 3 decimal places.
@@ -71,15 +115,18 @@ function computeConfidence(rankings: readonly TypeMatch[]): number {
 	const primary = rankings[0];
 	if (primary === undefined) return 0;
 
+	const absoluteFit = clamp(1 - primary.distance / ABS_SCALE, 0, 1);
+
 	const secondary = rankings[1];
 	if (secondary === undefined) {
-		return Math.round(distanceToScore(primary.distance) * 1000) / 1000;
+		return Math.round(absoluteFit * 1000) / 1000;
 	}
 
-	const absoluteScore = distanceToScore(primary.distance);
-	const marginScore = clamp((secondary.distance - primary.distance) / MAX_DISTANCE, 0, 1);
-	const weighted = absoluteScore * 0.7 + marginScore * 0.3;
+	const separation = secondary.distance > 0
+		? clamp((secondary.distance - primary.distance) / secondary.distance, 0, 1)
+		: 0;
 
+	const weighted = absoluteFit * ABSOLUTE_WEIGHT + separation * SEPARATION_WEIGHT;
 	return Math.round(weighted * 1000) / 1000;
 }
 

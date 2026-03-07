@@ -15,14 +15,14 @@
 export const STANDARD_MIN_CLASSIFIABLE_CHROMA = 0.03;
 
 /** Minimum match confidence for a standard frame to produce a diagnosis. */
-export const STANDARD_MIN_CLASSIFIABLE_CONFIDENCE = 0.35;
+export const STANDARD_MIN_CLASSIFIABLE_CONFIDENCE = 0.15;
 
 /** Minimum OKLCh chroma for a closeup/fallback frame — relaxed because
  *  full-image crops include more non-tongue pixels that dilute saturation. */
 export const CLOSEUP_MIN_CLASSIFIABLE_CHROMA = 0.012;
 
 /** Minimum match confidence for a closeup/fallback frame. */
-export const CLOSEUP_MIN_CLASSIFIABLE_CONFIDENCE = 0.12;
+export const CLOSEUP_MIN_CLASSIFIABLE_CONFIDENCE = 0.05;
 
 // ── Lighting Validation ─────────────────────────
 
