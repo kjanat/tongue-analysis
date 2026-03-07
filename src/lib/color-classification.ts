@@ -23,6 +23,9 @@ import { MAX_DISTANCE, oklchDistance } from './oklch-distance.ts';
  * "typical separation" in the palette — robust to outliers (e.g. Bloed
  * Stagnatie's purple) unlike mean or max. Used by {@link computeConfidence}
  * as the absolute-fit normalization scale.
+ *
+ * Falls back to {@link MAX_DISTANCE} when fewer than 2 types exist
+ * (no pairwise distances to compute), keeping all downstream division safe.
  */
 export const ABS_SCALE: number = (() => {
 	const refs = TONGUE_TYPES.map(t => hexToOklch(t.color.hex));
@@ -40,7 +43,7 @@ export const ABS_SCALE: number = (() => {
 	const mid = Math.floor(distances.length / 2);
 	const lo = distances[mid - 1];
 	const hi = distances[mid];
-	if (hi === undefined) return 0;
+	if (hi === undefined) return MAX_DISTANCE;
 	return distances.length % 2 === 0 && lo !== undefined
 		? (lo + hi) / 2
 		: hi;
