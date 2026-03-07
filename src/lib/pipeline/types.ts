@@ -61,9 +61,9 @@ export interface LightingStats {
 	readonly meanLuminance: number;
 	/** Standard deviation of luminance; high values indicate uneven lighting. */
 	readonly stdDevLuminance: number;
-	/** Fraction of pixels below {@link DARK_PIXEL_LUMINANCE}. */
+	/** Fraction of pixels below the `DARK_PIXEL_LUMINANCE` threshold. */
 	readonly darkRatio: number;
-	/** Fraction of pixels above {@link BRIGHT_PIXEL_LUMINANCE}. */
+	/** Fraction of pixels above the `BRIGHT_PIXEL_LUMINANCE` threshold. */
 	readonly brightRatio: number;
 	/** Number of pixels included in the sample. */
 	readonly sampleCount: number;

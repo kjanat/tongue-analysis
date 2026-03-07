@@ -92,10 +92,6 @@ export function cropMouth(
 	const cropWidth = clamp(Math.floor(mouth.boundingBox.width), 1, width - x);
 	const cropHeight = clamp(Math.floor(mouth.boundingBox.height), 1, height - y);
 
-	if (cropWidth <= 0 || cropHeight <= 0) {
-		return err({ kind: 'mouth_crop_failed' });
-	}
-
 	return createCanvasCrop(source, x, y, cropWidth, cropHeight);
 }
 

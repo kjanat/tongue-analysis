@@ -31,7 +31,7 @@ export function loadImage(imageUrl: string): Promise<HTMLImageElement> {
 			resolve(image);
 		};
 		image.onerror = () => {
-			reject(new Error('Image load failed'));
+			reject(new Error(`Image load failed: ${imageUrl}`));
 		};
 		image.src = imageUrl;
 	});

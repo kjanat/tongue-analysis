@@ -425,6 +425,10 @@ export function useMediaStream(): UseMediaStreamResult {
 			// On OverconstrainedError (stale deviceId, iOS quirks), retry with
 			// relaxed constraints instead of giving up. Also helps on iOS Safari
 			// where facingMode is more reliable than deviceId.
+			// Fallback uses 'environment' (rear) intentionally: the user
+			// explicitly requested a *different* camera (via switch), so
+			// falling back to rear gives the best chance of a usable
+			// alternative rather than re-acquiring the same front camera.
 			if (
 				requestedCameraId !== null
 				&& cameraError instanceof DOMException

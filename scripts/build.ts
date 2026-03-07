@@ -369,7 +369,7 @@ async function run(command: string, args: readonly string[], env?: NodeJS.Proces
 	await new Promise<void>((resolve, reject) => {
 		const child = spawn(command, args, {
 			stdio: 'inherit',
-			env,
+			env: env ? { ...process.env, ...env } : undefined,
 		});
 
 		child.on('error', reject);

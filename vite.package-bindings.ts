@@ -394,9 +394,13 @@ async function ensureDownloads(downloads: readonly ResolvedDownload[]): Promise<
 			const timer = setTimeout(() => {
 				controller.abort();
 			}, timeoutMs);
-			let response: Response;
+			let body: ArrayBuffer;
 			try {
-				response = await fetch(download.url, { signal: controller.signal });
+				const response = await fetch(download.url, { signal: controller.signal });
+				if (!response.ok) {
+					throw new Error(`download failed with status ${String(response.status)}`);
+				}
+				body = await response.arrayBuffer();
 			} catch (fetchError) {
 				clearTimeout(timer);
 				if (fetchError instanceof DOMException && fetchError.name === 'AbortError') {
@@ -405,12 +409,6 @@ async function ensureDownloads(downloads: readonly ResolvedDownload[]): Promise<
 				throw fetchError;
 			}
 			clearTimeout(timer);
-
-			if (!response.ok) {
-				throw new Error(`download failed with status ${String(response.status)}`);
-			}
-
-			const body = await response.arrayBuffer();
 			await writeFile(download.absolutePath, Buffer.from(body));
 			console.log(`[package-bindings] asset saved: ${download.outputPath}`);
 			locallyAvailable.add(download.id);

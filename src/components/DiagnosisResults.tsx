@@ -160,7 +160,7 @@ export default function DiagnosisResults(
 				<div className='result-card'>
 					<h3>TCM-Patroonherkenning</h3>
 					<ul>
-						{patterns.map((p) => <li key={p}>{p}</li>)}
+						{patterns.map((p, i) => <li key={`${String(i)}-${p}`}>{p}</li>)}
 					</ul>
 				</div>
 
@@ -168,7 +168,7 @@ export default function DiagnosisResults(
 				<div className='result-card'>
 					<h3>Aanbevelingen</h3>
 					<ul>
-						{tips.map((t) => <li key={t}>{t}</li>)}
+						{tips.map((t, i) => <li key={`${String(i)}-${t}`}>{t}</li>)}
 					</ul>
 				</div>
 			</div>
