@@ -793,10 +793,6 @@ dialog.camera-modal::backdrop {
 	list-style: none;
 }
 
-.guide summary::-webkit-details-marker {
-	display: none;
-}
-
 .guide summary::before {
 	content: "\25B6\00a0";
 	font-size: 0.7rem;
