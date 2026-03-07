@@ -262,7 +262,6 @@ dialog.camera-modal::backdrop {
 	pointer-events: auto;
 	transform: translateY(0);
 	transition-delay: 0s;
-	view-transition-name: camera-preview;
 }
 
 .camera-video {
@@ -393,7 +392,6 @@ dialog.camera-modal::backdrop {
 	min-height: 3.5rem;
 	max-height: 14rem;
 	overflow-y: auto;
-	view-transition-name: camera-live-panel;
 }
 
 .camera-live-header {
@@ -422,7 +420,6 @@ dialog.camera-modal::backdrop {
 	display: grid;
 	gap: 0.55rem;
 	transition: opacity 0.25s ease;
-	view-transition-name: camera-live-diagnosis;
 }
 
 .camera-live-diagnosis[data-reveal-phase="a"] {

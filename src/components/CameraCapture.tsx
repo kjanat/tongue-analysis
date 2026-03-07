@@ -16,7 +16,7 @@ import type { Diagnosis } from '../lib/diagnosis.ts';
 import { formatUpdateTime } from '../lib/format-time.ts';
 import { ANALYSIS_STEP_LABELS } from '../lib/pipeline.ts';
 import type { AnalysisStep } from '../lib/pipeline.ts';
-import { withViewTransition, withViewTransitionAndWait } from '../lib/view-transition.ts';
+import { withViewTransitionAndWait } from '../lib/view-transition.ts';
 
 /**
  * Delay (ms) before the camera stream is automatically released after a tab switch.
@@ -253,23 +253,7 @@ function LiveDiagnosisPanel({
 	onUseLiveDiagnosis,
 }: LiveDiagnosisPanelProps) {
 	const isLiveRunning = liveMode === 'running';
-	const [revealPhase, setRevealPhase] = useState<'a' | 'b'>('a');
-	const previousRevealTimestampRef = useRef<number | null>(null);
-
-	useEffect(() => {
-		if (liveDiagnosis === null || liveUpdatedAt === null) {
-			return;
-		}
-
-		if (previousRevealTimestampRef.current === liveUpdatedAt) {
-			return;
-		}
-
-		previousRevealTimestampRef.current = liveUpdatedAt;
-		withViewTransition(() => {
-			setRevealPhase((previous) => previous === 'a' ? 'b' : 'a');
-		});
-	}, [liveDiagnosis, liveUpdatedAt]);
+	const revealPhase = liveUpdatedAt !== null && liveUpdatedAt % 2 === 0 ? 'a' : 'b';
 
 	return (
 		<div className='camera-live'>
@@ -580,10 +564,8 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 			const detectedAspectRatio = video.videoWidth / video.videoHeight;
 
 			if (!videoReady) {
-				withViewTransition(() => {
-					setPreviewAspectRatio(detectedAspectRatio);
-					setVideoReady(true);
-				});
+				setPreviewAspectRatio(detectedAspectRatio);
+				setVideoReady(true);
 				return;
 			}
 
@@ -660,14 +642,12 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 	}, [closeModalWithTransition, onCapture, setCameraError, videoRef]);
 
 	const handleLiveToggle = useCallback(() => {
-		withViewTransition(() => {
-			if (isLiveRunning) {
-				resetLiveAnalysis();
-				return;
-			}
+		if (isLiveRunning) {
+			resetLiveAnalysis();
+			return;
+		}
 
-			startLiveAnalysis();
-		});
+		startLiveAnalysis();
 	}, [isLiveRunning, resetLiveAnalysis, startLiveAnalysis]);
 
 	const handleSwitchCamera = useCallback(() => {
