@@ -393,6 +393,7 @@ dialog.camera-modal::backdrop {
 	min-height: 3.5rem;
 	max-height: 14rem;
 	overflow-y: auto;
+	view-transition-name: camera-live-panel;
 }
 
 .camera-live-header {

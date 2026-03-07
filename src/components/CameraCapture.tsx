@@ -660,12 +660,14 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 	}, [closeModalWithTransition, onCapture, setCameraError, videoRef]);
 
 	const handleLiveToggle = useCallback(() => {
-		if (isLiveRunning) {
-			resetLiveAnalysis();
-			return;
-		}
+		withViewTransition(() => {
+			if (isLiveRunning) {
+				resetLiveAnalysis();
+				return;
+			}
 
-		startLiveAnalysis();
+			startLiveAnalysis();
+		});
 	}, [isLiveRunning, resetLiveAnalysis, startLiveAnalysis]);
 
 	const handleSwitchCamera = useCallback(() => {
