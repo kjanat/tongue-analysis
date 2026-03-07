@@ -6,16 +6,6 @@ import robot from 'vite-robots-txt';
 import svg from 'vite-svg-to-ico';
 import { packageBindingsPlugin } from './vite.package-bindings.ts';
 
-function readGitCommitSha(): string | undefined {
-	const result = spawnSync('git', ['rev-parse', 'HEAD'], {
-		encoding: 'utf8',
-		stdio: ['ignore', 'pipe', 'ignore'],
-	});
-
-	if (result.status !== 0) return undefined;
-	return result.stdout.trim() || undefined;
-}
-
 // https://vite.dev/config/
 export default defineConfig(({ command }) => {
 	return {
@@ -58,10 +48,20 @@ export default defineConfig(({ command }) => {
 			robot({ preset: 'disallowAll' }),
 		],
 		server: {
-			allowedHosts: ['propc-manjaro', '192.168.1.2'],
-			host: '0.0.0.0',
 			port: 3000,
 			strictPort: true,
+			host: true,
+			allowedHosts: true,
 		},
 	};
 });
+
+function readGitCommitSha(): string | undefined {
+	const result = spawnSync('git', ['rev-parse', 'HEAD'], {
+		encoding: 'utf8',
+		stdio: ['ignore', 'pipe', 'ignore'],
+	});
+
+	if (result.status !== 0) return undefined;
+	return result.stdout.trim() || undefined;
+}
