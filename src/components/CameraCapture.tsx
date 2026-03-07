@@ -121,7 +121,7 @@ interface CameraIdleActionsProps {
  */
 function CameraIdleActions({ cameraAutoPaused, error, onStart }: CameraIdleActionsProps) {
 	return (
-		<>
+		<div className='camera-idle-actions'>
 			{cameraAutoPaused && (
 				<div className='camera-status' aria-live='polite'>
 					Camera gepauzeerd na tabwissel. Hervat wanneer je klaar bent.
@@ -131,7 +131,7 @@ function CameraIdleActions({ cameraAutoPaused, error, onStart }: CameraIdleActio
 				{cameraAutoPaused ? 'Hervat camera' : 'Start camera'}
 			</button>
 			{error !== null && <div className='camera-status camera-error' role='alert'>{error}</div>}
-		</>
+		</div>
 	);
 }
 
