@@ -271,8 +271,14 @@ export default function App() {
 			{import.meta.env.VITE_DEBUG_OVERLAY === 'true' && (
 				<footer className='debug-footer'>
 					debug {import.meta.env.DEV ? 'mode' : 'build'} &middot;{' '}
-					{(import.meta.env.VITE_COMMIT_SHA?.slice(0, 7) ?? '?') + (import.meta.env.DEV ? '+dev' : '')} &middot;{' '}
-					{import.meta.env.VITE_BUILD_DATE ?? '?'}
+					<a
+						href={`https://github.com/kjanat/tongue-analysis/commit/${import.meta.env.VITE_COMMIT_SHA ?? ''}`}
+						target='_blank'
+						rel='noopener noreferrer'
+					>
+						{(import.meta.env.VITE_COMMIT_SHA?.slice(0, 8) ?? '?') + (import.meta.env.DEV ? '+dev' : '')}
+					</a>{' '}
+					&middot; {import.meta.env.VITE_BUILD_DATE ?? '?'}
 				</footer>
 			)}
 		</>
