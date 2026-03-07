@@ -1,7 +1,13 @@
 /* ── Background pattern ─────────────────────────────────────── */
 
 :root {
+	--camera-hero-ms: 340ms;
+	--camera-hero-ease: cubic-bezier(0.22, 1, 0.36, 1);
+	--camera-preview-ms: 280ms;
+	--camera-preview-ease: cubic-bezier(0.22, 0.61, 0.36, 1);
 	--camera-live-collapse-ms: 180ms;
+	--camera-live-collapse-ease: cubic-bezier(0.4, 0, 0.2, 1);
+	--camera-diagnosis-reveal-ms: 340ms;
 }
 
 .bg-pattern {
@@ -251,10 +257,10 @@ dialog.camera-modal::backdrop {
 	pointer-events: none;
 	transform: translateY(8px);
 	transition:
-		margin-top 0.3s ease,
-		opacity 0.25s ease,
-		transform 0.25s ease,
-		visibility 0s linear 0.3s;
+		margin-top var(--camera-preview-ms) var(--camera-preview-ease),
+		opacity var(--camera-preview-ms) var(--camera-preview-ease),
+		transform var(--camera-preview-ms) var(--camera-preview-ease),
+		visibility 0s linear var(--camera-preview-ms);
 }
 
 .camera-preview[data-visible="true"] {
@@ -275,7 +281,7 @@ dialog.camera-modal::backdrop {
 	background: transparent;
 	object-fit: contain;
 	opacity: 0;
-	transition: opacity 0.24s ease;
+	transition: opacity 220ms var(--camera-preview-ease);
 }
 
 .camera-video[data-ready="true"] {
@@ -397,11 +403,12 @@ dialog.camera-modal::backdrop {
 	max-height: 14rem;
 	overflow-y: auto;
 	transition:
-		max-height var(--camera-live-collapse-ms) ease,
-		opacity var(--camera-live-collapse-ms) ease,
-		margin-top var(--camera-live-collapse-ms) ease,
-		padding var(--camera-live-collapse-ms) ease,
-		border-color var(--camera-live-collapse-ms) ease;
+		max-height var(--camera-live-collapse-ms) var(--camera-live-collapse-ease),
+		opacity var(--camera-live-collapse-ms) var(--camera-live-collapse-ease),
+		margin-top var(--camera-live-collapse-ms) var(--camera-live-collapse-ease),
+		padding var(--camera-live-collapse-ms) var(--camera-live-collapse-ease),
+		border-color var(--camera-live-collapse-ms)
+		var(--camera-live-collapse-ease);
 }
 
 .camera-live[data-closing="true"] {
@@ -441,15 +448,17 @@ dialog.camera-modal::backdrop {
 	margin-top: 0.6rem;
 	display: grid;
 	gap: 0.55rem;
-	transition: opacity 0.25s ease;
+	transition: opacity 240ms var(--camera-preview-ease);
 }
 
 .camera-live-diagnosis[data-reveal-phase="a"] {
-	animation: camera-live-reveal-a 0.36s cubic-bezier(0.2, 0.8, 0.2, 1);
+	animation: camera-live-reveal-a var(--camera-diagnosis-reveal-ms)
+		var(--camera-preview-ease);
 }
 
 .camera-live-diagnosis[data-reveal-phase="b"] {
-	animation: camera-live-reveal-b 0.36s cubic-bezier(0.2, 0.8, 0.2, 1);
+	animation: camera-live-reveal-b var(--camera-diagnosis-reveal-ms)
+		var(--camera-preview-ease);
 }
 
 .camera-live-diagnosis[data-stale="true"] {
@@ -1057,8 +1066,8 @@ dialog.camera-modal::backdrop {
 
 ::view-transition-old(camera-hero),
 ::view-transition-new(camera-hero) {
-	animation-duration: 0.3s;
-	animation-timing-function: ease;
+	animation-duration: var(--camera-hero-ms);
+	animation-timing-function: var(--camera-hero-ease);
 	animation-fill-mode: both;
 }
 
