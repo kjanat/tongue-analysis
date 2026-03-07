@@ -42,6 +42,10 @@ import { TONGUE_TYPES } from '../src/data/tongue-types.ts';
 import { classifyTongueColor } from '../src/lib/color-classification.ts';
 import { applyGrayWorldCorrection, type RgbColor } from '../src/lib/color-correction.ts';
 import { generateDiagnosis } from '../src/lib/diagnosis.ts';
+import {
+	CLOSEUP_MIN_CLASSIFIABLE_CHROMA,
+	CLOSEUP_MIN_CLASSIFIABLE_CONFIDENCE,
+} from '../src/lib/pipeline/thresholds.ts';
 import { segmentTongue } from '../src/lib/tongue-segmentation.ts';
 
 // ── CLI argument parsing ───────────────────────────────────────
@@ -163,6 +167,27 @@ try {
 
 	// Step 3: Classify tongue color
 	const classification = classifyTongueColor(averageColor, TONGUE_TYPES);
+
+	// Step 3b: Quality gate — reject when both chroma and confidence are too low.
+	// Uses closeup thresholds (CLI has no face detection, analogous to fallback path).
+	if (
+		classification.oklch.c < CLOSEUP_MIN_CLASSIFIABLE_CHROMA
+		&& classification.confidence < CLOSEUP_MIN_CLASSIFIABLE_CONFIDENCE
+	) {
+		console.error('Inconclusive color classification:');
+		console.error(
+			`  chroma=${classification.oklch.c.toFixed(4)} (min ${String(CLOSEUP_MIN_CLASSIFIABLE_CHROMA)})`,
+		);
+		console.error(
+			`  confidence=${(classification.confidence * 100).toFixed(1)}% (min ${
+				(CLOSEUP_MIN_CLASSIFIABLE_CONFIDENCE * 100).toFixed(1)
+			}%)`,
+		);
+		console.error(
+			'Both chroma and confidence are below threshold — the image may not contain a tongue.',
+		);
+		process.exit(2);
+	}
 
 	// Step 4: Generate diagnosis
 	const diagnosis = generateDiagnosis(classification);

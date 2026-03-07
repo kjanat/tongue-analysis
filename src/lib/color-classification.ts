@@ -137,8 +137,15 @@ function computeConfidence(rankings: readonly TypeMatch[]): number {
  * Classify a tongue's average color against known tongue types.
  *
  * Converts `averageColor` to OKLCH, computes {@link oklchDistance} to every
- * type's reference hex, ranks by proximity, and returns the best match with
- * a blended confidence score.
+ * type's reference hex, and ranks by weight-adjusted proximity. Each type's
+ * {@link TongueType.weight} scales its effective distance: `distance / weight`.
+ * A weight below 1 (e.g. 0.4 for "normaal") increases effective distance,
+ * making that type harder to match so more interesting diagnoses surface
+ * when raw distances are similar.
+ *
+ * The {@link TypeMatch.distance} and {@link TypeMatch.score} fields always
+ * reflect the *raw* perceptual distance — weight only affects ranking order.
+ * {@link computeConfidence} operates on raw distances from the reordered list.
  *
  * @param averageColor - Mean RGB of the tongue region (from {@link applyGrayWorldCorrection}).
  * @param types - Tongue type definitions to match against (defaults to {@link TONGUE_TYPES}).
@@ -167,7 +174,7 @@ export function classifyTongueColor(
 				score: distanceToScore(distance),
 			};
 		})
-		.sort((a, b) => a.distance - b.distance);
+		.sort((a, b) => a.distance / a.type.weight - b.distance / b.type.weight);
 
 	const matchedType = rankings[0]?.type;
 	if (matchedType === undefined) {

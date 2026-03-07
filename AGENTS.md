@@ -1,6 +1,6 @@
 # PROJECT KNOWLEDGE BASE
 
-**Generated:** 2026-03-07 **Commit:** 6e6333b **Branch:** master
+**Generated:** 2026-03-07 **Commit:** a4dbdaa **Branch:** master
 
 ## OVERVIEW
 
@@ -23,20 +23,20 @@ tongue-analysis/
 ├── src/
 │   ├── main.tsx                  # React 19 entry (StrictMode + createRoot)
 │   ├── App.tsx                   # Root: 5-phase state machine (upload→preview→loading→results|error)
-│   ├── App.css                   # All component styles (~980 lines, plain CSS)
+│   ├── App.css                   # All component styles (~1185 lines, plain CSS)
 │   ├── index.css                 # Global reset + button font-family inherit
 │   ├── components/               # 6 components — see src/components/AGENTS.md
-│   │   ├── CameraCapture.tsx     # Live camera + real-time analysis (564 lines)
-│   │   ├── DiagnosisResults.tsx  # Results display (179 lines)
+│   │   ├── CameraCapture.tsx     # Live camera + real-time analysis (962 lines)
+│   │   ├── DiagnosisResults.tsx  # Results display (181 lines)
 │   │   ├── Guide.tsx             # Interactive TCM guide (127 lines)
 │   │   ├── LoadingSequence.tsx   # 7-step analysis progress animation (86 lines)
 │   │   ├── TongueMap.tsx         # Tongue zone SVG visualization (115 lines)
 │   │   └── UploadArea.tsx        # File upload with drag/drop (120 lines)
 │   ├── hooks/                    # 4 hooks — see src/hooks/AGENTS.md
 │   │   ├── use-deferred-camera-release.ts  # Delayed camera cleanup on tab switch (81 lines)
-│   │   ├── use-live-analysis.ts  # Real-time tongue analysis rAF loop (421 lines)
+│   │   ├── use-live-analysis.ts  # Real-time tongue analysis rAF loop (433 lines)
 │   │   ├── use-live-announcements.ts  # ARIA screen reader announcements (123 lines)
-│   │   └── use-media-stream.ts   # Camera stream lifecycle + device switching (426 lines)
+│   │   └── use-media-stream.ts   # Camera stream lifecycle + device switching (534 lines)
 │   ├── data/
 │   │   └── tongue-types.ts       # TCM domain data (organs, elements, zones, tongue types)
 │   ├── lib/                      # Core pipeline + utilities — see src/lib/AGENTS.md
@@ -48,7 +48,7 @@ tongue-analysis/
 │   └── analyze.ts                # Bun CLI entry (headless analysis, `bunx tongue-analysis`)
 ├── scripts/
 │   └── build.ts                  # Custom build orchestrator (replaces raw `vite build`)
-├── vite.package-bindings.ts      # 683-line custom Vite plugin for MediaPipe WASM asset resolution
+├── vite.package-bindings.ts      # 681-line custom Vite plugin for MediaPipe WASM asset resolution
 ├── public/                       # Static assets (icons, OG image)
 ├── integration/                  # Manual test fixture images (NOT automated tests, all gitignored)
 ├── .github/workflows/pages.yml   # CI: bun install → build → GitHub Pages deploy
@@ -62,6 +62,7 @@ tongue-analysis/
 | ------------------ | ------------------------------------------ | -------------------------------------------------------- |
 | Analysis pipeline  | `src/lib/`                                 | See `src/lib/AGENTS.md` for full pipeline breakdown      |
 | App state machine  | `src/App.tsx`                              | `Phase` discriminated union, 5 variants with `kind` tag  |
+| View transitions   | `src/lib/view-transition.ts`               | All `setPhase()` calls wrapped in `withViewTransition()` |
 | Live camera        | `src/hooks/use-live-analysis.ts`           | Real-time video frame analysis loop                      |
 | Camera stream      | `src/hooks/use-media-stream.ts`            | getUserMedia lifecycle, device enumeration               |
 | ARIA announcements | `src/hooks/use-live-announcements.ts`      | Screen reader support during live analysis               |
@@ -105,6 +106,13 @@ tongue-analysis/
 - **`lang='zh'`** on Chinese text spans
 - **React Compiler** enabled (`babel-plugin-react-compiler`)
 - **`useId()`** for DOM IDs referenced by ARIA/SVG (no hardcoded ID strings)
+- **View Transitions API** for phase changes — all `setPhase()` calls wrapped in `withViewTransition()`
+
+### CSS
+
+- **CSS custom properties** for animation timings (`--camera-hero-ms`, `--camera-modal-close-ms`, etc.), read at runtime via `getComputedStyle()`
+- **GPU-composited transforms** preferred over layout-triggering properties (`transform: scaleX/scaleY` instead of `width`/`height` animations)
+- **View transition pseudo-elements** (`::view-transition-*`) for cross-fade and hero animations between app phases
 
 ### Accessibility
 
@@ -112,7 +120,7 @@ tongue-analysis/
 - **`role='alert'`** on error containers for screen reader announcement
 - **`role='img'`** with `aria-labelledby` on informational SVGs
 - **`:focus-visible`** on interactive elements (not `:focus`)
-- **`prefers-reduced-motion`** resets all animations/transitions
+- **`prefers-reduced-motion`** resets all animations/transitions and disables view transitions
 
 ### Naming
 
@@ -135,7 +143,7 @@ tongue-analysis/
 - **No CSS modules/Tailwind/CSS-in-JS** — plain CSS with `data-*` state attributes
 - **No implicit coercion in templates** — use `String()` explicitly
 - **No `@ts-ignore`** — use `@ts-expect-error` with justification if unavoidable
-- **No `eslint-disable`** — zero instances; fix the code instead
+- **No `eslint-disable`** — justified `eslint-disable-next-line` only (2 instances in `view-transition.ts` with explanations)
 
 ## COMMANDS
 
@@ -146,6 +154,7 @@ bun run typecheck # tsgo --noEmit (native TS compiler preview)
 bun run lint      # eslint .
 bun run preview   # Full build + vite preview
 bun run fmt       # dprint fmt
+bun run analyze   # CLI tongue analysis (bun cli/analyze.ts)
 bun run cf-build  # Cloudflare Pages build variant
 ```
 
@@ -173,4 +182,5 @@ bun run cf-build  # Cloudflare Pages build variant
 - **`tsgo` for typecheck**: `@typescript/native-preview` used for `bun run typecheck`, but `tsc -b` used in actual build. Two different TS compilers.
 - **`gl` in devDependencies**: Native OpenGL bindings for headless WebGL / CLI canvas support.
 - **Volta pin**: Node 24.13.0 pinned in package.json `volta` field.
-- **Zero anti-pattern annotations**: No `TODO`, `FIXME`, `HACK`, `eslint-disable`, `@ts-ignore`, `as any` in entire codebase. Only `SYNC:` comments (manual cross-file verification markers).
+- **Two `eslint-disable-next-line`**: Both in `view-transition.ts` — runtime browser feature guard + required `flushSync` for View Transitions API. Each has an inline justification comment.
+- **Only `SYNC:` comments** as cross-file verification markers. No `TODO`, `FIXME`, `HACK`, `@ts-ignore`, `as any`.

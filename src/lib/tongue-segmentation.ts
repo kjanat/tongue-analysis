@@ -99,12 +99,13 @@ export type TongueSegmentationError =
 /**
  * Default HSV thresholds tuned for tongue tissue under typical indoor lighting.
  *
- * Hue range 330°–20° spans the red/pink boundary (wraps through 0°).
+ * Hue range 290°–20° spans red/pink (330°–20°) and extends into purple/magenta
+ * (290°–330°) to capture Bloed Stagnatie tongues with purplish tint.
  * Moderate saturation (20–80%) and value (35–95%) accept both pale and
  * deeply colored tongues while excluding white/gray and very dark regions.
  */
 const DEFAULT_HSV_THRESHOLD: HsvThreshold = {
-	hueMin: 330,
+	hueMin: 290,
 	hueMax: 20,
 	saturationMin: 20,
 	saturationMax: 80,
@@ -230,18 +231,27 @@ function isPixelInThreshold(color: HsvColor, threshold: HsvThreshold): boolean {
  * Fast RGB pre-filter to reject obviously non-tongue pixels before HSV conversion.
  *
  * Requires a minimum red channel intensity and sufficient red dominance
- * over both green and blue. Avoids the cost of {@link rgbToHsv} for
- * pixels that clearly aren't tongue-colored.
+ * over green. Accepts two colour profiles:
+ * - **Red-dominant** (standard): R exceeds both G and B — covers normal
+ *   pink/red tongue hues.
+ * - **Purple** (R ≈ B, both exceed G): captures Bloed Stagnatie tongues
+ *   where the blue channel is comparable to red.
+ *
+ * Avoids the cost of {@link rgbToHsv} for pixels that clearly aren't
+ * tongue-colored.
  *
  * @param r - Red channel (0–255).
  * @param g - Green channel (0–255).
  * @param b - Blue channel (0–255).
  * @returns `true` if the pixel could plausibly be tongue tissue.
  */
-function hasTongueLikeRedness(r: number, g: number, b: number): boolean {
-	return r >= MIN_RED_CHANNEL
-		&& r - g >= REDNESS_OVER_GREEN_MIN
-		&& r - b >= REDNESS_OVER_BLUE_MIN;
+function hasTongueLikeColor(r: number, g: number, b: number): boolean {
+	if (r < MIN_RED_CHANNEL) return false;
+	if (r - g < REDNESS_OVER_GREEN_MIN) return false;
+
+	// Red-dominant (standard tongue) or purple (R≈B, both exceed green)
+	return r - b >= REDNESS_OVER_BLUE_MIN
+		|| (b >= MIN_RED_CHANNEL && b - g >= REDNESS_OVER_GREEN_MIN);
 }
 
 /**
@@ -279,7 +289,7 @@ function buildThresholdMask(
 			continue;
 		}
 
-		if (!hasTongueLikeRedness(r, g, b)) {
+		if (!hasTongueLikeColor(r, g, b)) {
 			continue;
 		}
 

@@ -1,13 +1,13 @@
 # src/hooks — React Hooks
 
-Bridge between React UI and the ML analysis pipeline. 4 hooks, ~1,051 lines total.
+Bridge between React UI and the ML analysis pipeline. 4 hooks, ~1,171 lines total.
 
 ## WHERE TO LOOK
 
 | File                             | Lines | Role                                                                       |
 | -------------------------------- | ----- | -------------------------------------------------------------------------- |
-| `use-live-analysis.ts`           | 421   | rAF loop driving `analyzeTongueVideoFrame()` on live video. Heaviest hook. |
-| `use-media-stream.ts`            | 426   | `getUserMedia` lifecycle: acquire, enumerate, switch, mirror-detect.       |
+| `use-media-stream.ts`            | 534   | `getUserMedia` lifecycle: acquire, enumerate, switch, mirror-detect.       |
+| `use-live-analysis.ts`           | 433   | rAF loop driving `analyzeTongueVideoFrame()` on live video. Heaviest hook. |
 | `use-live-announcements.ts`      | 123   | ARIA live-region announcements for screen readers during analysis.         |
 | `use-deferred-camera-release.ts` | 81    | Cancellable timer for delayed camera cleanup on tab switch.                |
 
@@ -32,6 +32,10 @@ CameraCapture.tsx
 - **Exhaustive switches**: Error message mapping uses compiler-enforced exhaustive `switch` with `never` guards on all variants.
 - **`useLayoutEffect` for ref sync**: `use-deferred-camera-release.ts` syncs callback ref via `useLayoutEffect` to satisfy React Compiler lint rules (no ref writes during render).
 - **Shared time formatting**: Both `CameraCapture` and `useLiveAnnouncements` import `formatUpdateTime` from `lib/format-time.ts` (deduplicated).
+- **`modeRef` synchronous guard**: `useMediaStream` uses a synchronous ref (`modeRef`) alongside React state to prevent overlapping `getUserMedia` calls from rapid taps.
+- **`OverconstrainedError` fallback**: `useMediaStream` retries with `facingMode: 'environment'` when exact `deviceId` constraint fails.
+- **Camera HAL release delay**: 300ms grace period (`CAMERA_RELEASE_DELAY_MS`) between stop and start to accommodate mobile camera hardware.
+- **`resetRef` pattern**: `useLiveAnalysis` cleanup uses a ref-based reset to avoid re-running the effect when the reset function identity changes.
 
 ## NOTES
 
@@ -40,3 +44,4 @@ CameraCapture.tsx
 - `useMediaStream` exposes `setError` for external error injection by `CameraCapture`.
 - `useDeferredCameraRelease` uses cleanup-only `useEffect` (`() => clear`) for auto-teardown on unmount.
 - `isFrontFacingTrack()` in `useMediaStream` uses `facingMode` then heuristic label matching (rear/back/environment) to decide mirroring.
+- `MAX_IDEAL_DIMENSION` (4096) used as soft resolution constraint in `getUserMedia` to avoid overly large video frames on high-res cameras.

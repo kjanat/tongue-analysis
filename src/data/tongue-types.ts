@@ -382,7 +382,7 @@ export const TONGUE_TYPES: readonly TongueType[] = [
 		id: 'yin-deficient',
 		name: 'Yin Deficiënt',
 		nameZh: '陰虛',
-		color: { label: 'rood', hex: '#D04040' },
+		color: { label: 'donkerrood', hex: '#B83838' },
 		coating: 'weinig of geen beslag',
 		shape: 'kleiner, met scheurtjes',
 		moisture: 'droog',
