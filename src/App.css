@@ -595,6 +595,14 @@ dialog.camera-modal::backdrop {
 	color: #c9a54e;
 }
 
+.result-card-spaced {
+	margin-top: 0.5rem;
+}
+
+.result-card-debug {
+	margin-top: 0.6rem;
+}
+
 .detected-color {
 	display: flex;
 	align-items: center;

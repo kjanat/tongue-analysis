@@ -16,7 +16,7 @@ export type ColorCorrectionError =
 	| { readonly kind: 'mask_size_mismatch' }
 	| { readonly kind: 'no_masked_pixels' };
 
-function clampChannel(value: number): number {
+export function clampChannel(value: number): number {
 	return Math.min(255, Math.max(0, Math.round(value)));
 }
 
