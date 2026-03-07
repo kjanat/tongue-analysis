@@ -20,6 +20,11 @@ export function computeLightingStats(
 	imageData: ImageData,
 	allowedMask: Uint8Array,
 ): LightingStats | undefined {
+	const expectedPixelCount = imageData.data.length / 4;
+	if (!Number.isInteger(expectedPixelCount) || allowedMask.length !== expectedPixelCount) {
+		return undefined;
+	}
+
 	let luminanceSum = 0;
 	let luminanceSquaredSum = 0;
 	let darkCount = 0;
