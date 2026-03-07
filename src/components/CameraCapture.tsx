@@ -1,3 +1,4 @@
+import type { MouseEvent } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLiveAnalysis } from '../hooks/use-live-analysis.ts';
 import { useMediaStream } from '../hooks/use-media-stream.ts';
@@ -270,7 +271,7 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 		resetLiveAnnouncement,
 	]);
 
-	const handleDialogMouseDown = useCallback((event: React.MouseEvent<HTMLDialogElement>) => {
+	const handleDialogMouseDown = useCallback((event: MouseEvent<HTMLDialogElement>) => {
 		if (event.target === event.currentTarget) {
 			handleCloseModal();
 		}
