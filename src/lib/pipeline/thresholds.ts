@@ -11,3 +11,5 @@ export const MAX_MEAN_LUMINANCE = 220;
 export const MAX_DARK_RATIO = 0.52;
 export const MAX_BRIGHT_RATIO = 0.45;
 export const MAX_STD_DEV = 70;
+export const MIN_LIGHTING_SAMPLE_COUNT = 50;
+export const HIGH_CONTRAST_RATIO_THRESHOLD = 0.18;

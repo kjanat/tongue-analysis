@@ -1,10 +1,12 @@
 import {
 	BRIGHT_PIXEL_LUMINANCE,
 	DARK_PIXEL_LUMINANCE,
+	HIGH_CONTRAST_RATIO_THRESHOLD,
 	MAX_BRIGHT_RATIO,
 	MAX_DARK_RATIO,
 	MAX_MEAN_LUMINANCE,
 	MAX_STD_DEV,
+	MIN_LIGHTING_SAMPLE_COUNT,
 	MIN_MEAN_LUMINANCE,
 } from './thresholds.ts';
 import type { LightingStats } from './types.ts';
@@ -71,7 +73,7 @@ export function detectLightingIssue(
 	allowedMask: Uint8Array,
 ): LightingIssue | undefined {
 	const stats = computeLightingStats(imageData, allowedMask);
-	if (stats === undefined || stats.sampleCount < 50) return undefined;
+	if (stats === undefined || stats.sampleCount < MIN_LIGHTING_SAMPLE_COUNT) return undefined;
 
 	if (stats.meanLuminance < MIN_MEAN_LUMINANCE || stats.darkRatio > MAX_DARK_RATIO) {
 		return {
@@ -93,7 +95,7 @@ export function detectLightingIssue(
 
 	if (
 		stats.stdDevLuminance > MAX_STD_DEV
-		&& (stats.darkRatio > 0.18 || stats.brightRatio > 0.18)
+		&& (stats.darkRatio > HIGH_CONTRAST_RATIO_THRESHOLD || stats.brightRatio > HIGH_CONTRAST_RATIO_THRESHOLD)
 	) {
 		return {
 			issue: 'high_contrast',
