@@ -8,6 +8,8 @@
 	--camera-live-collapse-ms: 180ms;
 	--camera-live-collapse-ease: cubic-bezier(0.4, 0, 0.2, 1);
 	--camera-diagnosis-reveal-ms: 340ms;
+	--camera-modal-close-ms: 240ms;
+	--camera-modal-close-ease: cubic-bezier(0.2, 0.7, 0.28, 1);
 }
 
 .bg-pattern {
@@ -153,11 +155,30 @@ dialog.camera-modal {
 	);
 	box-shadow: 0 18px 46px rgba(0, 0, 0, 0.38);
 	color: inherit;
+	opacity: 1;
+	transform: translateY(0) scale(1);
+	transition:
+		opacity var(--camera-modal-close-ms) var(--camera-modal-close-ease),
+		transform var(--camera-modal-close-ms) var(--camera-modal-close-ease);
 }
 
 dialog.camera-modal::backdrop {
 	background: rgba(14, 9, 5, 0.78);
 	backdrop-filter: blur(2px);
+	transition:
+		background var(--camera-modal-close-ms) var(--camera-modal-close-ease),
+		backdrop-filter var(--camera-modal-close-ms) var(--camera-modal-close-ease);
+}
+
+dialog.camera-modal[data-closing="true"] {
+	opacity: 0;
+	transform: translateY(10px) scale(0.985);
+	pointer-events: none;
+}
+
+dialog.camera-modal[data-closing="true"]::backdrop {
+	background: rgba(14, 9, 5, 0);
+	backdrop-filter: blur(0);
 }
 
 .camera-modal-header {
