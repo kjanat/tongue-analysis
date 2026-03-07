@@ -1,15 +1,15 @@
 # src/components — UI Components
 
-6 React components, flat structure. ~1,591 lines total. All styles in `src/App.css`.
+6 React components, flat structure. ~1,598 lines total. All styles in `src/App.css`.
 
 ## WHERE TO LOOK
 
 | File                   | Lines | Role                                                                                                      |
 | ---------------------- | ----- | --------------------------------------------------------------------------------------------------------- |
-| `CameraCapture.tsx`    | 962   | Modal dialog: live camera, still capture, device switching, real-time analysis. Orchestrates all 4 hooks. |
+| `CameraCapture.tsx`    | 964   | Modal dialog: live camera, still capture, device switching, real-time analysis. Orchestrates all 4 hooks. |
 | `DiagnosisResults.tsx` | 181   | Full diagnosis report: color, type, elements, meridians, organs, patterns, tips.                          |
 | `Guide.tsx`            | 127   | Collapsible TCM reference guide. Embeds `TongueMap`.                                                      |
-| `UploadArea.tsx`       | 120   | Drag-and-drop file upload with MIME/size validation (10MB limit).                                         |
+| `UploadArea.tsx`       | 125   | Drag-and-drop file upload with MIME/size validation (10MB limit).                                         |
 | `TongueMap.tsx`        | 115   | Inline SVG organ-zone diagram with `useId()` for unique SVG IDs. Accessible (`role='img'`, ARIA).         |
 | `LoadingSequence.tsx`  | 86    | Stepped progress indicator with `role='progressbar'` and `aria-valuenow/min/max`.                         |
 

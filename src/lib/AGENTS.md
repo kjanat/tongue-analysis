@@ -29,9 +29,9 @@ All return `Result<AnalysisSuccess, AnalysisError>`.
 
 | File                        | Lines | Role                                                                      |
 | --------------------------- | ----- | ------------------------------------------------------------------------- |
-| `pipeline.ts`               | 234   | Orchestrator. Delegates to `pipeline/analysis-core.ts`. Closeup fallback. |
-| `face-detection.ts`         | 619   | MediaPipe FaceLandmarker. Singleton model. Mouth landmark extraction.     |
-| `tongue-segmentation.ts`    | 600   | HSV thresholding → erode/dilate → connected-component BFS → centroid.     |
+| `pipeline.ts`               | 237   | Orchestrator. Delegates to `pipeline/analysis-core.ts`. Closeup fallback. |
+| `face-detection.ts`         | 626   | MediaPipe FaceLandmarker. Singleton model. Mouth landmark extraction.     |
+| `tongue-segmentation.ts`    | 601   | HSV thresholding → erode/dilate → connected-component BFS → centroid.     |
 | `color-correction.ts`       | 260   | Gray-world on masked pixels. Returns corrected `ImageData` + avg RGB.     |
 | `diagnosis.ts`              | 205   | Maps `TongueColorClassification` → satirical TCM `Diagnosis`.             |
 | `color-classification.ts`   | 251   | RGB→OKLCh conversion. Distance to TCM type reference colors.              |
@@ -39,7 +39,7 @@ All return `Result<AnalysisSuccess, AnalysisError>`.
 | `color-matching.ts`         | 139   | **Legacy.** OKLCH Gaussian weight boosting for old diagnosis.             |
 | `debug-overlay.ts`          | 128   | DPR-aware debug canvas drawing (bounding box + lip polygons). Pure.       |
 | `capture-video-frame.ts`    | 126   | Captures single video frame as JPEG File via offscreen canvas.            |
-| `view-transition.ts`        | 99    | View Transitions API helpers. `withViewTransition()`, stale cancellation. |
+| `view-transition.ts`        | 101   | View Transitions API helpers. `withViewTransition()`, stale cancellation. |
 | `analysis-error-message.ts` | 96    | Exhaustive Dutch error message mapping for all `AnalysisError` variants.  |
 | `oklch-distance.ts`         | 72    | Weighted Euclidean distance in OKLCh with circular hue handling.          |
 | `result.ts`                 | 71    | `Result<T,E>` discriminated union. `ok(value)` / `err(error)`.            |

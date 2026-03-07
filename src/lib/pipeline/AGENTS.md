@@ -6,12 +6,12 @@ Decomposed pipeline stages extracted from the former monolithic `pipeline.ts`. 7
 
 | File               | Lines | Role                                                             |
 | ------------------ | ----- | ---------------------------------------------------------------- |
-| `analysis-core.ts` | 237   | Core analysis loop: step orchestration, closeup fallback logic.  |
+| `analysis-core.ts` | 240   | Core analysis loop: step orchestration, closeup fallback logic.  |
 | `mask.ts`          | 176   | Inner lip polygon rasterization + fallback ellipse mask.         |
 | `lighting.ts`      | 171   | Luminance histogram analysis, poor-lighting detection threshold. |
-| `crop.ts`          | 126   | Mouth region → canvas `ImageData` cropping with padding.         |
+| `crop.ts`          | 136   | Mouth region → canvas `ImageData` cropping with padding.         |
 | `types.ts`         | 70    | Shared ADTs: `FrameSource`, `FrameDimensions`, `MouthCrop`, etc. |
-| `frame-source.ts`  | 66    | Unified frame acquisition: URL load, direct ImageData, video.    |
+| `frame-source.ts`  | 67    | Unified frame acquisition: URL load, direct ImageData, video.    |
 | `thresholds.ts`    | 54    | Numeric constants for segmentation, lighting, and confidence.    |
 
 ## DATA FLOW

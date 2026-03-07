@@ -1,6 +1,6 @@
 # PROJECT KNOWLEDGE BASE
 
-**Generated:** 2026-03-07 **Commit:** 782396c **Branch:** master
+**Generated:** 2026-03-07 **Commit:** 67035ab **Branch:** master
 
 ## OVERVIEW
 
@@ -23,18 +23,18 @@ tongue-analysis/
 ├── src/
 │   ├── main.tsx                  # React 19 entry (StrictMode + createRoot)
 │   ├── App.tsx                   # Root: 5-phase state machine (upload→preview→loading→results|error)
-│   ├── App.css                   # All component styles (~1195 lines, plain CSS)
+│   ├── App.css                   # All component styles (~1222 lines, plain CSS)
 │   ├── index.css                 # Global reset + button font-family inherit
 │   ├── components/               # 6 components — see src/components/AGENTS.md
-│   │   ├── CameraCapture.tsx     # Live camera + real-time analysis (962 lines)
+│   │   ├── CameraCapture.tsx     # Live camera + real-time analysis (964 lines)
 │   │   ├── DiagnosisResults.tsx  # Results display (181 lines)
 │   │   ├── Guide.tsx             # Interactive TCM guide (127 lines)
 │   │   ├── LoadingSequence.tsx   # 7-step analysis progress animation (86 lines)
 │   │   ├── TongueMap.tsx         # Tongue zone SVG visualization (115 lines)
-│   │   └── UploadArea.tsx        # File upload with drag/drop (120 lines)
+│   │   └── UploadArea.tsx        # File upload with drag/drop (125 lines)
 │   ├── hooks/                    # 4 hooks — see src/hooks/AGENTS.md
 │   │   ├── use-deferred-camera-release.ts  # Delayed camera cleanup on tab switch (81 lines)
-│   │   ├── use-live-analysis.ts  # Real-time tongue analysis rAF loop (433 lines)
+│   │   ├── use-live-analysis.ts  # Real-time tongue analysis rAF loop (431 lines)
 │   │   ├── use-live-announcements.ts  # ARIA screen reader announcements (123 lines)
 │   │   └── use-media-stream.ts   # Camera stream lifecycle + device switching (534 lines)
 │   ├── data/
@@ -48,7 +48,7 @@ tongue-analysis/
 │   └── analyze.ts                # Bun CLI entry (headless analysis, `bunx tongue-analysis`)
 ├── scripts/
 │   └── build.ts                  # Custom build orchestrator (replaces raw `vite build`)
-├── vite.package-bindings.ts      # 681-line custom Vite plugin for MediaPipe WASM asset resolution
+├── vite.package-bindings.ts      # 692-line custom Vite plugin for MediaPipe WASM asset resolution
 ├── public/                       # Static assets (icons, OG image)
 ├── integration/                  # Manual test fixture images (NOT automated tests, all gitignored)
 ├── .github/workflows/pages.yml   # CI: bun install → build → GitHub Pages deploy
