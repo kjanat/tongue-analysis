@@ -326,9 +326,15 @@ export function useMediaStream(): UseMediaStreamResult {
 			const resolvedCameraId = videoTrack === undefined
 				? requestedCameraId
 				: getTrackDeviceId(videoTrack) ?? requestedCameraId;
-			setActiveCameraId(resolvedCameraId);
-			preferredCameraIdRef.current = resolvedCameraId;
-			void refreshAvailableCameras(isCurrentRequest, resolvedCameraId);
+			// Prefer the requestedCameraId (from enumerateDevices) over the
+			// resolved track ID (from getSettings). track.getSettings().deviceId
+			// can differ from the enumerateDevices() deviceId on some devices,
+			// which breaks switchToNextCamera's index lookup and causes
+			// alternating reload/switch behavior.
+			const effectiveCameraId = requestedCameraId ?? resolvedCameraId;
+			setActiveCameraId(effectiveCameraId);
+			preferredCameraIdRef.current = effectiveCameraId;
+			void refreshAvailableCameras(isCurrentRequest, effectiveCameraId);
 
 			streamRef.current = stream;
 
