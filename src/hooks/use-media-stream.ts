@@ -158,17 +158,30 @@ function getTrackDeviceId(track: MediaStreamTrack): string | null {
  * @param preferredCameraId - Device ID to target, or `null` for default.
  * @returns Constraints object for the `video` track.
  */
+/**
+ * Soft resolution target passed as `ideal` so the browser picks the
+ * highest resolution the camera supports without ever over-constraining.
+ */
+const MAX_IDEAL_DIMENSION = 4096;
+
 function buildVideoConstraints(preferredCameraId: string | null): MediaTrackConstraints {
+	const resolution = {
+		width: { ideal: MAX_IDEAL_DIMENSION },
+		height: { ideal: MAX_IDEAL_DIMENSION },
+	};
+
 	if (preferredCameraId !== null) {
 		return {
 			deviceId: {
 				exact: preferredCameraId,
 			},
+			...resolution,
 		};
 	}
 
 	return {
 		facingMode: 'user',
+		...resolution,
 	};
 }
 

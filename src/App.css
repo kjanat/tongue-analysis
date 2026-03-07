@@ -256,7 +256,6 @@ dialog.camera-modal::backdrop {
 	border-radius: 10px;
 	border: 1px solid rgba(201, 165, 78, 0.25);
 	background: #000;
-	aspect-ratio: 4 / 3;
 	object-fit: contain;
 }
 
