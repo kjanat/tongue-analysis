@@ -1,5 +1,21 @@
+/**
+ * Traditional Chinese Medicine (TCM) domain data for tongue diagnosis.
+ *
+ * Defines the complete TCM model: organs, five elements, tongue zones,
+ * and the 10 canonical tongue types with their Dutch-language descriptions,
+ * symptoms, qi patterns, and lifestyle advice.
+ *
+ * @module
+ */
+
 // ── TCM Organ / Element / Zone mappings ─────────────────────────
 
+/**
+ * Dutch names of the eight TCM organs mapped in tongue diagnosis.
+ *
+ * Each organ corresponds to a five-element and a tongue zone via
+ * {@link ORGAN_ELEMENT} and {@link ORGAN_ZONE}.
+ */
 export type OrganName =
 	| 'Hart'
 	| 'Long'
@@ -10,8 +26,15 @@ export type OrganName =
 	| 'Nier'
 	| 'Blaas';
 
+/** The five TCM elements (五行 / Wǔ Xíng) used to classify organ relationships. */
 export type Element = 'wood' | 'fire' | 'earth' | 'metal' | 'water';
 
+/**
+ * Anatomical zones of the tongue in TCM tongue diagnosis.
+ *
+ * Each zone reflects a specific organ's health according to TCM mapping.
+ * Dutch labels: tongpunt (tip), wortel (root), rand (edge), centrum (center).
+ */
 export type TongueZone =
 	| 'tongpunt'
 	| 'boven-tongpunt'
@@ -21,7 +44,11 @@ export type TongueZone =
 	| 'wortel-zijkant'
 	| 'wortel-centrum';
 
-/** Five-element label (Dutch + Chinese) and CSS class per element. */
+/**
+ * Five-element display data: Dutch name with Chinese character and CSS class.
+ *
+ * Used by {@link DiagnosisResults} to render the element distribution chart.
+ */
 export const ELEMENTS: readonly { readonly name: string; readonly cls: Element }[] = [
 	{ name: 'Hout 木', cls: 'wood' },
 	{ name: 'Vuur 火', cls: 'fire' },
@@ -30,7 +57,15 @@ export const ELEMENTS: readonly { readonly name: string; readonly cls: Element }
 	{ name: 'Water 水', cls: 'water' },
 ];
 
-/** Fixed TCM mapping: organ → five-element. */
+/**
+ * Fixed TCM mapping from organ to its governing five-element.
+ *
+ * @example
+ * ```ts
+ * ORGAN_ELEMENT['Hart']  // 'fire'
+ * ORGAN_ELEMENT['Nier']  // 'water'
+ * ```
+ */
 export const ORGAN_ELEMENT: Readonly<Record<OrganName, Element>> = {
 	Hart: 'fire',
 	Long: 'metal',
@@ -42,7 +77,15 @@ export const ORGAN_ELEMENT: Readonly<Record<OrganName, Element>> = {
 	Blaas: 'water',
 };
 
-/** Fixed TCM mapping: organ → tongue zone. */
+/**
+ * Fixed TCM mapping from organ to its diagnostic tongue zone.
+ *
+ * @example
+ * ```ts
+ * ORGAN_ZONE['Hart']  // 'tongpunt' (tongue tip reflects heart health)
+ * ORGAN_ZONE['Nier']  // 'wortel-zijkant' (root sides reflect kidney health)
+ * ```
+ */
 export const ORGAN_ZONE: Readonly<Record<OrganName, TongueZone>> = {
 	Hart: 'tongpunt',
 	Long: 'boven-tongpunt',
@@ -54,7 +97,7 @@ export const ORGAN_ZONE: Readonly<Record<OrganName, TongueZone>> = {
 	Blaas: 'wortel-centrum',
 };
 
-/** Dutch label for each tongue zone. */
+/** Human-readable Dutch label for each tongue zone, used in UI descriptions. */
 export const ZONE_LABEL: Readonly<Record<TongueZone, string>> = {
 	'tongpunt': 'tongpunt',
 	'boven-tongpunt': 'gebied boven de tongpunt',
@@ -65,7 +108,7 @@ export const ZONE_LABEL: Readonly<Record<TongueZone, string>> = {
 	'wortel-centrum': 'tongwortel (centrum)',
 };
 
-/** All meridians shown in the bar chart. */
+/** Subset of organs displayed in the meridian strength bar chart. */
 export const MERIDIANS = [
 	'Lever',
 	'Hart',
@@ -77,25 +120,64 @@ export const MERIDIANS = [
 
 // ── Tongue type definition ──────────────────────────────────────
 
+/**
+ * Complete definition of a TCM tongue type.
+ *
+ * Each type describes a pattern of imbalance (or balance) with its
+ * visual tongue characteristics, associated symptoms, qi explanations,
+ * and lifestyle advice. All text fields are in Dutch.
+ */
 export interface TongueType {
+	/** Unique slug identifier (e.g. `'hitte'`, `'qi-deficient'`). */
 	readonly id: string;
+	/** Dutch display name (e.g. `'Hitte'`, `'Qi Deficiënt'`). */
 	readonly name: string;
+	/** Chinese name (e.g. `'热'`, `'气虚'`). */
 	readonly nameZh: string;
+	/** Expected tongue body color: human-readable label and representative hex. */
 	readonly color: { readonly label: string; readonly hex: string };
+	/** Description of expected tongue coating (beslag). */
 	readonly coating: string;
+	/** Description of expected tongue shape. */
 	readonly shape: string;
+	/** Description of expected tongue moisture level. */
 	readonly moisture: string;
+	/** Common symptoms associated with this pattern. */
 	readonly symptoms: readonly string[];
+	/** One-sentence summary of the diagnosis, shown as headline. */
 	readonly summary: string;
+	/** TCM organs affected by this pattern — drives zone highlighting and charts. */
 	readonly affectedOrgans: readonly OrganName[];
+	/** Explanatory qi/meridian patterns with TCM reasoning. */
 	readonly qiPatterns: readonly string[];
+	/** Lifestyle and dietary advice based on TCM principles. */
 	readonly advice: readonly string[];
-	/** Relative selection weight (1 = normal, <1 = less likely). */
+	/**
+	 * Relative selection weight for randomized diagnosis generation.
+	 *
+	 * `1` = normal likelihood, `< 1` = less likely (e.g. `0.4` for "normal" tongue
+	 * to make interesting diagnoses more common).
+	 */
 	readonly weight: number;
 }
 
 // ── The 10 canonical TCM tongue types ───────────────────────────
 
+/**
+ * The 10 canonical TCM tongue types used for diagnosis generation.
+ *
+ * Ordered: normaal (balanced) first, then pathological patterns.
+ * Each entry is a complete {@link TongueType} with Dutch descriptions,
+ * symptoms, qi patterns, and advice. Color hex values correspond to
+ * the expected tongue body color and are used by {@link colorBoosts}
+ * during color-based type matching.
+ *
+ * @example
+ * ```ts
+ * const hitte = TONGUE_TYPES.find(t => t.id === 'hitte');
+ * hitte?.color.hex // '#E04040'
+ * ```
+ */
 export const TONGUE_TYPES: readonly TongueType[] = [
 	{
 		id: 'normaal',

@@ -1,3 +1,9 @@
+/**
+ * @module Live camera capture and real-time tongue analysis UI.
+ * Opens a modal dialog with camera preview, photo capture, device switching,
+ * and optional continuous live analysis via {@link useLiveAnalysis}.
+ */
+
 import type { MouseEvent, RefObject } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useDeferredCameraRelease } from '../hooks/use-deferred-camera-release.ts';
@@ -10,8 +16,18 @@ import type { Diagnosis } from '../lib/diagnosis.ts';
 import { ANALYSIS_STEP_LABELS } from '../lib/pipeline.ts';
 import type { AnalysisStep } from '../lib/pipeline.ts';
 
+/**
+ * Delay (ms) before the camera stream is automatically released after a tab switch.
+ * Gives users time to return before requiring a manual restart.
+ */
 const CAMERA_RELEASE_DELAY_MS = 20_000;
 
+/**
+ * Format a timestamp as a Dutch locale time string (HH:MM:SS).
+ *
+ * @param timestampMs - Unix timestamp in milliseconds.
+ * @returns Formatted time string, e.g. "14:32:07".
+ */
 function formatUpdateTime(timestampMs: number): string {
 	return new Date(timestampMs).toLocaleTimeString('nl-NL', {
 		hour: '2-digit',
@@ -22,12 +38,23 @@ function formatUpdateTime(timestampMs: number): string {
 
 // ── Presentational Components ──────────────────
 
+/**
+ * Props for {@link CameraIdleActions}.
+ */
 interface CameraIdleActionsProps {
+	/** Whether the camera was automatically paused due to a tab switch. */
 	readonly cameraAutoPaused: boolean;
+	/** Current camera error message, if any. */
 	readonly error: string | null;
+	/** Callback to start (or resume) the camera stream. */
 	readonly onStart: () => void;
 }
 
+/**
+ * Idle-state actions: a start/resume button and optional error/pause status messages.
+ *
+ * @param props - {@link CameraIdleActionsProps}
+ */
 function CameraIdleActions({ cameraAutoPaused, error, onStart }: CameraIdleActionsProps) {
 	return (
 		<>
@@ -44,15 +71,29 @@ function CameraIdleActions({ cameraAutoPaused, error, onStart }: CameraIdleActio
 	);
 }
 
+/**
+ * Props for {@link CameraReadyControls}.
+ */
 interface CameraReadyControlsProps {
+	/** Whether the device has more than one camera available. */
 	readonly canSwitchCamera: boolean;
+	/** Human-readable label of the active camera device. */
 	readonly activeCameraLabel: string | undefined;
+	/** Whether live analysis is currently running. */
 	readonly isLiveRunning: boolean;
+	/** Callback to capture a still frame from the video feed. */
 	readonly onCapture: () => void;
+	/** Callback to cycle to the next available camera. */
 	readonly onSwitchCamera: () => void;
+	/** Callback to toggle live analysis on/off. */
 	readonly onLiveToggle: () => void;
 }
 
+/**
+ * Action buttons shown when the camera stream is active: capture, switch camera, toggle live analysis.
+ *
+ * @param props - {@link CameraReadyControlsProps}
+ */
 function CameraReadyControls({
 	canSwitchCamera,
 	activeCameraLabel,
@@ -90,15 +131,29 @@ function CameraReadyControls({
 	);
 }
 
+/**
+ * Props for {@link CameraStage}.
+ */
 interface CameraStageProps {
+	/** Ref to the `<video>` element receiving the camera stream. */
 	readonly videoRef: RefObject<HTMLVideoElement | null>;
+	/** Ref to the debug overlay canvas (only rendered when `VITE_DEBUG_OVERLAY` is enabled). */
 	readonly overlayCanvasRef: RefObject<HTMLCanvasElement | null>;
+	/** Whether the preview should be horizontally mirrored (true for user-facing cameras). */
 	readonly mirrorPreview: boolean;
+	/** Whether live analysis has been started at least once in this session. */
 	readonly liveHasStarted: boolean;
+	/** Derived status string for the live indicator dot: `'active'`, `'error'`, or `'idle'`. */
 	readonly liveStatus: string;
+	/** Combined error from camera or live analysis, if any. */
 	readonly activeError: string | null;
 }
 
+/**
+ * Camera preview stage: video element, optional debug overlay canvas, live status dot, and error display.
+ *
+ * @param props - {@link CameraStageProps}
+ */
 function CameraStage({
 	videoRef,
 	overlayCanvasRef,
@@ -138,16 +193,32 @@ function CameraStage({
 	);
 }
 
+/**
+ * Props for {@link LiveDiagnosisPanel}.
+ */
 interface LiveDiagnosisPanelProps {
+	/** Current live analysis mode from {@link useLiveAnalysis}. */
 	readonly liveMode: LiveMode;
+	/** Pipeline step currently executing in the live loop, or `null` if idle. */
 	readonly liveStep: AnalysisStep | null;
+	/** Error message from the most recent live analysis frame, if any. */
 	readonly liveError: string | null;
+	/** Most recent successful live diagnosis, or `null` if none yet. */
 	readonly liveDiagnosis: Diagnosis | null;
+	/** Timestamp (ms) of the last successful live diagnosis update. */
 	readonly liveUpdatedAt: number | null;
+	/** Whether the parent supports accepting a live diagnosis (i.e. `onLiveDiagnosis` prop was provided). */
 	readonly canUseLiveDiagnosis: boolean;
+	/** Callback to promote the current live diagnosis to a full result. */
 	readonly onUseLiveDiagnosis: () => void;
 }
 
+/**
+ * Live analysis results panel: shows current step, most recent diagnosis summary,
+ * last-updated timestamp, and a button to accept the live result.
+ *
+ * @param props - {@link LiveDiagnosisPanelProps}
+ */
 function LiveDiagnosisPanel({
 	liveMode,
 	liveStep,
@@ -200,11 +271,35 @@ function LiveDiagnosisPanel({
 
 // ── Main Component ─────────────────────────────
 
+/**
+ * Props for {@link CameraCapture}.
+ */
 interface CameraCaptureProps {
+	/** Callback when the user captures a still frame. Receives the blob as a `File` and its object URL. */
 	readonly onCapture: (file: File, objectUrl: string) => void;
+	/** Optional callback to bypass the upload flow and jump straight to results with a live diagnosis. */
 	readonly onLiveDiagnosis?: (diagnosis: Diagnosis) => void;
 }
 
+/**
+ * Full-featured camera modal with live preview, still capture, device switching,
+ * and optional real-time tongue analysis.
+ *
+ * Opens as a `<dialog>` modal. Manages camera stream lifecycle via {@link useMediaStream},
+ * real-time analysis via {@link useLiveAnalysis}, and auto-release on tab switch via
+ * {@link useDeferredCameraRelease}.
+ *
+ * @param props - {@link CameraCaptureProps}
+ * @returns A trigger button + modal dialog.
+ *
+ * @example
+ * ```tsx
+ * <CameraCapture
+ *   onCapture={(file, url) => handleImage(file, url)}
+ *   onLiveDiagnosis={(d) => showResults(d)}
+ * />
+ * ```
+ */
 export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCaptureProps) {
 	const dialogRef = useRef<HTMLDialogElement>(null);
 	const overlayCanvasRef = useRef<HTMLCanvasElement>(null);

@@ -1,3 +1,8 @@
+/**
+ * @module Root application component and state machine.
+ * Orchestrates the 5-phase tongue analysis flow: upload, preview, loading, results, error.
+ */
+
 import { useCallback, useEffect, useRef, useState } from 'react';
 import './App.css';
 import CameraCapture from './components/CameraCapture.tsx';
@@ -10,6 +15,19 @@ import type { Diagnosis } from './lib/diagnosis.ts';
 import { releaseFaceLandmarker } from './lib/face-detection.ts';
 import { type AnalysisError, type AnalysisStep, analyzeTongueFromUrl } from './lib/pipeline.ts';
 
+/**
+ * Discriminated union driving the entire UI state machine.
+ * Each variant's `kind` tag determines which section of the UI renders.
+ *
+ * - **`upload`** — initial state; shows {@link UploadArea} and {@link CameraCapture}.
+ * - **`preview`** — user selected an image; shows preview with "Analyse" button.
+ *   `imageUrl` is an object URL owned by the component (revoked on phase exit).
+ * - **`loading`** — pipeline is running. `analysisId` is a monotonic counter used
+ *   to discard stale results when the user retries before the previous run completes.
+ *   `step` tracks the current {@link AnalysisStep} for the progress UI.
+ * - **`results`** — analysis succeeded; renders {@link DiagnosisResults} and {@link Guide}.
+ * - **`error`** — analysis failed; shows the source image, error message, and retry/restart actions.
+ */
 type Phase =
 	| { readonly kind: 'upload' }
 	| { readonly kind: 'preview'; readonly imageUrl: string }
@@ -22,8 +40,16 @@ type Phase =
 	| { readonly kind: 'results'; readonly diagnosis: Diagnosis }
 	| { readonly kind: 'error'; readonly imageUrl: string; readonly error: AnalysisError };
 
+/** Sentinel value for the initial upload phase. */
 const INITIAL: Phase = { kind: 'upload' };
 
+/**
+ * Construct a loading phase with the first pipeline step pre-selected.
+ *
+ * @param imageUrl - Object URL of the image to analyze.
+ * @param analysisId - Monotonic ID to correlate progress callbacks with the active run.
+ * @returns A `loading` {@link Phase} variant.
+ */
 function startLoadingPhase(imageUrl: string, analysisId: number): Phase {
 	return {
 		kind: 'loading',
@@ -33,6 +59,18 @@ function startLoadingPhase(imageUrl: string, analysisId: number): Phase {
 	};
 }
 
+/**
+ * Root application component.
+ * Manages the {@link Phase} state machine, object URL lifecycle, and analysis pipeline invocation.
+ * Renders the appropriate UI section for each phase and wires up all user interactions.
+ *
+ * @returns The full application UI.
+ *
+ * @example
+ * ```tsx
+ * <App />
+ * ```
+ */
 export default function App() {
 	const [phase, setPhase] = useState<Phase>(INITIAL);
 	const objectUrlRef = useRef<string | null>(null);

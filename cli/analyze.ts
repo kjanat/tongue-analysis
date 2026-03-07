@@ -1,5 +1,15 @@
 #!/usr/bin/env -S xvfb-run -a node
 
+/**
+ * @module
+ * Headless CLI entry point for tongue analysis (`bunx tongue-analysis`).
+ * Runs the full analysis pipeline (segmentation → color correction →
+ * classification → diagnosis) on a local image file without a browser.
+ *
+ * Requires `sharp` for image decoding and polyfills `ImageData` for
+ * the Bun runtime.
+ */
+
 // ── ImageData polyfill for non-browser runtimes ────────────────
 //
 // segmentTongue and applyGrayWorldCorrection consume/construct ImageData.
@@ -41,6 +51,21 @@ if (imagePath === undefined || imagePath.startsWith('-')) {
 
 // ── Image loading (CLI I/O) ────────────────────────────────────
 
+/**
+ * Decodes an image file into raw RGBA pixel data using sharp.
+ * Strips existing alpha then re-adds it to guarantee 4-channel output
+ * matching browser `ImageData` layout.
+ *
+ * @param filePath - Path to the image file (any format sharp supports)
+ * @returns Raw pixel buffer with dimensions
+ * @throws If the image has invalid (zero or negative) dimensions
+ *
+ * @example
+ * ```ts
+ * const pixels = await loadImagePixels('./tongue.jpg');
+ * const imageData = new ImageData(pixels.data, pixels.width, pixels.height);
+ * ```
+ */
 async function loadImagePixels(filePath: string): Promise<{
 	readonly data: Uint8ClampedArray;
 	readonly width: number;
@@ -64,10 +89,21 @@ async function loadImagePixels(filePath: string): Promise<{
 
 // ── Output formatting (CLI presentation) ───────────────────────
 
+/**
+ * Formats an {@link RgbColor} as a CSS-style `rgb()` string for terminal output.
+ *
+ * @param color - RGB color to format
+ * @returns Formatted string, e.g. `"rgb(180, 90, 95)"`
+ */
 function formatRgb(color: RgbColor): string {
 	return `rgb(${String(color.r)}, ${String(color.g)}, ${String(color.b)})`;
 }
 
+/**
+ * Prints a visual section divider with a centered title to stdout.
+ *
+ * @param title - Section heading text
+ */
 function printSection(title: string): void {
 	console.log(`\n${'='.repeat(60)}`);
 	console.log(` ${title}`);

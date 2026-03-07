@@ -1,17 +1,32 @@
 /**
- * Inline SVG tongue organ-zone map based on TCM tongue diagnosis.
- *
+ * @module Inline SVG tongue organ-zone map based on TCM tongue diagnosis.
  * Drawn from the viewer/practitioner perspective (looking at patient's tongue):
  * Galblaas (viewer L / patient R), Lever (viewer R / patient L).
  *
- * Zones top→bottom: Nier+Blaas (root), Lever+Milt/Maag+Galblaas (middle),
- *                    Longen (above tip), Hart (tip).
+ * Zones top-to-bottom: Nier+Blaas (root), Lever+Milt/Maag+Galblaas (middle),
+ * Longen (above tip), Hart (tip).
  */
 
-/** Organic tongue outline — tip at bottom, root at top. */
+/**
+ * SVG path data for the organic tongue outline.
+ * Tip at bottom (y ~308), root at top (y ~16). Fits within a 260x325 viewBox.
+ * Hand-tuned cubic Bezier curves to approximate a natural tongue silhouette.
+ */
 const OUTLINE =
 	'M130 308 C98 316 58 298 42 258 C28 222 22 190 22 160 C22 122 28 86 44 62 C56 42 78 28 106 22 Q130 16 154 22 C182 28 204 42 216 62 C232 86 238 122 238 160 C238 190 232 222 218 258 C202 298 162 316 130 308Z';
 
+/**
+ * SVG tongue organ-zone diagram for the {@link Guide} component.
+ * Renders a labeled tongue silhouette with zone dividers, a radial gradient,
+ * and organ labels positioned per TCM conventions.
+ *
+ * @returns An accessible SVG wrapped in a container div.
+ *
+ * @example
+ * ```tsx
+ * <TongueMap />
+ * ```
+ */
 export default function TongueMap() {
 	return (
 		<div className='tongue-map-container'>

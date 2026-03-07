@@ -1,3 +1,10 @@
+/**
+ * @module
+ * Vite configuration for the tongue-analysis SPA — wires up MediaPipe WASM
+ * asset resolution, React Compiler, SVG-to-ICO favicon generation, and
+ * build-time env var injection.
+ */
+
 import react from '@vitejs/plugin-react';
 import { spawnSync } from 'node:child_process';
 import { env } from 'node:process';
@@ -6,7 +13,18 @@ import robot from 'vite-robots-txt';
 import svg from 'vite-svg-to-ico';
 import { packageBindingsPlugin } from './vite.package-bindings.ts';
 
-// https://vite.dev/config/
+/**
+ * Vite config factory. Switches asset strategy based on `command`:
+ * dev server self-hosts WASM assets; production builds use jsdelivr CDN as primary.
+ *
+ * Injects three build-time env vars via `define`:
+ * - `VITE_DEBUG_OVERLAY` — `"true"` in dev, from env otherwise
+ * - `VITE_COMMIT_SHA` — current git HEAD or env override
+ * - `VITE_BUILD_DATE` — ISO 8601 timestamp
+ *
+ * @see {@link readGitCommitSha} for SHA resolution fallback
+ * @see {@link packageBindingsPlugin} for WASM/model asset handling
+ */
 export default defineConfig(({ command }) => {
 	return {
 		define: {
@@ -56,6 +74,18 @@ export default defineConfig(({ command }) => {
 	};
 });
 
+/**
+ * Shells out to `git rev-parse HEAD` to read the current commit SHA.
+ * Used as last-resort fallback when neither `VITE_COMMIT_SHA` env var
+ * nor CI-provided values are available.
+ *
+ * @returns Full 40-char SHA, or `undefined` if git is unavailable or not in a repo.
+ *
+ * @example
+ * ```ts
+ * const sha = readGitCommitSha() ?? 'sha-err';
+ * ```
+ */
 function readGitCommitSha(): string | undefined {
 	const result = spawnSync('git', ['rev-parse', 'HEAD'], {
 		encoding: 'utf8',

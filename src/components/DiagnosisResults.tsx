@@ -1,12 +1,30 @@
+/**
+ * @module Renders a complete TCM tongue diagnosis report.
+ * Displays observed color, tongue type, five-element balance, meridian activity,
+ * organ zones, pattern recognition, and lifestyle recommendations.
+ */
+
 import { clampChannel } from '../lib/color-correction.ts';
 import type { RgbColor } from '../lib/color-correction.ts';
 import type { Diagnosis } from '../lib/diagnosis.ts';
 
+/**
+ * Props for {@link DiagnosisResults}.
+ */
 interface DiagnosisResultsProps {
+	/** The full diagnosis produced by the analysis pipeline. */
 	readonly diagnosis: Diagnosis;
+	/** Callback to reset the app back to the upload phase. */
 	readonly onRestart: () => void;
 }
 
+/**
+ * Clamp all three channels of an {@link RgbColor} to the 0-255 integer range.
+ * Prevents invalid CSS `rgb()` values from pipeline rounding artifacts.
+ *
+ * @param color - Potentially out-of-range RGB color from the pipeline.
+ * @returns Clamped copy safe for CSS rendering.
+ */
 function clampColor(color: RgbColor): RgbColor {
 	return {
 		r: clampChannel(color.r),
@@ -15,6 +33,19 @@ function clampColor(color: RgbColor): RgbColor {
 	};
 }
 
+/**
+ * Full diagnosis results panel.
+ * Sections: header (tongue type), summary, visual observation (color swatch + attributes),
+ * five-element badges, meridian bar chart, organ zones, TCM patterns, and recommendations.
+ *
+ * @param props - {@link DiagnosisResultsProps}
+ * @returns Results UI with a "new analysis" restart button.
+ *
+ * @example
+ * ```tsx
+ * <DiagnosisResults diagnosis={diagnosis} onRestart={() => setPhase({ kind: 'upload' })} />
+ * ```
+ */
 export default function DiagnosisResults(
 	{ diagnosis, onRestart }: DiagnosisResultsProps,
 ) {

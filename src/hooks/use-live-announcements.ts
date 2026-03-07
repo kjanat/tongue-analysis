@@ -1,24 +1,51 @@
+/**
+ * Accessibility announcements for the live camera analysis mode.
+ *
+ * Drives an `<output>` element (ARIA live region) with step progress,
+ * diagnosis results, and timestamp updates so screen readers can
+ * follow the analysis without visual cues.
+ *
+ * @module
+ */
+
 import { useCallback, useEffect, useRef } from 'react';
 import type { RefObject } from 'react';
 import type { Diagnosis } from '../lib/diagnosis.ts';
 import type { AnalysisStep } from '../lib/pipeline.ts';
 import type { LiveMode } from './use-live-analysis.ts';
 
+/** Input configuration for {@link useLiveAnnouncements}. */
 interface UseLiveAnnouncementsInput {
+	/** Whether the live camera session has been started at least once. */
 	readonly liveHasStarted: boolean;
+	/** Current live analysis mode (idle, running, paused, etc.). */
 	readonly liveMode: LiveMode;
+	/** Currently executing pipeline step, or `null` when idle. */
 	readonly liveStep: AnalysisStep | null;
+	/** Most recent diagnosis result, or `null` before first analysis. */
 	readonly liveDiagnosis: Diagnosis | null;
+	/** Timestamp (ms) of the most recent result update. */
 	readonly liveUpdatedAt: number | null;
+	/** Map from {@link AnalysisStep} to Dutch display label. */
 	readonly stepLabels: Readonly<Record<AnalysisStep, string>>;
 }
 
+/** Return value of {@link useLiveAnnouncements}. */
 interface UseLiveAnnouncementsResult {
+	/** Ref to attach to an `<output>` element serving as ARIA live region. */
 	readonly outputRef: RefObject<HTMLOutputElement | null>;
+	/** Imperatively set the live region text content. */
 	readonly announce: (message: string) => void;
+	/** Clear all tracked state and the live region text. */
 	readonly reset: () => void;
 }
 
+/**
+ * Format a millisecond timestamp as Dutch locale time (`HH:MM:SS`).
+ *
+ * @param timestampMs - Unix timestamp in milliseconds.
+ * @returns Formatted time string.
+ */
 function formatUpdateTime(timestampMs: number): string {
 	return new Date(timestampMs).toLocaleTimeString('nl-NL', {
 		hour: '2-digit',
@@ -27,6 +54,23 @@ function formatUpdateTime(timestampMs: number): string {
 	});
 }
 
+/**
+ * Manage ARIA live-region announcements during live tongue analysis.
+ *
+ * Announcement priority: step progress > new diagnosis > timestamp update.
+ * Deduplicates by tracking the last announced value for each category.
+ *
+ * @param input - Live analysis state to derive announcements from.
+ * @returns Refs and imperative controls for the `<output>` live region.
+ *
+ * @example
+ * ```tsx
+ * const { outputRef, announce } = useLiveAnnouncements({
+ *   liveHasStarted, liveMode, liveStep, liveDiagnosis, liveUpdatedAt, stepLabels,
+ * });
+ * return <output ref={outputRef} className="sr-only" />;
+ * ```
+ */
 export function useLiveAnnouncements({
 	liveHasStarted,
 	liveMode,

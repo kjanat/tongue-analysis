@@ -1,17 +1,51 @@
+/**
+ * @module Stepped progress indicator for the analysis pipeline.
+ * Maps the current {@link AnalysisStep} to a visual checklist with a progress bar.
+ */
+
 import { ANALYSIS_STEPS } from '../lib/pipeline.ts';
 import type { AnalysisStep } from '../lib/pipeline.ts';
 
+/**
+ * Visual state of a single step in the loading checklist.
+ * - `pending` — not yet reached.
+ * - `active` — currently executing.
+ * - `done` — completed.
+ */
 type StepStatus = 'pending' | 'active' | 'done';
 
+/**
+ * Props for {@link LoadingSequence}.
+ */
 interface LoadingSequenceProps {
+	/** The pipeline step currently being executed; drives which checklist item is highlighted. */
 	readonly step: AnalysisStep;
 }
 
+/**
+ * Resolve the index of the given step within {@link ANALYSIS_STEPS}.
+ * Falls back to 0 if the step is not found (defensive; should not happen in practice).
+ *
+ * @param step - Current pipeline step identifier.
+ * @returns Zero-based index into {@link ANALYSIS_STEPS}.
+ */
 function activeStepIndex(step: AnalysisStep): number {
 	const index = ANALYSIS_STEPS.findIndex((entry) => entry.step === step);
 	return index === -1 ? 0 : index;
 }
 
+/**
+ * Animated progress indicator showing each {@link AnalysisStep} as a checklist item
+ * with a continuous progress bar underneath.
+ *
+ * @param props - {@link LoadingSequenceProps}
+ * @returns Loading UI with step list and progress bar.
+ *
+ * @example
+ * ```tsx
+ * <LoadingSequence step="color_correction" />
+ * ```
+ */
 export default function LoadingSequence({ step }: LoadingSequenceProps) {
 	const index = activeStepIndex(step);
 	const progress = ((index + 1) / ANALYSIS_STEPS.length) * 100;

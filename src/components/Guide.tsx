@@ -1,6 +1,24 @@
+/**
+ * @module Interactive TCM reference guide.
+ * Three collapsible sections: the 10 tongue types, the organ-zone diagram ({@link TongueMap}),
+ * and the 4 diagnostic axes (color, coating, shape, moisture).
+ */
+
 import { TONGUE_TYPES } from '../data/tongue-types.ts';
 import TongueMap from './TongueMap.tsx';
 
+/**
+ * Collapsible reference guide for Traditional Chinese Medicine tongue diagnosis.
+ * Renders below the results panel to educate the user on TCM tongue classification.
+ * All text is in Dutch.
+ *
+ * @returns A `<section>` with three `<details>` blocks.
+ *
+ * @example
+ * ```tsx
+ * <Guide />
+ * ```
+ */
 export default function Guide() {
 	return (
 		<section className='guide' aria-labelledby='guide-heading'>

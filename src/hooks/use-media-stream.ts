@@ -1,30 +1,73 @@
+/**
+ * @module use-media-stream
+ * Manages a `getUserMedia` video stream lifecycle: acquisition, device
+ * enumeration, camera switching, mirror detection, and teardown.
+ * Consumed by {@link CameraCapture} to provide the `<video>` element
+ * that {@link useLiveAnalysis} reads frames from.
+ */
+
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { RefObject } from 'react';
 
+/**
+ * Camera acquisition state machine.
+ * - `'idle'` — no stream active; initial state and state after {@link UseMediaStreamResult.stop}.
+ * - `'requesting'` — `getUserMedia` in flight; UI should show a spinner.
+ * - `'ready'` — stream acquired and `<video>` playing.
+ */
 export type CameraMode = 'idle' | 'requesting' | 'ready';
 
+/**
+ * Return value of {@link useMediaStream}.
+ */
 interface UseMediaStreamResult {
+	/** Current acquisition state. @see {@link CameraMode} */
 	readonly mode: CameraMode;
+	/** Dutch user-facing error from the last failed acquisition, or `null`. */
 	readonly error: string | null;
+	/** `true` when the active track is front-facing and the preview should be CSS-mirrored. */
 	readonly mirrorPreview: boolean;
+	/** All video-input devices known after the most recent `enumerateDevices` call. */
 	readonly availableCameras: readonly MediaDeviceInfo[];
+	/** `deviceId` of the currently active camera, or `null` before first acquisition. */
 	readonly activeCameraId: string | null;
+	/** Convenience: `availableCameras.length > 1`. */
 	readonly canSwitchCamera: boolean;
+	/** Ref to attach to the `<video>` element that will display the stream. */
 	readonly videoRef: RefObject<HTMLVideoElement | null>;
+	/** Acquire a stream using the last-preferred camera (or front-facing default). */
 	readonly start: () => Promise<void>;
+	/** Cycle to the next camera in {@link UseMediaStreamResult.availableCameras}. No-op if fewer than 2 cameras. */
 	readonly switchToNextCamera: () => Promise<void>;
+	/** Stop the stream, detach from the video element, and return to `'idle'`. */
 	readonly stop: () => void;
+	/** {@link UseMediaStreamResult.stop} + clear any lingering error. */
 	readonly reset: () => void;
+	/** Clear the error without stopping the stream. */
 	readonly clearError: () => void;
+	/** Set an external error message (e.g. from the analysis layer). */
 	readonly setError: (message: string) => void;
 }
 
+/**
+ * Stop all tracks on a `MediaStream`, releasing the camera hardware.
+ *
+ * @param stream - Stream to tear down.
+ */
 function stopStream(stream: MediaStream): void {
 	for (const track of stream.getTracks()) {
 		track.stop();
 	}
 }
 
+/**
+ * Map a `getUserMedia` / `video.play()` error to a Dutch user-facing string.
+ * Handles `TypeError` (insecure context) and the standard `DOMException` names
+ * defined in the Media Capture spec.
+ *
+ * @param error - Caught exception from camera acquisition.
+ * @returns Localised (Dutch) description suitable for display.
+ */
 function cameraErrorMessage(error: unknown): string {
 	if (error instanceof TypeError) {
 		return 'Camera vereist een beveiligde verbinding (HTTPS).';
@@ -54,6 +97,16 @@ function cameraErrorMessage(error: unknown): string {
 	return 'Kon camera niet starten. Probeer opnieuw.';
 }
 
+/**
+ * Determine whether a video track is front-facing (selfie camera).
+ * Checks `facingMode` first; falls back to heuristic label matching
+ * for devices that don't report a facing mode (desktop webcams).
+ * Defaults to `true` (mirror) when indeterminate, because most
+ * single-camera devices are front-facing.
+ *
+ * @param track - Active video track to inspect.
+ * @returns `true` if the track should be mirrored in the preview.
+ */
 function isFrontFacingTrack(track: MediaStreamTrack): boolean {
 	const facingMode = track.getSettings().facingMode;
 	if (facingMode === 'user') return true;
@@ -67,12 +120,27 @@ function isFrontFacingTrack(track: MediaStreamTrack): boolean {
 	return true;
 }
 
+/**
+ * Check the first video track of a stream to decide whether the
+ * preview should be horizontally mirrored.
+ *
+ * @param stream - Newly acquired `MediaStream`.
+ * @returns `true` when the stream's video track is front-facing.
+ * @see {@link isFrontFacingTrack}
+ */
 function shouldMirrorPreview(stream: MediaStream): boolean {
 	const videoTrack = stream.getVideoTracks()[0];
 	if (videoTrack === undefined) return false;
 	return isFrontFacingTrack(videoTrack);
 }
 
+/**
+ * Extract the `deviceId` from a track's settings.
+ * Returns `null` when the browser doesn't expose it (e.g. before permission grant).
+ *
+ * @param track - Video track to query.
+ * @returns Device ID string, or `null`.
+ */
 function getTrackDeviceId(track: MediaStreamTrack): string | null {
 	const deviceId = track.getSettings().deviceId;
 	if (typeof deviceId === 'string' && deviceId !== '') {
@@ -82,6 +150,14 @@ function getTrackDeviceId(track: MediaStreamTrack): string | null {
 	return null;
 }
 
+/**
+ * Build `MediaTrackConstraints` for `getUserMedia`.
+ * When a preferred camera is known, pins to that device via `exact`;
+ * otherwise requests the front-facing camera as a soft preference.
+ *
+ * @param preferredCameraId - Device ID to target, or `null` for default.
+ * @returns Constraints object for the `video` track.
+ */
 function buildVideoConstraints(preferredCameraId: string | null): MediaTrackConstraints {
 	if (preferredCameraId !== null) {
 		return {
@@ -96,10 +172,34 @@ function buildVideoConstraints(preferredCameraId: string | null): MediaTrackCons
 	};
 }
 
+/**
+ * Filter a device list down to video-input devices only.
+ *
+ * @param devices - Full list from `navigator.mediaDevices.enumerateDevices()`.
+ * @returns Subset where `kind === 'videoinput'`.
+ */
 function toVideoInputDevices(devices: readonly MediaDeviceInfo[]): readonly MediaDeviceInfo[] {
 	return devices.filter((device) => device.kind === 'videoinput');
 }
 
+/**
+ * Manage a `getUserMedia` video stream with device switching and teardown.
+ *
+ * Handles the full lifecycle: secure-context check, stream acquisition,
+ * device enumeration, camera cycling, mirror detection, autoplay errors,
+ * and cleanup on unmount. Uses a monotonic request-ID counter to discard
+ * responses from superseded requests (e.g. rapid start/stop).
+ *
+ * @returns Stream state and imperative controls.
+ *
+ * @example
+ * ```tsx
+ * const camera = useMediaStream();
+ * // <video ref={camera.videoRef} />
+ * // camera.start() to acquire, camera.stop() to release
+ * // camera.switchToNextCamera() to cycle devices
+ * ```
+ */
 export function useMediaStream(): UseMediaStreamResult {
 	const [mode, setMode] = useState<CameraMode>('idle');
 	const [error, setError] = useState<string | null>(null);

@@ -1,12 +1,34 @@
+/**
+ * @module use-live-analysis
+ * Continuous real-time tongue analysis loop driven by `requestAnimationFrame`.
+ * Feeds video frames from a live camera into {@link analyzeTongueVideoFrame},
+ * throttles state updates, and optionally renders a debug overlay showing
+ * detected mouth regions.
+ */
+
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { RefObject } from 'react';
 import type { Diagnosis } from '../lib/diagnosis.ts';
 import type { MouthRegion, Point } from '../lib/face-detection.ts';
 import { type AnalysisError, type AnalysisStep, analyzeTongueVideoFrame } from '../lib/pipeline.ts';
 
+/**
+ * Minimum interval (ms) between React state updates during live analysis.
+ * Prevents excessive re-renders while the rAF loop runs at display refresh rate.
+ * The analysis loop still runs every frame; only UI-facing state writes are throttled.
+ */
 const LIVE_UPDATED_AT_THROTTLE_MS = 1000;
+
+/**
+ * Whether to render the debug overlay (mouth bounding box + lip polygons).
+ * Controlled by the `VITE_DEBUG_OVERLAY` build-time env var.
+ */
 const DEBUG_OVERLAY_ENABLED = import.meta.env.VITE_DEBUG_OVERLAY === 'true';
 
+/**
+ * All top-level {@link AnalysisError} `kind` discriminants.
+ * Used by {@link isAnalysisError} to validate unknown values at runtime.
+ */
 const ANALYSIS_ERROR_KINDS = [
 	'image_load_failed',
 	'canvas_unavailable',
@@ -18,6 +40,10 @@ const ANALYSIS_ERROR_KINDS = [
 	'inconclusive_color',
 ] as const;
 
+/**
+ * Nested `kind` values for the `face_detection_error` variant of {@link AnalysisError}.
+ * @see {@link isAnalysisError}
+ */
 const FACE_DETECTION_ERROR_KINDS = [
 	'invalid_image_dimensions',
 	'model_load_failed',
@@ -27,6 +53,10 @@ const FACE_DETECTION_ERROR_KINDS = [
 	'mouth_not_visible',
 ] as const;
 
+/**
+ * Nested `kind` values for the `tongue_segmentation_error` variant of {@link AnalysisError}.
+ * @see {@link isAnalysisError}
+ */
 const TONGUE_SEGMENTATION_ERROR_KINDS = [
 	'empty_input',
 	'allowed_mask_size_mismatch',
@@ -35,34 +65,78 @@ const TONGUE_SEGMENTATION_ERROR_KINDS = [
 	'insufficient_pixels',
 ] as const;
 
+/**
+ * Possible `issue` values for the `poor_lighting` variant of {@link AnalysisError}.
+ * @see {@link isAnalysisError}
+ */
 const POOR_LIGHTING_ISSUES = ['too_dark', 'too_bright', 'high_contrast'] as const;
 
+/** O(1) lookup set derived from {@link ANALYSIS_ERROR_KINDS}. */
 const ANALYSIS_ERROR_KIND_SET = new Set<string>(ANALYSIS_ERROR_KINDS);
+/** O(1) lookup set derived from {@link FACE_DETECTION_ERROR_KINDS}. */
 const FACE_DETECTION_ERROR_KIND_SET = new Set<string>(FACE_DETECTION_ERROR_KINDS);
+/** O(1) lookup set derived from {@link TONGUE_SEGMENTATION_ERROR_KINDS}. */
 const TONGUE_SEGMENTATION_ERROR_KIND_SET = new Set<string>(TONGUE_SEGMENTATION_ERROR_KINDS);
+/** O(1) lookup set derived from {@link POOR_LIGHTING_ISSUES}. */
 const POOR_LIGHTING_ISSUE_SET = new Set<string>(POOR_LIGHTING_ISSUES);
 
+/**
+ * Whether the live analysis rAF loop is currently active.
+ * - `'idle'` — loop stopped, no frames being processed.
+ * - `'running'` — loop active, frames dispatched each animation frame.
+ */
 export type LiveMode = 'idle' | 'running';
 
+/**
+ * Configuration for {@link useLiveAnalysis}.
+ */
 interface UseLiveAnalysisOptions {
+	/** Ref to the `<video>` element supplying camera frames. */
 	readonly videoRef: RefObject<HTMLVideoElement | null>;
+	/** Ref to a `<canvas>` layered over the video for debug drawing. */
 	readonly overlayCanvasRef: RefObject<HTMLCanvasElement | null>;
+	/**
+	 * Master enable flag. When flipped to `false`, the loop stops
+	 * immediately and all state resets.
+	 */
 	readonly enabled: boolean;
 }
 
+/**
+ * Return value of {@link useLiveAnalysis}.
+ * All state fields are throttled to {@link LIVE_UPDATED_AT_THROTTLE_MS}.
+ */
 interface UseLiveAnalysisResult {
+	/** Current loop state. @see {@link LiveMode} */
 	readonly liveMode: LiveMode;
+	/** Last pipeline step reported, or `null` when idle. */
 	readonly liveStep: AnalysisStep | null;
+	/** Dutch user-facing error from the most recent failed frame, or `null`. */
 	readonly liveError: string | null;
+	/** Most recent successful {@link Diagnosis}, or `null`. */
 	readonly liveDiagnosis: Diagnosis | null;
+	/** `Date.now()` timestamp of the last state update, for staleness checks. */
 	readonly liveUpdatedAt: number | null;
+	/** `true` once {@link UseLiveAnalysisResult.start} has been called at least once in this mount. */
 	readonly liveHasStarted: boolean;
+	/** Begin the rAF analysis loop. No-op if already running or `enabled` is `false`. */
 	readonly start: () => void;
+	/** Stop the loop, cancel pending rAF, clear overlay and all state. */
 	readonly stop: () => void;
+	/** Clear {@link UseLiveAnalysisResult.liveError} without stopping the loop. */
 	readonly clearError: () => void;
+	/** Alias for {@link UseLiveAnalysisResult.stop}; exists for API symmetry with {@link useMediaStream}. */
 	readonly reset: () => void;
 }
 
+/**
+ * Map an {@link AnalysisError} to a Dutch user-facing string.
+ * Exhaustively matches every variant and nested sub-variant so the
+ * compiler enforces coverage when new error kinds are added.
+ *
+ * @param error - Typed pipeline error from {@link analyzeTongueVideoFrame}.
+ * @returns Localised (Dutch) description suitable for display in the camera UI.
+ */
 function liveErrorMessage(error: AnalysisError): string {
 	switch (error.kind) {
 		case 'image_load_failed':
@@ -120,6 +194,15 @@ function liveErrorMessage(error: AnalysisError): string {
 	return 'Onbekende live-analysefout.';
 }
 
+/**
+ * Runtime type guard for {@link AnalysisError}.
+ * Needed because `catch` blocks yield `unknown`; this validates the
+ * discriminant hierarchy (top-level `kind`, nested `error.kind` / `issue`)
+ * using pre-built {@link ANALYSIS_ERROR_KIND_SET} and friends.
+ *
+ * @param value - Caught exception of unknown shape.
+ * @returns `true` when `value` structurally matches an {@link AnalysisError}.
+ */
 function isAnalysisError(value: unknown): value is AnalysisError {
 	if (typeof value !== 'object' || value === null || !('kind' in value)) {
 		return false;
@@ -165,6 +248,14 @@ function isAnalysisError(value: unknown): value is AnalysisError {
 	}
 }
 
+/**
+ * Scale a {@link Point} from source (video) coordinates to display (canvas CSS) coordinates.
+ *
+ * @param point - Original point in video-pixel space.
+ * @param scaleX - Horizontal ratio `displayWidth / sourceWidth`.
+ * @param scaleY - Vertical ratio `displayHeight / sourceHeight`.
+ * @returns New {@link Point} in display-pixel space.
+ */
 function scalePoint(
 	point: Point,
 	scaleX: number,
@@ -176,6 +267,13 @@ function scalePoint(
 	};
 }
 
+/**
+ * Stroke a closed polygon path on the debug overlay canvas.
+ *
+ * @param context - 2D rendering context of the overlay canvas.
+ * @param points - Ordered vertices (already in display-pixel space).
+ * @param strokeColor - CSS color string for the outline.
+ */
 function drawPolygon(
 	context: CanvasRenderingContext2D,
 	points: readonly Point[],
@@ -197,6 +295,12 @@ function drawPolygon(
 	context.stroke();
 }
 
+/**
+ * Erase all content from the debug overlay canvas.
+ * Safe to call with `null` (no-ops silently).
+ *
+ * @param canvas - The overlay canvas element, or `null`.
+ */
 function clearOverlayCanvas(canvas: HTMLCanvasElement | null): void {
 	if (canvas === null) return;
 	const context = canvas.getContext('2d');
@@ -204,6 +308,20 @@ function clearOverlayCanvas(canvas: HTMLCanvasElement | null): void {
 	context.clearRect(0, 0, canvas.width, canvas.height);
 }
 
+/**
+ * Render a debug overlay for a detected {@link MouthRegion}.
+ * Draws three elements scaled from video to display coordinates:
+ * - Yellow (`#ffd166`) bounding box around the mouth.
+ * - Green (`#52ffa8`) outer lip polygon.
+ * - Blue (`#7dd3ff`) inner lip polygon.
+ *
+ * Handles DPR scaling so lines stay sharp on high-density displays.
+ *
+ * @param canvas - Overlay `<canvas>` positioned over the video.
+ * @param mouthRegion - Detected mouth geometry in video-pixel space.
+ * @param sourceWidth - Width of the source video in pixels.
+ * @param sourceHeight - Height of the source video in pixels.
+ */
 function drawMouthRegionOverlay(
 	canvas: HTMLCanvasElement,
 	mouthRegion: MouthRegion,
@@ -247,6 +365,32 @@ function drawMouthRegionOverlay(
 	drawPolygon(context, scaledInner, '#7dd3ff');
 }
 
+/**
+ * Drives continuous tongue analysis on a live camera feed.
+ *
+ * Runs a `requestAnimationFrame` loop that:
+ * 1. Skips duplicate frames (same `video.currentTime`).
+ * 2. Calls {@link analyzeTongueVideoFrame} for each new frame.
+ * 3. Throttles React state updates to {@link LIVE_UPDATED_AT_THROTTLE_MS}.
+ * 4. Optionally draws a debug overlay via {@link drawMouthRegionOverlay}.
+ *
+ * Session IDs prevent stale callbacks from updating state after a
+ * stop/restart cycle.
+ *
+ * @param options - Video ref, overlay canvas ref, and enable flag.
+ * @returns Live analysis state and imperative controls.
+ *
+ * @example
+ * ```tsx
+ * const live = useLiveAnalysis({
+ * 	videoRef,
+ * 	overlayCanvasRef,
+ * 	enabled: cameraReady,
+ * });
+ * // start/stop via live.start() / live.stop()
+ * // read live.liveDiagnosis for the latest result
+ * ```
+ */
 export function useLiveAnalysis(options: UseLiveAnalysisOptions): UseLiveAnalysisResult {
 	const { enabled, overlayCanvasRef, videoRef } = options;
 	const [liveMode, setLiveMode] = useState<LiveMode>('idle');

@@ -1,3 +1,15 @@
+/**
+ * @module
+ * Custom Vite plugin that resolves npm package assets (WASM files, ML models)
+ * at build time, copies them into the output bundle, and exposes a virtual
+ * module (`virtual:package-bindings`) for runtime URL resolution with
+ * self-hosted/CDN fallback.
+ *
+ * The virtual module's runtime shape is declared in
+ * {@link src/types/package-bindings.d.ts} and must stay in sync with
+ * {@link generateVirtualModule}.
+ */
+
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
@@ -6,61 +18,120 @@ import type { Plugin, ResolvedConfig } from 'vite';
 
 // ── Public types ─────────────────────────────────────────────
 
+/**
+ * Controls whether the self-hosted copy or CDN URL is used as the primary
+ * source at runtime. The other becomes the fallback.
+ */
 type AssetPrimary = 'self' | 'cdn';
 
+/**
+ * Configuration for a single npm package asset to be bundled and exposed
+ * via the virtual module.
+ *
+ * @see {@link PackageBindingsPluginOptions}
+ */
 export interface PackageAssetConfig {
-	/** npm package name */
+	/** npm package name, e.g. `"@mediapipe/tasks-vision"` */
 	readonly package: string;
-	/** Path within the package to the asset file or directory */
+	/** Path within the package to the asset file or directory, e.g. `"wasm"` */
 	readonly path: string;
-	/** jsdelivr CDN base for fallback/primary URL */
+	/** CDN provider for fallback/primary URL. Only jsdelivr is supported. */
 	readonly cdn: 'jsdelivr';
-	/** Whether self-hosted or CDN is primary (default: 'self') */
+	/** Whether self-hosted or CDN is primary (default: `'self'`) */
 	readonly primary?: AssetPrimary;
 }
 
+/**
+ * Configuration for a downloadable asset (e.g. ML model) that is fetched
+ * at build time and cached locally.
+ *
+ * @see {@link PackageBindingsPluginOptions}
+ */
 export interface DownloadConfig {
-	/** Stable binding id for runtime lookup */
+	/** Stable binding id for runtime lookup via {@link getDownloadBinding} */
 	readonly id: string;
-	/** Absolute HTTP(S) URL for downloadable asset */
+	/** Absolute HTTP(S) URL for the downloadable asset */
 	readonly url: string;
-	/** Optional project-relative file path where the asset should be stored */
+	/** Optional project-relative file path where the asset should be stored. Defaults to `.cache/package-bindings/downloads/<id><ext>`. */
 	readonly path?: string;
 }
 
+/**
+ * Top-level options for {@link packageBindingsPlugin}.
+ */
 export interface PackageBindingsPluginOptions {
+	/** Package assets to copy into the bundle and serve via CDN fallback */
 	readonly assets: readonly PackageAssetConfig[];
+	/** Remote assets to download at build time and bundle */
 	readonly downloads?: readonly DownloadConfig[];
 }
 
 // ── Internal types ───────────────────────────────────────────
 
+/**
+ * Fully resolved representation of a {@link PackageAssetConfig} after
+ * locating the package on disk and computing mount paths.
+ */
 interface ResolvedAsset {
+	/** npm package name */
 	readonly packageName: string;
+	/** Resolved semver version from the installed package.json */
 	readonly version: string;
+	/** Normalized forward-slash path within the package */
 	readonly assetPath: string;
+	/** Whether the asset path points to a directory (files are enumerated recursively) */
 	readonly isDirectory: boolean;
+	/** URL path segment where the asset is mounted in the dev server / bundle, e.g. `"pkg-assets/@mediapipe/tasks-vision/0.10.0/wasm"` */
 	readonly localMountPath: string;
+	/** Full jsdelivr CDN URL for this asset */
 	readonly cdnUrl: string;
+	/** Which URL source is primary at runtime */
 	readonly primary: AssetPrimary;
+	/** Individual files to emit, with absolute disk path and output bundle path */
 	readonly files: readonly { readonly absolutePath: string; readonly emittedPath: string }[];
 }
 
+/**
+ * Fully resolved representation of a {@link DownloadConfig} after
+ * computing cache paths and bundle output paths.
+ */
 interface ResolvedDownload {
+	/** Normalized download identifier */
 	readonly id: string;
+	/** Remote URL to fetch the asset from */
 	readonly url: string;
+	/** Project-relative cache path for the downloaded file */
 	readonly outputPath: string;
+	/** Absolute disk path for the cached download */
 	readonly absolutePath: string;
+	/** Output path within the Vite bundle */
 	readonly emittedPath: string;
 }
 
 // ── Helpers ──────────────────────────────────────────────────
 
+/** Vite virtual module specifier used in application `import` statements. */
 const VIRTUAL_MODULE_ID = 'virtual:package-bindings';
+
+/**
+ * Vite-internal resolved id. The `\0` prefix is a Rollup convention that
+ * prevents other plugins from processing this module.
+ */
 const RESOLVED_ID = `\0${VIRTUAL_MODULE_ID}`;
+
+/** URL path prefix for self-hosted package assets in the bundle output. */
 const MOUNT_BASE = 'pkg-assets';
+
+/** URL path prefix for downloaded (non-npm) assets in the bundle output. */
 const DOWNLOAD_MOUNT_BASE = 'download-assets';
 
+/**
+ * Parses a string env var into a boolean using common truthy/falsy conventions.
+ * Returns `undefined` for unrecognized values to allow fallthrough in config resolution chains.
+ *
+ * @param value - Raw string value (e.g. `"true"`, `"0"`, `"yes"`)
+ * @returns `true`, `false`, or `undefined` if the value doesn't match any known pattern
+ */
 function parseBoolean(value: string | undefined): boolean | undefined {
 	if (value === undefined) return undefined;
 	const trueValues = new Set(['1', 'true', 'yes', 'on']);
@@ -73,6 +144,14 @@ function parseBoolean(value: string | undefined): boolean | undefined {
 	return undefined;
 }
 
+/**
+ * Security check: verifies that `absolutePath` does not escape `rootPath`
+ * via `..` traversal. Prevents asset configs from reading arbitrary files.
+ *
+ * @param rootPath - Trusted root directory (package root or project root)
+ * @param absolutePath - Candidate path to validate
+ * @returns `true` if `absolutePath` is within or equal to `rootPath`
+ */
 function isWithinRoot(rootPath: string, absolutePath: string): boolean {
 	const relativePath = path.relative(rootPath, absolutePath);
 	if (relativePath === '') return true;
@@ -80,6 +159,14 @@ function isWithinRoot(rootPath: string, absolutePath: string): boolean {
 	return !path.isAbsolute(relativePath);
 }
 
+/**
+ * Validates and normalizes a download identifier. IDs are restricted to
+ * `[A-Za-z0-9._-]` to ensure safe use as filenames and map keys.
+ *
+ * @param value - Raw download id string
+ * @returns Trimmed, validated id
+ * @throws If the id is empty or contains invalid characters
+ */
 function normalizeDownloadId(value: string): string {
 	const normalized = value.trim();
 	if (normalized === '') {
@@ -92,6 +179,15 @@ function normalizeDownloadId(value: string): string {
 	return normalized;
 }
 
+/**
+ * Derives a default cache path for a download when no explicit
+ * {@link DownloadConfig.path} is provided. Uses the URL's file extension
+ * (or `.bin` if none) under `.cache/package-bindings/downloads/`.
+ *
+ * @param downloadId - Normalized download identifier (used as filename stem)
+ * @param downloadUrl - Remote URL (extension is extracted from its pathname)
+ * @returns Project-relative cache path, e.g. `".cache/package-bindings/downloads/face-landmarker-model.task"`
+ */
 function defaultDownloadOutputPath(downloadId: string, downloadUrl: string): string {
 	const parsedUrl = new URL(downloadUrl);
 	const extension = path.posix.extname(parsedUrl.pathname);
@@ -99,6 +195,16 @@ function defaultDownloadOutputPath(downloadId: string, downloadUrl: string): str
 	return `.cache/package-bindings/downloads/${downloadId}${suffix}`;
 }
 
+/**
+ * Locates an installed npm package's root directory and reads its version.
+ * Walks up from the resolved entry point until it finds the package's own
+ * `package.json` (matching by `name` field to handle hoisted layouts).
+ *
+ * @param projectRoot - Absolute path to the Vite project root
+ * @param packageName - npm package name to locate
+ * @returns Package root directory and semver version
+ * @throws If the package is not installed or its `package.json` lacks a version
+ */
 function resolvePackageDir(projectRoot: string, packageName: string): {
 	readonly root: string;
 	readonly version: string;
@@ -130,6 +236,13 @@ function resolvePackageDir(projectRoot: string, packageName: string): {
 	throw new Error(`[package-bindings] cannot locate package.json for '${packageName}'.`);
 }
 
+/**
+ * Recursively enumerates all files under a directory. Symlinks and special
+ * entries are skipped — only regular files are collected.
+ *
+ * @param dirPath - Absolute directory path to walk
+ * @returns Flat array of absolute file paths
+ */
 function collectFiles(dirPath: string): readonly string[] {
 	const results: string[] = [];
 	for (const entry of readdirSync(dirPath, { withFileTypes: true })) {
@@ -143,6 +256,16 @@ function collectFiles(dirPath: string): readonly string[] {
 	return results;
 }
 
+/**
+ * Resolves all {@link PackageAssetConfig} entries into {@link ResolvedAsset}
+ * objects by locating packages on disk, validating paths, and computing
+ * mount/CDN URLs.
+ *
+ * @param config - Resolved Vite config (provides `root`)
+ * @param options - Plugin options containing asset declarations
+ * @returns Resolved assets ready for serving/bundling
+ * @throws If any asset path escapes its package, doesn't exist, or is an empty directory
+ */
 function resolveAssets(config: ResolvedConfig, options: PackageBindingsPluginOptions): readonly ResolvedAsset[] {
 	return options.assets.map((asset) => {
 		const pkg = resolvePackageDir(config.root, asset.package);
@@ -187,6 +310,15 @@ function resolveAssets(config: ResolvedConfig, options: PackageBindingsPluginOpt
 	});
 }
 
+/**
+ * Resolves all {@link DownloadConfig} entries into {@link ResolvedDownload}
+ * objects, validating ids, deduplicating paths, and computing output locations.
+ *
+ * @param config - Resolved Vite config (provides `root` for path resolution)
+ * @param options - Plugin options containing download declarations
+ * @returns Resolved downloads ready for fetching/bundling
+ * @throws On duplicate ids, duplicate output paths, path traversal, or empty paths
+ */
 function resolveDownloads(config: ResolvedConfig, options: PackageBindingsPluginOptions): readonly ResolvedDownload[] {
 	const requestedDownloads = options.downloads ?? [];
 	const normalizedRoot = path.resolve(config.root);
@@ -233,6 +365,14 @@ function resolveDownloads(config: ResolvedConfig, options: PackageBindingsPlugin
 	});
 }
 
+/**
+ * Ensures all download assets are available locally. Skips downloads that
+ * already exist on disk (unless `BUILD_REFRESH_MODELS=true` forces re-download).
+ * Failed downloads fall back to existing cached files or remote-only mode.
+ *
+ * @param downloads - Resolved download entries to fetch
+ * @returns Set of download ids that are available locally (for dev server serving and bundle emission)
+ */
 async function ensureDownloads(downloads: readonly ResolvedDownload[]): Promise<ReadonlySet<string>> {
 	const forceDownload = parseBoolean(process.env.BUILD_REFRESH_MODELS) === true;
 	const locallyAvailable = new Set<string>();
@@ -294,7 +434,19 @@ async function ensureDownloads(downloads: readonly ResolvedDownload[]): Promise<
 	return locallyAvailable;
 }
 
-// SYNC: Runtime shape must match the declaration in src/types/package-bindings.d.ts
+/**
+ * Generates the JavaScript source for the `virtual:package-bindings` module.
+ * Produces a self-contained ES module with lookup maps and accessor functions
+ * for resolving asset URLs at runtime.
+ *
+ * SYNC: Runtime shape must match the declaration in
+ * {@link src/types/package-bindings.d.ts}.
+ *
+ * @param assets - Resolved package assets to include in the manifest
+ * @param downloads - Resolved download assets to include in the manifest
+ * @param locallyAvailable - Set of download ids that were successfully cached locally
+ * @returns ES module source string
+ */
 function generateVirtualModule(
 	assets: readonly ResolvedAsset[],
 	downloads: readonly ResolvedDownload[],
@@ -393,6 +545,13 @@ export function getPackageBinding(packageName) {
 `.trimStart();
 }
 
+/**
+ * Returns a Content-Type header value for the dev server based on file extension.
+ * Covers WASM, JS, JSON, CSS, and HTML; falls back to `application/octet-stream`.
+ *
+ * @param filePath - File path or URL pathname to derive MIME type from
+ * @returns MIME type string with charset where applicable
+ */
 function mimeForPath(filePath: string): string {
 	if (filePath.endsWith('.wasm')) return 'application/wasm';
 	if (filePath.endsWith('.js') || filePath.endsWith('.mjs')) return 'text/javascript; charset=utf-8';
@@ -404,6 +563,34 @@ function mimeForPath(filePath: string): string {
 
 // ── Plugin ───────────────────────────────────────────────────
 
+/**
+ * Creates the `package-bindings` Vite plugin. Handles the full lifecycle:
+ *
+ * 1. **configResolved** — locates packages on disk, computes mount paths
+ * 2. **buildStart** — downloads remote assets (ML models) with caching
+ * 3. **resolveId/load** — serves the `virtual:package-bindings` module
+ * 4. **configureServer** — dev server middleware for self-hosted asset serving
+ * 5. **generateBundle** — emits all assets into the production bundle
+ *
+ * @param options - Asset and download declarations
+ * @returns Vite plugin instance
+ *
+ * @example
+ * ```ts
+ * packageBindingsPlugin({
+ * 	assets: [{
+ * 		package: '@mediapipe/tasks-vision',
+ * 		path: 'wasm',
+ * 		cdn: 'jsdelivr',
+ * 		primary: 'cdn',
+ * 	}],
+ * 	downloads: [{
+ * 		id: 'face-landmarker-model',
+ * 		url: 'https://storage.googleapis.com/.../face_landmarker.task',
+ * 	}],
+ * })
+ * ```
+ */
 export function packageBindingsPlugin(options: PackageBindingsPluginOptions): Plugin {
 	let assets: readonly ResolvedAsset[] = [];
 	let downloads: readonly ResolvedDownload[] = [];

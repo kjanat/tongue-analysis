@@ -1,3 +1,14 @@
+/**
+ * Lighting quality analysis for tongue images.
+ *
+ * Computes luminance statistics over masked pixels and classifies
+ * frames as too dark, too bright, or high-contrast. Used as both a
+ * pre-check and a secondary diagnostic when segmentation or
+ * classification fails.
+ *
+ * @module
+ */
+
 import {
 	BRIGHT_PIXEL_LUMINANCE,
 	DARK_PIXEL_LUMINANCE,
@@ -11,13 +22,46 @@ import {
 } from './thresholds.ts';
 import type { LightingStats } from './types.ts';
 
+/**
+ * Describes a detected lighting problem.
+ *
+ * Intersected into the `poor_lighting` variant of {@link AnalysisError}
+ * to give the UI enough detail for a user-friendly message.
+ */
 export interface LightingIssue {
+	/**
+	 * The category of lighting problem.
+	 * - `too_dark` — Mean luminance below threshold or excessive dark pixels.
+	 * - `too_bright` — Mean luminance above threshold or excessive bright pixels.
+	 * - `high_contrast` — High luminance std dev with both dark and bright extremes.
+	 */
 	readonly issue: 'too_dark' | 'too_bright' | 'high_contrast';
+	/** Average luminance (0–255) of the sampled region. */
 	readonly meanLuminance: number;
+	/** Fraction of sampled pixels below {@link DARK_PIXEL_LUMINANCE}. */
 	readonly darkRatio: number;
+	/** Fraction of sampled pixels above {@link BRIGHT_PIXEL_LUMINANCE}. */
 	readonly brightRatio: number;
 }
 
+/**
+ * Compute luminance statistics over the allowed pixels of an image.
+ *
+ * Uses BT.709 luminance coefficients (`0.2126R + 0.7152G + 0.0722B`)
+ * and a single-pass algorithm to derive mean, standard deviation, and
+ * dark/bright pixel ratios.
+ *
+ * @param imageData - RGBA pixel data (`.data.length` must be `4 * allowedMask.length`).
+ * @param allowedMask - Per-pixel mask where `1` marks pixels to include.
+ * @returns Lighting statistics, or `undefined` if the mask is empty or
+ *   dimensions are inconsistent.
+ *
+ * @example
+ * ```ts
+ * const stats = computeLightingStats(crop.imageData, mask);
+ * if (stats) console.log(`mean luminance: ${stats.meanLuminance}`);
+ * ```
+ */
 export function computeLightingStats(
 	imageData: ImageData,
 	allowedMask: Uint8Array,
@@ -68,6 +112,24 @@ export function computeLightingStats(
 	};
 }
 
+/**
+ * Detect whether lighting conditions are too poor for reliable analysis.
+ *
+ * Computes statistics via {@link computeLightingStats}, then checks
+ * against thresholds in order: too dark, too bright, high contrast.
+ * Returns the first matching issue, or `undefined` if lighting is
+ * acceptable.
+ *
+ * @param imageData - RGBA pixel data of the cropped region.
+ * @param allowedMask - Per-pixel mask (1 = include).
+ * @returns The detected {@link LightingIssue}, or `undefined` if lighting passes.
+ *
+ * @example
+ * ```ts
+ * const issue = detectLightingIssue(crop.imageData, mask);
+ * if (issue) showWarning(`Lighting: ${issue.issue}`);
+ * ```
+ */
 export function detectLightingIssue(
 	imageData: ImageData,
 	allowedMask: Uint8Array,
