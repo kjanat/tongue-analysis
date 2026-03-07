@@ -43,7 +43,7 @@ function activeStepIndex(step: AnalysisStep): number {
  *
  * @example
  * ```tsx
- * <LoadingSequence step="color_correction" />
+ * <LoadingSequence step="correcting_color" />
  * ```
  */
 export default function LoadingSequence({ step }: LoadingSequenceProps) {

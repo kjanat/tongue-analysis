@@ -2,9 +2,9 @@
  * Public entry points and shared types for the tongue analysis pipeline.
  *
  * Consumers call {@link analyzeTongueImage}, {@link analyzeTongueVideoFrame},
- * or {@link analyzeTongueFromUrl}; each delegates to the core orchestrator in
- * {@link analyzeTongueFrame} after acquiring a frame source and running face
- * detection. Progress is reported via the optional {@link AnalyzeTongueOptions.onStep}
+ * or {@link analyzeTongueFromUrl}; each acquires a frame source, runs face
+ * detection, and delegates to the internal orchestrator in `analysis-core.ts`.
+ * Progress is reported via the optional {@link AnalyzeTongueOptions.onStep}
  * callback using {@link AnalysisStep} identifiers.
  *
  * @module
@@ -43,7 +43,7 @@ export type AnalysisStep = (typeof ANALYSIS_STEPS)[number]['step'];
  * Lookup table mapping each {@link AnalysisStep} to its Dutch display label.
  *
  * Built at module load from {@link ANALYSIS_STEPS}; used by UI components
- * (e.g. {@link LoadingSequence}) to render progress text.
+ * (e.g. `LoadingSequence`) to render progress text.
  */
 export const ANALYSIS_STEP_LABELS: Readonly<Record<AnalysisStep, string>> = Object.fromEntries(
 	ANALYSIS_STEPS.map(({ step, label }) => [step, label]),
@@ -63,7 +63,7 @@ export const ANALYSIS_STEP_LABELS: Readonly<Record<AnalysisStep, string>> = Obje
  * - `mouth_crop_failed` — The frame had zero or negative dimensions, or the
  *   bounding box produced an empty crop region.
  * - `face_detection_error` — MediaPipe face detection returned a terminal
- *   error that doesn't qualify for closeup fallback (e.g. `multiple_faces`).
+ *   error that doesn't qualify for closeup fallback (e.g. `multiple_faces_detected`).
  * - `poor_lighting` — Lighting stats exceeded rejection thresholds;
  *   intersected with {@link LightingIssue} for diagnostic detail.
  * - `tongue_segmentation_error` — HSV segmentation found insufficient tongue
@@ -147,9 +147,11 @@ export function emitStep(
  *
  * @example
  * ```ts
- * const img = document.querySelector('img')!;
- * const result = await analyzeTongueImage(img, { onStep: console.log });
- * if (result.ok) console.log(result.value.diagnosis);
+ * const img = document.querySelector('img');
+ * if (img instanceof HTMLImageElement) {
+ *   const result = await analyzeTongueImage(img, { onStep: console.log });
+ *   if (result.ok) console.log(result.value.diagnosis);
+ * }
  * ```
  */
 export async function analyzeTongueImage(

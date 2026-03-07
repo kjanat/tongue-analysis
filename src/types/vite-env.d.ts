@@ -2,7 +2,7 @@
  * @module
  * Vite environment variable type augmentations. Extends the built-in
  * `ImportMetaEnv` with project-specific build-time variables injected
- * by {@link vite.config.ts} and {@link scripts/build.ts}.
+ * by `vite.config.ts` and `scripts/build.ts`.
  */
 
 /// <reference types="vite/client" />
@@ -12,8 +12,8 @@
  * All values are JSON-stringified at build time, so they arrive as
  * strings at runtime.
  *
- * @see {@link vite.config.ts} for injection logic
- * @see {@link scripts/build.ts} for resolution order
+ * @see `vite.config.ts` for injection logic
+ * @see `scripts/build.ts` for resolution order
  */
 interface ImportMetaEnv {
 	/** `"true"` when the debug overlay should be visible. Enabled by default in dev, disabled in production. */

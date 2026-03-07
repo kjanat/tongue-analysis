@@ -104,7 +104,9 @@ interface UseLiveAnalysisOptions {
 
 /**
  * Return value of {@link useLiveAnalysis}.
- * All state fields are throttled to {@link LIVE_UPDATED_AT_THROTTLE_MS}.
+ * Analysis-derived fields (`liveStep`, `liveError`, `liveDiagnosis`, `liveUpdatedAt`)
+ * are throttled to {@link LIVE_UPDATED_AT_THROTTLE_MS}; control fields
+ * (`liveMode`, `liveHasStarted`) update immediately.
  */
 interface UseLiveAnalysisResult {
 	/** Current loop state. @see {@link LiveMode} */
@@ -131,8 +133,11 @@ interface UseLiveAnalysisResult {
 
 /**
  * Map an {@link AnalysisError} to a Dutch user-facing string.
- * Exhaustively matches every variant and nested sub-variant so the
- * compiler enforces coverage when new error kinds are added.
+ * Matches every top-level variant; nested sub-variants are exhaustively
+ * matched for `face_detection_error`, `poor_lighting`, and
+ * `tongue_segmentation_error`. The `color_correction_error` variant
+ * uses a single catch-all message since both inner kinds indicate
+ * transient frame issues in live mode.
  *
  * @param error - Typed pipeline error from {@link analyzeTongueVideoFrame}.
  * @returns Localised (Dutch) description suitable for display in the camera UI.

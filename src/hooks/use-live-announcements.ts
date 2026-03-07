@@ -18,7 +18,7 @@ import type { LiveMode } from './use-live-analysis.ts';
 interface UseLiveAnnouncementsInput {
 	/** Whether the live camera session has been started at least once. */
 	readonly liveHasStarted: boolean;
-	/** Current live analysis mode (idle, running, paused, etc.). */
+	/** Current live analysis mode (`'idle'` or `'running'`). */
 	readonly liveMode: LiveMode;
 	/** Currently executing pipeline step, or `null` when idle. */
 	readonly liveStep: AnalysisStep | null;

@@ -49,7 +49,7 @@ function emitStep(step: AnalysisStep, options?: AnalyzeTongueOptions): void {
  * which is appropriate when the image is already a tongue closeup.
  * Only recoverable detection errors (no face, mouth not visible, model
  * load failure, generic detection failure) trigger the fallback;
- * `multiple_faces` is considered a hard error.
+ * `multiple_faces_detected` is considered a hard error.
  *
  * @param mouthResult - Result from MediaPipe face detection.
  * @returns `true` if the error kind permits full-image fallback.

@@ -153,10 +153,10 @@ export interface TongueType {
 	/** Lifestyle and dietary advice based on TCM principles. */
 	readonly advice: readonly string[];
 	/**
-	 * Relative selection weight for randomized diagnosis generation.
+	 * Relative weight used by color-based type matching.
 	 *
-	 * `1` = normal likelihood, `< 1` = less likely (e.g. `0.4` for "normal" tongue
-	 * to make interesting diagnoses more common).
+	 * `1` = standard weight, `< 1` = down-weighted (e.g. `0.4` for "normal" tongue
+	 * so interesting diagnoses surface more often when color distance is similar).
 	 */
 	readonly weight: number;
 }

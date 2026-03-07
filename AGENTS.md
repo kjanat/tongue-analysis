@@ -1,6 +1,6 @@
 # PROJECT KNOWLEDGE BASE
 
-**Generated:** 2026-03-07 **Commit:** 051c50b **Branch:** master
+**Generated:** 2026-03-07 **Commit:** a766f5a **Branch:** master
 
 ## OVERVIEW
 
@@ -20,16 +20,18 @@ tongue-analysis/
 │   ├── App.tsx                   # Root: 5-phase state machine (upload→preview→loading→results|error)
 │   ├── App.css                   # All component styles (~930 lines, plain CSS)
 │   ├── index.css                 # Global reset
-│   ├── components/               # 6 components, flat structure
-│   │   ├── CameraCapture.tsx     # Live camera with real-time analysis (430 lines)
-│   │   ├── DiagnosisResults.tsx  # Results display (216 lines)
-│   │   ├── Guide.tsx             # Interactive TCM guide
-│   │   ├── LoadingSequence.tsx   # 7-step analysis progress animation
-│   │   ├── TongueMap.tsx         # Tongue zone SVG visualization
-│   │   └── UploadArea.tsx        # File upload with drag/drop
-│   ├── hooks/
-│   │   ├── use-live-analysis.ts  # MediaPipe pipeline for live video frames (439 lines)
-│   │   └── use-media-stream.ts   # Camera stream lifecycle management (313 lines)
+│   ├── components/               # 6 components — see src/components/AGENTS.md
+│   │   ├── CameraCapture.tsx     # Live camera + real-time analysis (576 lines)
+│   │   ├── DiagnosisResults.tsx  # Results display (177 lines)
+│   │   ├── Guide.tsx             # Interactive TCM guide (130 lines)
+│   │   ├── LoadingSequence.tsx   # 7-step analysis progress animation (79 lines)
+│   │   ├── TongueMap.tsx         # Tongue zone SVG visualization (106 lines)
+│   │   └── UploadArea.tsx        # File upload with drag/drop (119 lines)
+│   ├── hooks/                    # 4 hooks — see src/hooks/AGENTS.md
+│   │   ├── use-deferred-camera-release.ts  # Delayed camera cleanup on tab switch (77 lines)
+│   │   ├── use-live-analysis.ts  # Real-time tongue analysis rAF loop (583 lines)
+│   │   ├── use-live-announcements.ts  # ARIA screen reader announcements (136 lines)
+│   │   └── use-media-stream.ts   # Camera stream lifecycle + device switching (413 lines)
 │   ├── data/
 │   │   └── tongue-types.ts       # TCM domain data (organs, elements, zones, tongue types)
 │   ├── lib/                      # Core pipeline — see src/lib/AGENTS.md
@@ -51,21 +53,23 @@ tongue-analysis/
 
 ## WHERE TO LOOK
 
-| Task              | Location                         | Notes                                                    |
-| ----------------- | -------------------------------- | -------------------------------------------------------- |
-| Analysis pipeline | `src/lib/`                       | See `src/lib/AGENTS.md` for full pipeline breakdown      |
-| App state machine | `src/App.tsx`                    | `Phase` discriminated union, 5 variants with `kind` tag  |
-| Live camera       | `src/hooks/use-live-analysis.ts` | Real-time video frame analysis loop                      |
-| Camera stream     | `src/hooks/use-media-stream.ts`  | getUserMedia lifecycle, device enumeration               |
-| Domain data (TCM) | `src/data/tongue-types.ts`       | Organs, elements, meridians, tongue type definitions     |
-| Styles            | `src/App.css`                    | Single file, all component styles, section-divided       |
-| MediaPipe assets  | `vite.package-bindings.ts`       | WASM copy, model download, CDN fallback, virtual module  |
-| Build script      | `scripts/build.ts`               | Resolves env (GH Actions / CF Pages), runs tsc+vite      |
-| CLI tool          | `cli/analyze.ts`                 | Headless analysis, polyfills `ImageData` for Bun runtime |
-| CI/deploy         | `.github/workflows/pages.yml`    | Triggers on `master`, path-filtered, no lint/test gates  |
-| TS strictness     | `tsconfig.app.json`              | `noUncheckedIndexedAccess`, `erasableSyntaxOnly`         |
-| Lint rules        | `eslint.config.js`               | Flat config, `strictTypeChecked` + 4 React plugins       |
-| Formatting        | `.dprint.jsonc`                  | Remote shared config from kjanat/kjanat repo             |
+| Task               | Location                                   | Notes                                                    |
+| ------------------ | ------------------------------------------ | -------------------------------------------------------- |
+| Analysis pipeline  | `src/lib/`                                 | See `src/lib/AGENTS.md` for full pipeline breakdown      |
+| App state machine  | `src/App.tsx`                              | `Phase` discriminated union, 5 variants with `kind` tag  |
+| Live camera        | `src/hooks/use-live-analysis.ts`           | Real-time video frame analysis loop                      |
+| Camera stream      | `src/hooks/use-media-stream.ts`            | getUserMedia lifecycle, device enumeration               |
+| ARIA announcements | `src/hooks/use-live-announcements.ts`      | Screen reader support during live analysis               |
+| Camera cleanup     | `src/hooks/use-deferred-camera-release.ts` | Delayed camera release on tab switch                     |
+| Domain data (TCM)  | `src/data/tongue-types.ts`                 | Organs, elements, meridians, tongue type definitions     |
+| Styles             | `src/App.css`                              | Single file, all component styles, section-divided       |
+| MediaPipe assets   | `vite.package-bindings.ts`                 | WASM copy, model download, CDN fallback, virtual module  |
+| Build script       | `scripts/build.ts`                         | Resolves env (GH Actions / CF Pages), runs tsc+vite      |
+| CLI tool           | `cli/analyze.ts`                           | Headless analysis, polyfills `ImageData` for Bun runtime |
+| CI/deploy          | `.github/workflows/pages.yml`              | Triggers on `master`, path-filtered, no lint/test gates  |
+| TS strictness      | `tsconfig.app.json`                        | `noUncheckedIndexedAccess`, `erasableSyntaxOnly`         |
+| Lint rules         | `eslint.config.js`                         | Flat config, `strictTypeChecked` + 4 React plugins       |
+| Formatting         | `.dprint.jsonc`                            | Remote shared config from kjanat/kjanat repo             |
 
 ## CONVENTIONS
 
@@ -136,7 +140,7 @@ bun run cf-build  # Cloudflare Pages build variant
 - **Empty `catch` blocks intentional**: SessionStorage may be unavailable in restricted browsing.
 - **Build plugins in wrong section**: `vite-robots-txt`, `vite-svg-to-ico` in `dependencies` instead of `devDependencies`. This is intentional by user. They are the user's own packages, and here for promo-type-shizz.
 - **Dutch locale**: `lang="nl"` on HTML, all UI text in Dutch.
-- **Sole `@ts-expect-error`**: `cli/analyze.ts:10` — intentional `ImageData` global polyfill for Bun runtime.
+- **Sole `@ts-expect-error`**: `cli/analyze.ts:20` — intentional `ImageData` global polyfill for Bun runtime.
 - **Two input paths**: File upload (`UploadArea`) and live camera (`CameraCapture`). Camera can bypass preview/loading via `onLiveDiagnosis`.
 - **Closeup fallback**: If face detection fails, pipeline retries with full-image analysis and relaxed thresholds.
 - **Build-time env vars**: `VITE_COMMIT_SHA`, `VITE_BUILD_DATE`, `VITE_DEBUG_OVERLAY` injected by `scripts/build.ts`.

@@ -21,13 +21,13 @@ import type { AnalysisError } from './pipeline.ts';
  * All messages are written in Dutch to match the app's `lang="nl"` locale
  * and are phrased as actionable instructions the user can follow.
  *
- * @param error - The typed pipeline error produced by {@link analyzeTongue}
- *   or {@link analyzeTongueFrame}.
+ * @param error - The typed pipeline error produced by {@link analyzeTongueImage}
+ *   or its siblings.
  * @returns A single-sentence Dutch string suitable for UI display.
  *
  * @example
  * ```ts
- * const result = await analyzeTongue(file, onStep);
+ * const result = await analyzeTongueFromUrl(url);
  * if (!result.ok) {
  * 	const message = analysisErrorMessage(result.error);
  * 	showToast(message);

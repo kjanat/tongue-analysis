@@ -1,11 +1,11 @@
 # src/lib — Analysis Pipeline
 
-Client-side ML pipeline: image → face detection → tongue segmentation → color correction → classification → diagnosis.
+Client-side ML pipeline: image → face detection → tongue segmentation → color correction → OKLCh classification → diagnosis.
 
 ## PIPELINE FLOW
 
 ```tree
-analyzeTongueFromUrl(url)           pipeline.ts (orchestrator, 101 lines)
+analyzeTongueFromUrl(url)           pipeline.ts (orchestrator, 224 lines)
   │
   ├─ loadImage(url)                 pipeline/frame-source.ts
   ├─ detectMouthRegion(image)       face-detection.ts   → Result<MouthRegion, MouthDetectionError>
@@ -26,17 +26,20 @@ All return `Result<AnalysisSuccess, AnalysisError>`.
 
 ## WHERE TO LOOK
 
-| File                      | Lines | Role                                                                      |
-| ------------------------- | ----- | ------------------------------------------------------------------------- |
-| `pipeline.ts`             | 101   | Orchestrator. Delegates to `pipeline/analysis-core.ts`. Closeup fallback. |
-| `face-detection.ts`       | 344   | MediaPipe FaceLandmarker. Singleton model. Mouth landmark extraction.     |
-| `tongue-segmentation.ts`  | 362   | HSV thresholding → connected components → centroid heuristic.             |
-| `color-correction.ts`     | 158   | Gray-world on masked pixels. Returns corrected `ImageData` + avg RGB.     |
-| `color-classification.ts` | 95    | RGB→OKLCh conversion. Distance to TCM type reference colors.              |
-| `diagnosis.ts`            | 106   | Maps `TongueColorClassification` → satirical TCM `Diagnosis`.             |
-| `result.ts`               | 17    | `Result<T,E>` discriminated union. `ok(value)` / `err(error)`.            |
-| `color-analysis.ts`       | 136   | **Legacy.** Canvas center-crop RGB→HSL. Used by old PRNG path.            |
-| `color-matching.ts`       | 126   | **Legacy.** HSL distance + weight boosting for old diagnosis.             |
+| File                        | Lines | Role                                                                      |
+| --------------------------- | ----- | ------------------------------------------------------------------------- |
+| `pipeline.ts`               | 224   | Orchestrator. Delegates to `pipeline/analysis-core.ts`. Closeup fallback. |
+| `face-detection.ts`         | 600   | MediaPipe FaceLandmarker. Singleton model. Mouth landmark extraction.     |
+| `tongue-segmentation.ts`    | 601   | HSV thresholding → erode/dilate → connected-component BFS → centroid.     |
+| `color-correction.ts`       | 260   | Gray-world on masked pixels. Returns corrected `ImageData` + avg RGB.     |
+| `color-classification.ts`   | 145   | RGB→OKLCh conversion. Distance to TCM type reference colors.              |
+| `oklch-distance.ts`         | 72    | Weighted Euclidean distance in OKLCh with circular hue handling.          |
+| `diagnosis.ts`              | 204   | Maps `TongueColorClassification` → satirical TCM `Diagnosis`.             |
+| `result.ts`                 | 71    | `Result<T,E>` discriminated union. `ok(value)` / `err(error)`.            |
+| `capture-video-frame.ts`    | 126   | Captures single video frame as JPEG File via offscreen canvas.            |
+| `analysis-error-message.ts` | 96    | Exhaustive Dutch error message mapping for all `AnalysisError` variants.  |
+| `color-analysis.ts`         | 186   | **Legacy.** Canvas center-crop RGB→HSL. Used by old PRNG path.            |
+| `color-matching.ts`         | 150   | **Legacy.** OKLCH Gaussian weight boosting for old diagnosis.             |
 
 ### pipeline/ subdirectory
 
@@ -44,13 +47,13 @@ Decomposed pipeline internals, extracted from the former monolithic `pipeline.ts
 
 | File                        | Lines | Role                                                              |
 | --------------------------- | ----- | ----------------------------------------------------------------- |
-| `pipeline/analysis-core.ts` | 149   | Core analysis logic: step orchestration, closeup fallback.        |
-| `pipeline/crop.ts`          | 72    | Image cropping from mouth landmarks to canvas `ImageData`.        |
-| `pipeline/frame-source.ts`  | 30    | Unified frame acquisition (URL load / direct ImageData / video).  |
-| `pipeline/lighting.ts`      | 102   | Luminance histogram analysis, poor-lighting detection.            |
-| `pipeline/mask.ts`          | 71    | Tongue mask application, allowed-region mask construction.        |
-| `pipeline/thresholds.ts`    | 13    | Threshold constants for segmentation and lighting checks.         |
-| `pipeline/types.ts`         | 27    | Shared types: `AnalysisStep`, `AnalysisSuccess`, `AnalysisError`. |
+| `pipeline/analysis-core.ts` | 234   | Core analysis logic: step orchestration, closeup fallback.        |
+| `pipeline/crop.ts`          | 128   | Image cropping from mouth landmarks to canvas `ImageData`.        |
+| `pipeline/frame-source.ts`  | 84    | Unified frame acquisition (URL load / direct ImageData / video).  |
+| `pipeline/lighting.ts`      | 171   | Luminance histogram analysis, poor-lighting detection.            |
+| `pipeline/mask.ts`          | 174   | Polygon rasterization (inner lip) + fallback ellipse mask.        |
+| `pipeline/thresholds.ts`    | 54    | Threshold constants for segmentation, lighting, and confidence.   |
+| `pipeline/types.ts`         | 70    | Shared types: `FrameSource`, `FrameDimensions`, `MouthCrop`, etc. |
 
 ## ERROR TYPES
 
@@ -68,3 +71,5 @@ Every pipeline stage has its own discriminated union error type (`kind` tag):
 - **Singleton model**: `face-detection.ts` caches the MediaPipe `FaceLandmarker` instance. Call `releaseFaceLandmarker()` to free.
 - **Two detection modes**: `detectMouthRegion(image)` for stills, `detectMouthRegionForVideo(video, timestamp)` for live frames. Different MediaPipe API calls.
 - **Legacy modules**: `color-analysis.ts` and `color-matching.ts` are from the old PRNG-only path. Still imported by the diagnosis generator for seeded randomness.
+- **External deps**: `@mediapipe/tasks-vision`, `hex-to-oklch`, `virtual:package-bindings` (Vite virtual module).
+- **Internal data dep**: `src/data/tongue-types.ts` — TCM reference colors, organ zones, element mappings.

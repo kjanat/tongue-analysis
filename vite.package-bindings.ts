@@ -6,7 +6,7 @@
  * self-hosted/CDN fallback.
  *
  * The virtual module's runtime shape is declared in
- * {@link src/types/package-bindings.d.ts} and must stay in sync with
+ * `src/types/package-bindings.d.ts` and must stay in sync with
  * {@link generateVirtualModule}.
  */
 
@@ -440,7 +440,7 @@ async function ensureDownloads(downloads: readonly ResolvedDownload[]): Promise<
  * for resolving asset URLs at runtime.
  *
  * SYNC: Runtime shape must match the declaration in
- * {@link src/types/package-bindings.d.ts}.
+ * `src/types/package-bindings.d.ts`.
  *
  * @param assets - Resolved package assets to include in the manifest
  * @param downloads - Resolved download assets to include in the manifest
