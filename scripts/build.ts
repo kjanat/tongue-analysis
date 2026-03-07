@@ -406,7 +406,7 @@ async function build(): Promise<void> {
 
 	const bunExecutable = process.execPath;
 	await run(bunExecutable, ['run', 'tsc', '-b']);
-	await run(bunExecutable, ['run', 'vite', 'build'], {
+	await run(bunExecutable, ['--bun', 'run', 'vite', 'build'], {
 		...process.env,
 		VITE_DEBUG_OVERLAY: metadata.debugOverlay,
 		VITE_COMMIT_SHA: metadata.commitSha,
