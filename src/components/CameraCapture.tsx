@@ -1,6 +1,7 @@
-import type { MouseEvent } from 'react';
+import type { MouseEvent, RefObject } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useDeferredCameraRelease } from '../hooks/use-deferred-camera-release.ts';
+import type { LiveMode } from '../hooks/use-live-analysis.ts';
 import { useLiveAnalysis } from '../hooks/use-live-analysis.ts';
 import { useLiveAnnouncements } from '../hooks/use-live-announcements.ts';
 import { useMediaStream } from '../hooks/use-media-stream.ts';
@@ -8,10 +9,7 @@ import { captureErrorMessage, captureVideoFrame } from '../lib/capture-video-fra
 import type { Diagnosis } from '../lib/diagnosis.ts';
 import type { AnalysisStep } from '../lib/pipeline.ts';
 
-interface CameraCaptureProps {
-	readonly onCapture: (file: File, objectUrl: string) => void;
-	readonly onLiveDiagnosis?: (diagnosis: Diagnosis) => void;
-}
+// ── Constants ──────────────────────────────────
 
 const LIVE_STEP_LABELS: Readonly<Record<AnalysisStep, string>> = {
 	loading_image: 'Foto laden',
@@ -31,6 +29,189 @@ function formatUpdateTime(timestampMs: number): string {
 		minute: '2-digit',
 		second: '2-digit',
 	});
+}
+
+// ── Presentational Components ──────────────────
+
+interface CameraIdleActionsProps {
+	readonly cameraAutoPaused: boolean;
+	readonly error: string | null;
+	readonly onStart: () => void;
+}
+
+function CameraIdleActions({ cameraAutoPaused, error, onStart }: CameraIdleActionsProps) {
+	return (
+		<>
+			{cameraAutoPaused && (
+				<div className='camera-status' aria-live='polite'>
+					Camera gepauzeerd na tabwissel. Hervat wanneer je klaar bent.
+				</div>
+			)}
+			<button type='button' className='camera-btn' onClick={onStart}>
+				{cameraAutoPaused ? 'Hervat camera' : 'Start camera'}
+			</button>
+			{error !== null && <div className='camera-status camera-error' role='alert'>{error}</div>}
+		</>
+	);
+}
+
+interface CameraReadyControlsProps {
+	readonly canSwitchCamera: boolean;
+	readonly activeCameraLabel: string | undefined;
+	readonly isLiveRunning: boolean;
+	readonly onCapture: () => void;
+	readonly onSwitchCamera: () => void;
+	readonly onLiveToggle: () => void;
+}
+
+function CameraReadyControls({
+	canSwitchCamera,
+	activeCameraLabel,
+	isLiveRunning,
+	onCapture,
+	onSwitchCamera,
+	onLiveToggle,
+}: CameraReadyControlsProps) {
+	return (
+		<div className='camera-controls'>
+			<button type='button' className='camera-btn camera-btn--primary' onClick={onCapture}>
+				Foto maken
+			</button>
+			{canSwitchCamera && (
+				<button
+					type='button'
+					className='camera-btn camera-btn--switch'
+					onClick={onSwitchCamera}
+					aria-label={activeCameraLabel !== undefined && activeCameraLabel !== ''
+						? `Wissel camera. Huidig: ${activeCameraLabel}`
+						: 'Wissel camera'}
+				>
+					Wissel camera
+				</button>
+			)}
+			<button
+				type='button'
+				className='camera-btn camera-btn--live'
+				data-running={isLiveRunning}
+				onClick={onLiveToggle}
+			>
+				{isLiveRunning ? 'Stop live-analyse' : 'Start live-analyse'}
+			</button>
+		</div>
+	);
+}
+
+interface CameraStageProps {
+	readonly videoRef: RefObject<HTMLVideoElement | null>;
+	readonly overlayCanvasRef: RefObject<HTMLCanvasElement | null>;
+	readonly mirrorPreview: boolean;
+	readonly liveHasStarted: boolean;
+	readonly liveStatus: string;
+	readonly activeError: string | null;
+}
+
+function CameraStage({
+	videoRef,
+	overlayCanvasRef,
+	mirrorPreview,
+	liveHasStarted,
+	liveStatus,
+	activeError,
+}: CameraStageProps) {
+	const mirrorValue = mirrorPreview ? 'true' : 'false';
+
+	return (
+		<div className='camera-stage'>
+			<video
+				ref={videoRef}
+				className='camera-video'
+				data-mirror={mirrorValue}
+				autoPlay
+				muted
+				playsInline
+			/>
+			{import.meta.env.VITE_DEBUG_OVERLAY === 'true' && (
+				<canvas
+					ref={overlayCanvasRef}
+					className='camera-overlay'
+					data-mirror={mirrorValue}
+				/>
+			)}
+			{liveHasStarted && (
+				<span
+					className='camera-live-dot'
+					data-status={liveStatus}
+					aria-hidden='true'
+				/>
+			)}
+			{activeError !== null && <div className='camera-video-error' role='alert'>{activeError}</div>}
+		</div>
+	);
+}
+
+interface LiveDiagnosisPanelProps {
+	readonly liveMode: LiveMode;
+	readonly liveStep: AnalysisStep | null;
+	readonly liveError: string | null;
+	readonly liveDiagnosis: Diagnosis | null;
+	readonly liveUpdatedAt: number | null;
+	readonly canUseLiveDiagnosis: boolean;
+	readonly onUseLiveDiagnosis: () => void;
+}
+
+function LiveDiagnosisPanel({
+	liveMode,
+	liveStep,
+	liveError,
+	liveDiagnosis,
+	liveUpdatedAt,
+	canUseLiveDiagnosis,
+	onUseLiveDiagnosis,
+}: LiveDiagnosisPanelProps) {
+	const isLiveRunning = liveMode === 'running';
+
+	return (
+		<div className='camera-live'>
+			<div className='camera-live-header'>
+				<span>Live</span>
+				{isLiveRunning && liveStep !== null && <span className='camera-live-step'>{LIVE_STEP_LABELS[liveStep]}</span>}
+			</div>
+
+			{isLiveRunning && liveDiagnosis === null && liveError === null && (
+				<div className='camera-live-loading'>Analyse wordt gestart...</div>
+			)}
+
+			{liveDiagnosis !== null && (
+				<div className='camera-live-diagnosis' data-stale={liveError !== null}>
+					<div className='camera-live-type'>
+						<span lang='zh'>{liveDiagnosis.type.nameZh}</span> - {liveDiagnosis.type.name}
+					</div>
+					<p>{liveDiagnosis.type.summary}</p>
+					{liveUpdatedAt !== null && (
+						<div className='camera-live-updated'>
+							Laatst bijgewerkt: {formatUpdateTime(liveUpdatedAt)}
+						</div>
+					)}
+					{canUseLiveDiagnosis && (
+						<button
+							type='button'
+							className='camera-btn camera-btn--primary'
+							onClick={onUseLiveDiagnosis}
+						>
+							Toon dit live-resultaat
+						</button>
+					)}
+				</div>
+			)}
+		</div>
+	);
+}
+
+// ── Main Component ─────────────────────────────
+
+interface CameraCaptureProps {
+	readonly onCapture: (file: File, objectUrl: string) => void;
+	readonly onLiveDiagnosis?: (diagnosis: Diagnosis) => void;
 }
 
 export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCaptureProps) {
@@ -80,7 +261,31 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 			stepLabels: LIVE_STEP_LABELS,
 		});
 
-	const cameraActive = mode !== 'idle' || liveMode !== 'idle';
+	// ── Derived state ──────────────────────────
+
+	const isIdle = mode === 'idle';
+	const isReady = mode === 'ready';
+	const isRequesting = mode === 'requesting';
+	const isLiveRunning = liveMode === 'running';
+	const cameraActive = !isIdle || isLiveRunning;
+	const activeError = liveError ?? error;
+	const liveStatus = liveError !== null ? 'error' : isLiveRunning ? 'active' : 'idle';
+	const activeCameraLabel = availableCameras.find((device) => device.deviceId === activeCameraId)?.label;
+
+	// ── Domain-level helpers ───────────────────
+
+	const clearAllErrors = useCallback(() => {
+		clearCameraError();
+		clearLiveError();
+	}, [clearCameraError, clearLiveError]);
+
+	const endSession = useCallback(() => {
+		resetLiveAnnouncement();
+		resetLiveAnalysis();
+		resetCamera();
+	}, [resetCamera, resetLiveAnalysis, resetLiveAnnouncement]);
+
+	// ── Camera release ─────────────────────────
 
 	const handleRelease = useCallback(() => {
 		stopLiveAnalysis();
@@ -94,6 +299,8 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 		delayMs: CAMERA_RELEASE_DELAY_MS,
 	});
 
+	// ── Handlers ───────────────────────────────
+
 	const handleCloseModal = useCallback(() => {
 		dialogRef.current?.close();
 	}, []);
@@ -101,10 +308,8 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 	const handleDialogClose = useCallback(() => {
 		clearReleaseTimer();
 		setCameraAutoPaused(false);
-		resetLiveAnnouncement();
-		resetLiveAnalysis();
-		resetCamera();
-	}, [clearReleaseTimer, resetCamera, resetLiveAnalysis, resetLiveAnnouncement]);
+		endSession();
+	}, [clearReleaseTimer, endSession]);
 
 	const handleStartCamera = useCallback(async () => {
 		clearReleaseTimer();
@@ -121,12 +326,11 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 			dialog.showModal();
 		}
 		setCameraAutoPaused(false);
-		clearCameraError();
-		clearLiveError();
-		if (mode === 'idle') {
+		clearAllErrors();
+		if (isIdle) {
 			void handleStartCamera();
 		}
-	}, [clearCameraError, clearLiveError, clearReleaseTimer, handleStartCamera, mode]);
+	}, [clearAllErrors, clearReleaseTimer, handleStartCamera, isIdle]);
 
 	const handlePageHidden = useCallback(() => {
 		if (!cameraActive) return;
@@ -171,13 +375,13 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 	}, [onCapture, setCameraError, videoRef]);
 
 	const handleLiveToggle = useCallback(() => {
-		if (liveMode === 'running') {
+		if (isLiveRunning) {
 			stopLiveAnalysis();
 			return;
 		}
 
 		startLiveAnalysis();
-	}, [liveMode, startLiveAnalysis, stopLiveAnalysis]);
+	}, [isLiveRunning, startLiveAnalysis, stopLiveAnalysis]);
 
 	const handleSwitchCamera = useCallback(async () => {
 		stopLiveAnalysis();
@@ -199,9 +403,7 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 		}
 	}, [handleCloseModal]);
 
-	const activeError = liveError ?? error;
-	const liveStatus = liveError !== null ? 'error' : liveMode === 'running' ? 'active' : 'idle';
-	const activeCameraLabel = availableCameras.find((device) => device.deviceId === activeCameraId)?.label;
+	// ── Render ─────────────────────────────────
 
 	return (
 		<>
@@ -235,117 +437,51 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 				</div>
 
 				<div className='camera-actions'>
-					{mode === 'idle' && (
-						<>
-							{cameraAutoPaused && (
-								<div className='camera-status' aria-live='polite'>
-									Camera gepauzeerd na tabwissel. Hervat wanneer je klaar bent.
-								</div>
-							)}
-							<button type='button' className='camera-btn' onClick={() => void handleStartCamera()}>
-								{cameraAutoPaused ? 'Hervat camera' : 'Start camera'}
-							</button>
-							{error !== null && <div className='camera-status camera-error' role='alert'>{error}</div>}
-						</>
+					{isIdle && (
+						<CameraIdleActions
+							cameraAutoPaused={cameraAutoPaused}
+							error={error}
+							onStart={() => void handleStartCamera()}
+						/>
 					)}
 
-					{mode === 'requesting' && <div className='camera-status'>Camera wordt gestart...</div>}
+					{isRequesting && <div className='camera-status'>Camera wordt gestart...</div>}
 
-					{mode === 'ready' && (
-						<div className='camera-controls'>
-							<button type='button' className='camera-btn camera-btn--primary' onClick={() => void handleCapture()}>
-								Foto maken
-							</button>
-							{canSwitchCamera && (
-								<button
-									type='button'
-									className='camera-btn camera-btn--switch'
-									onClick={() => void handleSwitchCamera()}
-									aria-label={activeCameraLabel !== undefined && activeCameraLabel !== ''
-										? `Wissel camera. Huidig: ${activeCameraLabel}`
-										: 'Wissel camera'}
-								>
-									Wissel camera
-								</button>
-							)}
-							<button
-								type='button'
-								className='camera-btn camera-btn--live'
-								data-running={liveMode === 'running'}
-								onClick={handleLiveToggle}
-							>
-								{liveMode === 'running' ? 'Stop live-analyse' : 'Start live-analyse'}
-							</button>
-						</div>
+					{isReady && (
+						<CameraReadyControls
+							canSwitchCamera={canSwitchCamera}
+							activeCameraLabel={activeCameraLabel}
+							isLiveRunning={isLiveRunning}
+							onCapture={() => void handleCapture()}
+							onSwitchCamera={() => void handleSwitchCamera()}
+							onLiveToggle={handleLiveToggle}
+						/>
 					)}
 				</div>
 
-				<div className='camera-preview' data-visible={mode === 'ready' || mode === 'requesting'}>
-					<div className='camera-stage'>
-						<video
-							ref={videoRef}
-							className='camera-video'
-							data-mirror={mirrorPreview ? 'true' : 'false'}
-							autoPlay
-							muted
-							playsInline
-						/>
-						{import.meta.env.VITE_DEBUG_OVERLAY === 'true' && (
-							<canvas
-								ref={overlayCanvasRef}
-								className='camera-overlay'
-								data-mirror={mirrorPreview ? 'true' : 'false'}
-							/>
-						)}
-						{liveHasStarted && (
-							<span
-								className='camera-live-dot'
-								data-status={liveStatus}
-								aria-hidden='true'
-							/>
-						)}
-						{activeError !== null && <div className='camera-video-error' role='alert'>{activeError}</div>}
-					</div>
+				<div className='camera-preview' data-visible={isReady || isRequesting}>
+					<CameraStage
+						videoRef={videoRef}
+						overlayCanvasRef={overlayCanvasRef}
+						mirrorPreview={mirrorPreview}
+						liveHasStarted={liveHasStarted}
+						liveStatus={liveStatus}
+						activeError={activeError}
+					/>
 				</div>
 
 				<output ref={liveAnnouncementRef} className='visually-hidden' aria-live='polite' aria-atomic='true' />
 
 				{liveHasStarted && (
-					<div className='camera-live'>
-						<div className='camera-live-header'>
-							<span>Live</span>
-							{liveMode === 'running' && liveStep !== null && (
-								<span className='camera-live-step'>{LIVE_STEP_LABELS[liveStep]}</span>
-							)}
-						</div>
-
-						{liveMode === 'running' && liveDiagnosis === null && liveError === null && (
-							<div className='camera-live-loading'>Analyse wordt gestart...</div>
-						)}
-
-						{liveDiagnosis !== null && (
-							<div className='camera-live-diagnosis' data-stale={liveError !== null}>
-								<div className='camera-live-type'>
-									<span lang='zh'>{liveDiagnosis.type.nameZh}</span> - {liveDiagnosis.type.name}
-								</div>
-								<p>{liveDiagnosis.type.summary}</p>
-								{liveUpdatedAt !== null && (
-									<div className='camera-live-updated'>
-										Laatst bijgewerkt: {formatUpdateTime(liveUpdatedAt)}
-									</div>
-								)}
-								{onLiveDiagnosis !== undefined && (
-									<button
-										type='button'
-										className='camera-btn camera-btn--primary'
-										onClick={handleUseLiveDiagnosis}
-									>
-										Toon dit live-resultaat
-									</button>
-								)}
-							</div>
-						)}
-					</div>
+					<LiveDiagnosisPanel
+						liveMode={liveMode}
+						liveStep={liveStep}
+						liveError={liveError}
+						liveDiagnosis={liveDiagnosis}
+						liveUpdatedAt={liveUpdatedAt}
+						canUseLiveDiagnosis={onLiveDiagnosis !== undefined}
+						onUseLiveDiagnosis={handleUseLiveDiagnosis}
+					/>
 				)}
 			</dialog>
 		</>
