@@ -188,7 +188,8 @@ dialog.camera-modal::backdrop {
 .camera-btn--primary {
 	background: linear-gradient(135deg, #8b4513, #c9a54e);
 	color: #fff;
-	border-color: transparent;
+	border: none;
+	box-shadow: inset 0 0 0 1.25px rgba(139, 69, 19, 0.4);
 }
 
 .camera-btn--ghost {
