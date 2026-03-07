@@ -26,7 +26,8 @@ declare module 'virtual:package-bindings' {
 	export interface DownloadAsset {
 		readonly id: string;
 		readonly path: string;
-		readonly localUrl: string;
+		readonly localAvailable: boolean;
+		readonly localUrl: string | null;
 		readonly remoteUrl: string;
 	}
 

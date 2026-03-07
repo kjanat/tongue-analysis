@@ -227,13 +227,15 @@ function resolveDownloads(config: ResolvedConfig, options: PackageBindingsPlugin
 	});
 }
 
-async function ensureDownloads(downloads: readonly ResolvedDownload[]): Promise<void> {
+async function ensureDownloads(downloads: readonly ResolvedDownload[]): Promise<ReadonlySet<string>> {
 	const forceDownload = parseBoolean(process.env.BUILD_REFRESH_MODELS) === true;
+	const locallyAvailable = new Set<string>();
 
 	for (const download of downloads) {
 		const fileExists = existsSync(download.absolutePath);
 		if (fileExists && !forceDownload) {
 			console.log(`[package-bindings] asset present: ${download.outputPath}`);
+			locallyAvailable.add(download.id);
 			continue;
 		}
 
@@ -248,25 +250,33 @@ async function ensureDownloads(downloads: readonly ResolvedDownload[]): Promise<
 			const body = await response.arrayBuffer();
 			await writeFile(download.absolutePath, Buffer.from(body));
 			console.log(`[package-bindings] asset saved: ${download.outputPath}`);
+			locallyAvailable.add(download.id);
 		} catch (error) {
 			if (fileExists) {
 				console.warn(
 					`[package-bindings] download failed, continuing with existing local file: ${download.outputPath}`,
 					error,
 				);
+				locallyAvailable.add(download.id);
 				continue;
 			}
 
 			console.warn(
-				`[package-bindings] download failed and no local file: ${download.outputPath}; continuing with remote primary`,
+				`[package-bindings] download failed and no local file: ${download.outputPath}; continuing with remote only`,
 				error,
 			);
 		}
 	}
+
+	return locallyAvailable;
 }
 
 // SYNC: Runtime shape must match the declaration in src/types/package-bindings.d.ts
-function generateVirtualModule(assets: readonly ResolvedAsset[], downloads: readonly ResolvedDownload[]): string {
+function generateVirtualModule(
+	assets: readonly ResolvedAsset[],
+	downloads: readonly ResolvedDownload[],
+	locallyAvailable: ReadonlySet<string>,
+): string {
 	const manifest = assets.map((a) => ({
 		package: a.packageName,
 		version: a.version,
@@ -281,6 +291,7 @@ function generateVirtualModule(assets: readonly ResolvedAsset[], downloads: read
 		id: download.id,
 		path: download.emittedPath,
 		remoteUrl: download.url,
+		localAvailable: locallyAvailable.has(download.id),
 	}));
 
 	return `
@@ -304,7 +315,7 @@ const entries = manifest.map((e) => {
 export const packageBindingsManifest = entries;
 
 const downloadEntries = downloadManifest.map((e) => {
-	const localUrl = withBase(e.path, 'file');
+	const localUrl = e.localAvailable ? withBase(e.path, 'file') : null;
 	return { ...e, localUrl };
 });
 
@@ -373,6 +384,7 @@ function mimeForPath(filePath: string): string {
 export function packageBindingsPlugin(options: PackageBindingsPluginOptions): Plugin {
 	let assets: readonly ResolvedAsset[] = [];
 	let downloads: readonly ResolvedDownload[] = [];
+	let locallyAvailable: ReadonlySet<string> = new Set();
 	let base = '/';
 
 	return {
@@ -387,7 +399,7 @@ export function packageBindingsPlugin(options: PackageBindingsPluginOptions): Pl
 		},
 
 		async buildStart() {
-			await ensureDownloads(downloads);
+			locallyAvailable = await ensureDownloads(downloads);
 		},
 
 		resolveId(id) {
@@ -395,7 +407,7 @@ export function packageBindingsPlugin(options: PackageBindingsPluginOptions): Pl
 		},
 
 		load(id) {
-			return id === RESOLVED_ID ? generateVirtualModule(assets, downloads) : undefined;
+			return id === RESOLVED_ID ? generateVirtualModule(assets, downloads, locallyAvailable) : undefined;
 		},
 
 		configureServer(server) {
@@ -406,6 +418,7 @@ export function packageBindingsPlugin(options: PackageBindingsPluginOptions): Pl
 				}
 			}
 			for (const download of downloads) {
+				if (!locallyAvailable.has(download.id)) continue;
 				urlToFile.set(`${base}${download.emittedPath}`, download.absolutePath);
 			}
 

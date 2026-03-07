@@ -84,11 +84,14 @@ function wasmBaseUrl(source: AssetSource): string {
 }
 
 function modelUrl(source: AssetSource): string {
+	const { localUrl, remoteUrl } = FACE_LANDMARKER_MODEL;
+	if (localUrl === null) return remoteUrl;
+
 	if (source === 'primary') {
-		return WASM_PRIMARY === 'cdn' ? FACE_LANDMARKER_MODEL.remoteUrl : FACE_LANDMARKER_MODEL.localUrl;
+		return WASM_PRIMARY === 'cdn' ? remoteUrl : localUrl;
 	}
 
-	return WASM_PRIMARY === 'cdn' ? FACE_LANDMARKER_MODEL.localUrl : FACE_LANDMARKER_MODEL.remoteUrl;
+	return WASM_PRIMARY === 'cdn' ? localUrl : remoteUrl;
 }
 
 function isValidDimension(value: number): boolean {
