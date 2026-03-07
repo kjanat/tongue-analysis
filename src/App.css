@@ -392,6 +392,22 @@ dialog.camera-modal::backdrop {
 	min-height: 3.5rem;
 	max-height: 14rem;
 	overflow-y: auto;
+	transition:
+		max-height 0.18s ease,
+		opacity 0.16s ease,
+		margin-top 0.18s ease,
+		padding 0.18s ease,
+		border-color 0.18s ease;
+}
+
+.camera-live[data-closing="true"] {
+	margin-top: 0;
+	padding-top: 0;
+	padding-bottom: 0;
+	max-height: 0;
+	opacity: 0;
+	border-color: transparent;
+	overflow: hidden;
 }
 
 .camera-live-header {
@@ -1088,6 +1104,7 @@ dialog.camera-modal::backdrop {
 	.loading-step,
 	.camera-live-dot,
 	.camera-preview,
+	.camera-live,
 	.camera-live-diagnosis,
 	.guide summary::before {
 		transition: none;

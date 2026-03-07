@@ -23,6 +23,7 @@ import { withViewTransitionAndWait } from '../lib/view-transition.ts';
  * Gives users time to return before requiring a manual restart.
  */
 const CAMERA_RELEASE_DELAY_MS = 20_000;
+const LIVE_PANEL_CLOSE_COLLAPSE_MS = 180;
 const DESKTOP_PREVIEW_ASPECT_RATIO = 16 / 9;
 const MOBILE_PREVIEW_ASPECT_RATIO = 3 / 4;
 const MOBILE_PREVIEW_MEDIA_QUERY = '(max-width: 700px) and (orientation: portrait)';
@@ -35,6 +36,12 @@ function getFallbackPreviewAspectRatio(): number {
 	return window.matchMedia(MOBILE_PREVIEW_MEDIA_QUERY).matches
 		? MOBILE_PREVIEW_ASPECT_RATIO
 		: DESKTOP_PREVIEW_ASPECT_RATIO;
+}
+
+function delay(ms: number): Promise<void> {
+	return new Promise((resolve) => {
+		setTimeout(resolve, ms);
+	});
 }
 
 type HeroOwner = 'button' | 'dialog';
@@ -235,6 +242,8 @@ interface LiveDiagnosisPanelProps {
 	readonly canUseLiveDiagnosis: boolean;
 	/** Callback to promote the current live diagnosis to a full result. */
 	readonly onUseLiveDiagnosis: () => void;
+	/** `true` while modal-close pre-collapse animation is running. */
+	readonly closingForModalClose: boolean;
 }
 
 /**
@@ -251,12 +260,13 @@ function LiveDiagnosisPanel({
 	liveUpdatedAt,
 	canUseLiveDiagnosis,
 	onUseLiveDiagnosis,
+	closingForModalClose,
 }: LiveDiagnosisPanelProps) {
 	const isLiveRunning = liveMode === 'running';
 	const revealPhase = liveUpdatedAt !== null && liveUpdatedAt % 2 === 0 ? 'a' : 'b';
 
 	return (
-		<div className='camera-live'>
+		<div className='camera-live' data-closing={closingForModalClose}>
 			<div className='camera-live-header'>
 				<span>Live</span>
 				{isLiveRunning && liveStep !== null && (
@@ -333,12 +343,14 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 	const dialogRef = useRef<HTMLDialogElement>(null);
 	const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
 	const modalTransitioningRef = useRef(false);
+	const transitionClosingRef = useRef(false);
 	const pendingCloseRef = useRef(false);
 	const [cameraAutoPaused, setCameraAutoPaused] = useState(false);
 	const [heroOwner, setHeroOwner] = useState<HeroOwner>('button');
 	const [previewPrimed, setPreviewPrimed] = useState(false);
 	const [previewAspectRatio, setPreviewAspectRatio] = useState(getFallbackPreviewAspectRatio);
 	const [videoReady, setVideoReady] = useState(false);
+	const [livePanelClosing, setLivePanelClosing] = useState(false);
 	/** Set to `true` when camera switch interrupted live analysis, so it auto-restarts. */
 	const restartLiveAfterSwitchRef = useRef(false);
 
@@ -425,6 +437,16 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 		delayMs: CAMERA_RELEASE_DELAY_MS,
 	});
 
+	const finalizeModalClose = useCallback(() => {
+		clearReleaseTimer();
+		pendingCloseRef.current = false;
+		setLivePanelClosing(false);
+		setPreviewPrimed(false);
+		setHeroOwner('button');
+		setCameraAutoPaused(false);
+		endSession();
+	}, [clearReleaseTimer, endSession]);
+
 	// ── Handlers ───────────────────────────────
 
 	const closeModalWithTransition = useCallback(async (): Promise<void> => {
@@ -439,39 +461,48 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 		}
 
 		modalTransitioningRef.current = true;
+		transitionClosingRef.current = true;
 		pendingCloseRef.current = false;
 
 		try {
+			if (liveHasStarted) {
+				setLivePanelClosing(true);
+				await delay(LIVE_PANEL_CLOSE_COLLAPSE_MS);
+			}
+
 			try {
 				await withViewTransitionAndWait(() => {
-					setHeroOwner('button');
+					setHeroOwner('dialog');
 					dialog.close();
 				});
 			} catch {
-				setHeroOwner('button');
+				setHeroOwner('dialog');
 				const currentDialog = dialogRef.current;
 				if (currentDialog?.open === true) {
 					currentDialog.close();
 				}
 			}
 		} finally {
+			transitionClosingRef.current = false;
 			modalTransitioningRef.current = false;
+			if (dialogRef.current?.open !== true) {
+				finalizeModalClose();
+			}
 		}
-	}, []);
+	}, [finalizeModalClose, liveHasStarted]);
 
 	const handleCloseModal = useCallback(() => {
 		void closeModalWithTransition();
 	}, [closeModalWithTransition]);
 
 	const handleDialogClose = useCallback(() => {
-		clearReleaseTimer();
+		if (transitionClosingRef.current) {
+			return;
+		}
+
 		modalTransitioningRef.current = false;
-		pendingCloseRef.current = false;
-		setPreviewPrimed(false);
-		setHeroOwner('button');
-		setCameraAutoPaused(false);
-		endSession();
-	}, [clearReleaseTimer, endSession]);
+		finalizeModalClose();
+	}, [finalizeModalClose]);
 
 	const handleStartCamera = useCallback(() => {
 		clearReleaseTimer();
@@ -498,6 +529,7 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 			try {
 				setCameraAutoPaused(false);
 				clearAllErrors();
+				setLivePanelClosing(false);
 
 				try {
 					await withViewTransitionAndWait(() => {
@@ -772,6 +804,7 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 						liveUpdatedAt={liveUpdatedAt}
 						canUseLiveDiagnosis={onLiveDiagnosis !== undefined}
 						onUseLiveDiagnosis={handleUseLiveDiagnosis}
+						closingForModalClose={livePanelClosing}
 					/>
 				)}
 			</dialog>
