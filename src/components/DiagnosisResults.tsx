@@ -1,14 +1,9 @@
+import type { RgbColor } from '../lib/color-correction.ts';
 import type { Diagnosis } from '../lib/diagnosis.ts';
 
 interface DiagnosisResultsProps {
 	readonly diagnosis: Diagnosis;
 	readonly onRestart: () => void;
-}
-
-interface RgbColor {
-	readonly r: number;
-	readonly g: number;
-	readonly b: number;
 }
 
 function clampChannel(value: number): number {

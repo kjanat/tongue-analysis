@@ -9,6 +9,7 @@ import {
 	ZONE_LABEL,
 } from '../data/tongue-types.ts';
 import type { TongueColorClassification } from './color-classification.ts';
+import type { RgbColor } from './color-correction.ts';
 
 export interface OrganZoneHit {
 	readonly organ: OrganName;
@@ -18,11 +19,7 @@ export interface OrganZoneHit {
 export interface Diagnosis {
 	readonly type: TongueType;
 	readonly confidence: number;
-	readonly observedColor: {
-		readonly r: number;
-		readonly g: number;
-		readonly b: number;
-	};
+	readonly observedColor: RgbColor;
 	readonly elements: readonly { readonly name: string; readonly cls: Element; readonly val: number }[];
 	readonly meridians: readonly { readonly name: string; readonly val: number }[];
 	readonly organZones: readonly OrganZoneHit[];

@@ -1,6 +1,7 @@
-import { hexToOklch, isAchromatic, type Oklch, rgbToOklch } from 'hex-to-oklch';
+import { hexToOklch, type Oklch, rgbToOklch } from 'hex-to-oklch';
 import { TONGUE_TYPES, type TongueType } from '../data/tongue-types.ts';
 import type { RgbColor } from './color-correction.ts';
+import { MAX_DISTANCE, oklchDistance } from './oklch-distance.ts';
 
 export interface TypeMatch {
 	readonly type: TongueType;
@@ -16,30 +17,8 @@ export interface TongueColorClassification {
 	readonly rankings: readonly TypeMatch[];
 }
 
-const LIGHTNESS_WEIGHT = 1;
-const CHROMA_WEIGHT = 1;
-const HUE_WEIGHT = 1;
-const CHROMA_SCALE = 0.4;
-const MAX_DISTANCE = Math.sqrt(LIGHTNESS_WEIGHT + CHROMA_WEIGHT + HUE_WEIGHT);
-
 function clamp(value: number, min: number, max: number): number {
 	return Math.min(max, Math.max(min, value));
-}
-
-function oklchDistance(a: Oklch, b: Oklch): number {
-	const lightnessDiff = Math.abs(a.l - b.l);
-	const chromaDiff = Math.abs(a.c - b.c) / CHROMA_SCALE;
-
-	const rawHueDiff = Math.abs(a.h - b.h);
-	const hueDiff = isAchromatic(a) || isAchromatic(b)
-		? 0
-		: Math.min(rawHueDiff, 360 - rawHueDiff) / 180;
-
-	return Math.sqrt(
-		lightnessDiff * lightnessDiff * LIGHTNESS_WEIGHT
-			+ chromaDiff * chromaDiff * CHROMA_WEIGHT
-			+ hueDiff * hueDiff * HUE_WEIGHT,
-	);
 }
 
 function distanceToScore(distance: number): number {

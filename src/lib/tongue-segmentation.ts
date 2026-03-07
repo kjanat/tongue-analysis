@@ -44,12 +44,12 @@ const DEFAULT_HSV_THRESHOLD: HsvThreshold = {
 	valueMax: 95,
 };
 
-const MIN_TONGUE_PIXELS = 120;
 const MIN_CENTROID_Y_RATIO = 0.45;
 const MIN_LARGEST_COMPONENT_RATIO = 0.55;
-const REDNESS_OVER_GREEN_MIN = 12;
-const REDNESS_OVER_BLUE_MIN = 8;
 const MIN_RED_CHANNEL = 70;
+const MIN_TONGUE_PIXELS = 120;
+const REDNESS_OVER_BLUE_MIN = 8;
+const REDNESS_OVER_GREEN_MIN = 12;
 
 interface HsvColor {
 	readonly h: number;
@@ -310,12 +310,14 @@ export function segmentTongue(
 	}
 
 	const threshold = options?.threshold ?? DEFAULT_HSV_THRESHOLD;
-	const minimumPixels = clamp(options?.minimumPixels ?? MIN_TONGUE_PIXELS, 1, Number.MAX_SAFE_INTEGER);
 	const allowedMask = options?.allowedMask;
 
 	if (allowedMask !== undefined && allowedMask.length !== imageData.width * imageData.height) {
 		return err({ kind: 'allowed_mask_size_mismatch' });
 	}
+
+	const totalPixels = imageData.width * imageData.height;
+	const minimumPixels = clamp(options?.minimumPixels ?? MIN_TONGUE_PIXELS, 1, totalPixels);
 
 	const thresholdMask = buildThresholdMask(imageData, threshold, allowedMask);
 	const openedMask = dilate(erode(thresholdMask, imageData.width, imageData.height), imageData.width, imageData.height);
