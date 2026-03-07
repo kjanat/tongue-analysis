@@ -126,7 +126,8 @@ export interface AnalyzeTongueOptions {
 /**
  * Notify the caller that a pipeline stage is starting.
  *
- * No-ops when `options` or `options.onStep` is absent.
+ * No-ops when `options` or `options.onStep` is absent. A throwing
+ * callback is swallowed so a faulty observer cannot break the pipeline.
  *
  * @param step - The pipeline stage about to begin.
  * @param options - Caller-provided options containing the progress callback.
@@ -140,7 +141,9 @@ export function emitStep(
 	step: AnalysisStep,
 	options?: AnalyzeTongueOptions,
 ): void {
-	options?.onStep?.(step);
+	try {
+		options?.onStep?.(step);
+	} catch { /* observer must not break the pipeline */ }
 }
 
 /**

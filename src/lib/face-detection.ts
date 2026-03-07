@@ -437,14 +437,21 @@ async function getFaceLandmarker(mode: DetectionMode): Promise<FaceLandmarker> {
 		throw new Error('FaceLandmarker released during initialization');
 	}
 
-	cachedFaceLandmarker = faceLandmarker;
-
 	// Concurrent callers may have shared this promise (via ??=) but requested
 	// a different mode than the one createFaceLandmarker was called with.
 	// Bring the landmarker into the correct mode before returning.
 	if (currentMode !== mode) {
 		await faceLandmarker.setOptions({ runningMode: mode });
+
+		// Re-check after yielding: a concurrent release during setOptions()
+		// means the instance we hold has been closed out from under us.
+		if (gen !== releaseGeneration) {
+			faceLandmarker.close();
+			throw new Error('FaceLandmarker released during setOptions');
+		}
 	}
+
+	cachedFaceLandmarker = faceLandmarker;
 	currentMode = mode;
 
 	return faceLandmarker;

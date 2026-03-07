@@ -46,10 +46,16 @@ function createCanvasCrop(
 		return err({ kind: 'canvas_unavailable' });
 	}
 
-	context.drawImage(source, sx, sy, sw, sh, 0, 0, sw, sh);
+	let imageData: ImageData;
+	try {
+		context.drawImage(source, sx, sy, sw, sh, 0, 0, sw, sh);
+		imageData = context.getImageData(0, 0, sw, sh);
+	} catch {
+		return err({ kind: 'mouth_crop_failed' });
+	}
 
 	return ok({
-		imageData: context.getImageData(0, 0, sw, sh),
+		imageData,
 		x: sx,
 		y: sy,
 		width: sw,

@@ -11,7 +11,7 @@
  */
 
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, rename, unlink, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import type { Plugin, ResolvedConfig } from 'vite';
@@ -409,7 +409,18 @@ async function ensureDownloads(downloads: readonly ResolvedDownload[]): Promise<
 				throw fetchError;
 			}
 			clearTimeout(timer);
-			await writeFile(download.absolutePath, Buffer.from(body));
+
+			// Atomic write: write to a temp file then rename, so a crash or
+			// concurrent read never sees a half-written asset.
+			const tmpPath = `${download.absolutePath}.tmp-${String(process.pid)}-${String(Date.now())}`;
+			try {
+				await writeFile(tmpPath, Buffer.from(body));
+				await rename(tmpPath, download.absolutePath);
+			} catch (writeError) {
+				// Best-effort cleanup — ignore failure (e.g. temp file already gone).
+				await unlink(tmpPath).catch(() => undefined);
+				throw writeError;
+			}
 			console.log(`[package-bindings] asset saved: ${download.outputPath}`);
 			locallyAvailable.add(download.id);
 		} catch (error) {

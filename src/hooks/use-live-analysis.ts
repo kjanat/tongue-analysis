@@ -323,10 +323,10 @@ export function useLiveAnalysis(options: UseLiveAnalysisOptions): UseLiveAnalysi
 				}
 
 				if (shouldUpdateState) {
-					const now = Date.now();
 					setLiveError(liveErrorMessage(result.error));
-					setLiveUpdatedAt(now);
-					lastUpdatedAtRef.current = now;
+					// Only bump internal throttle — the public liveUpdatedAt
+					// timestamp reflects the last *successful* diagnosis, not errors.
+					lastUpdatedAtRef.current = Date.now();
 				}
 				if (DEBUG_OVERLAY_ENABLED) {
 					clearOverlayCanvas(overlayCanvasRef.current);
@@ -357,14 +357,12 @@ export function useLiveAnalysis(options: UseLiveAnalysisOptions): UseLiveAnalysi
 			}
 
 			if (shouldUpdateState) {
-				const now = Date.now();
 				if (isAnalysisError(caughtError)) {
 					setLiveError(liveErrorMessage(caughtError));
 				} else {
 					setLiveError('Onbekende live-analysefout.');
 				}
-				setLiveUpdatedAt(now);
-				lastUpdatedAtRef.current = now;
+				lastUpdatedAtRef.current = Date.now();
 			}
 
 			if (DEBUG_OVERLAY_ENABLED) {

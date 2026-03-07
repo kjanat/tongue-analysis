@@ -30,13 +30,15 @@ let activeTransition: ViewTransition | undefined;
  */
 export function startManagedViewTransition(update: () => void): ViewTransition | null {
 	if (window.matchMedia(REDUCED_MOTION_QUERY).matches) {
-		update();
+		// eslint-disable-next-line react-dom/no-flush-sync -- consistent synchronous commit across all code paths
+		flushSync(update);
 		return null;
 	}
 
 	// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- runtime guard for browsers without View Transitions API
 	if (!document.startViewTransition) {
-		update();
+		// eslint-disable-next-line react-dom/no-flush-sync -- consistent synchronous commit across all code paths
+		flushSync(update);
 		return null;
 	}
 

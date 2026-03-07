@@ -59,7 +59,7 @@ Every pipeline stage has its own discriminated union error type (`kind` tag):
 - **`ColorCorrectionError`** — `mask_size_mismatch`, `no_masked_pixels`
 - **`AnalysisError`** (pipeline-level) — wraps above + `image_load_failed`, `canvas_unavailable`, `mouth_crop_failed`, `poor_lighting`, `inconclusive_color`
 
-`poor_lighting` is checked between face detection and segmentation (validates luminance distribution).
+`poor_lighting` is a secondary diagnostic invoked *after* segmentation failure or color-gate failure — `detectLightingIssue()` runs in the error-handling path of `analysis-core.ts`, not as a pre-check before segmentation.
 
 ## CONVENTIONS (beyond root)
 

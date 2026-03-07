@@ -260,9 +260,18 @@ dialog.camera-modal[data-closing="true"]::backdrop {
 	box-shadow: inset 0 0 0 1.25px rgba(139, 69, 19, 0.4);
 }
 
+.camera-btn--primary:hover {
+	filter: brightness(1.12);
+}
+
 .camera-btn--ghost {
 	background: transparent;
 	color: #9d8a73;
+}
+
+.camera-btn--ghost:hover {
+	background: rgba(201, 165, 78, 0.06);
+	color: #b8a080;
 }
 
 .camera-btn--live[data-running="true"] {
@@ -271,10 +280,20 @@ dialog.camera-modal[data-closing="true"]::backdrop {
 	color: #c9e7c9;
 }
 
+.camera-btn--live[data-running="true"]:hover {
+	background: rgba(34, 139, 34, 0.26);
+	border-color: rgba(76, 175, 80, 0.7);
+}
+
 .camera-btn--switch {
 	background: rgba(70, 105, 165, 0.2);
 	border-color: rgba(114, 151, 218, 0.52);
 	color: #d7e6ff;
+}
+
+.camera-btn--switch:hover {
+	background: rgba(70, 105, 165, 0.3);
+	border-color: rgba(114, 151, 218, 0.7);
 }
 
 .camera-status {
@@ -540,6 +559,10 @@ dialog.camera-modal[data-closing="true"]::backdrop {
 		transform: translateX(100%);
 	}
 }
+
+/* Intentionally duplicated: toggling data-reveal-phase between "a" and "b"
+   swaps animation-name to force a CSS-only restart. Both must remain separate
+   and identical — consolidating into one keyframe breaks the restart trick. */
 
 @keyframes camera-live-reveal-a {
 	from {
@@ -1140,6 +1163,10 @@ dialog.camera-modal[data-closing="true"]::backdrop {
 ::view-transition-new(camera-hero) {
 	animation-name: camera-hero-new;
 }
+
+/* Intentionally no-op (opacity 1 → 1): overrides the default cross-fade so
+   both old and new snapshots stay fully visible while the View Transitions API
+   morphs position/size via ::view-transition-group(camera-hero). */
 
 @keyframes camera-hero-old {
 	from {

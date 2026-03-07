@@ -78,14 +78,15 @@ async function loadImagePixels(filePath: string): Promise<{
 	readonly width: number;
 	readonly height: number;
 }> {
-	const image = sharp(filePath).removeAlpha().ensureAlpha();
-	const { width, height } = await image.metadata();
+	// .rotate() applies EXIF orientation, ensuring dimensions reflect the
+	// actual pixel layout rather than the raw sensor orientation.
+	const image = sharp(filePath).rotate().removeAlpha().ensureAlpha();
+	const { data: rawBuffer, info } = await image.raw().toBuffer({ resolveWithObject: true });
+	const { width, height } = info;
 
 	if (width <= 0 || height <= 0) {
 		throw new Error(`Invalid image dimensions: ${String(width)}x${String(height)}`);
 	}
-
-	const rawBuffer = await image.raw().toBuffer();
 
 	return {
 		data: new Uint8ClampedArray(rawBuffer.buffer, rawBuffer.byteOffset, rawBuffer.byteLength),

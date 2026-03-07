@@ -9,10 +9,9 @@
  * Invoked via `bun run build` → `bun --bun scripts/build.ts`.
  */
 
-import { file } from 'bun';
 import { spawn, spawnSync } from 'node:child_process';
 import { constants } from 'node:fs';
-import { access, readdir, stat } from 'node:fs/promises';
+import { access, readdir, readFile, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 
 /**
@@ -264,7 +263,7 @@ async function readGithubEventPayload(): Promise<GithubEventPayload | undefined>
 	if (eventPath === undefined) return undefined;
 
 	try {
-		const raw = await file(eventPath).text();
+		const raw = await readFile(eventPath, 'utf8');
 		const parsed: unknown = JSON.parse(raw);
 		const headCommit = getObjectProperty(parsed, 'head_commit');
 		const repository = getObjectProperty(parsed, 'repository');
@@ -407,7 +406,6 @@ async function build(): Promise<void> {
 	const bunExecutable = process.execPath;
 	await run(bunExecutable, ['run', 'tsc', '-b']);
 	await run(bunExecutable, ['--bun', 'run', 'vite', 'build'], {
-		...process.env,
 		VITE_DEBUG_OVERLAY: metadata.debugOverlay,
 		VITE_COMMIT_SHA: metadata.commitSha,
 		VITE_BUILD_DATE: metadata.buildDate,

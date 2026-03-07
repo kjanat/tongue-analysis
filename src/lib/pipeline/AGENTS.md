@@ -22,7 +22,7 @@ pipeline.ts (entry points)
        ├─ frame-source.ts  → FrameSource (image/video/raw)
        ├─ crop.ts           → MouthCrop (ImageData + dimensions)
        ├─ mask.ts           → Uint8Array (binary pixel mask)
-       ├─ lighting.ts       → poor-lighting check (before segmentation)
+       ├─ lighting.ts       → poor-lighting check (after segmentation/color-gate failure)
        └─ thresholds.ts     → constants used by all stages
 ```
 
@@ -31,7 +31,7 @@ pipeline.ts (entry points)
 - **`FrameSource` ADT**: Discriminated union with `kind` tag (`'url'` | `'image_data'` | `'video'`). Parsed at boundary in `frame-source.ts`.
 - **Threshold isolation**: All magic numbers live in `thresholds.ts`, not scattered across stages.
 - **Mask fallback**: `mask.ts` tries inner-lip polygon rasterization first, falls back to axis-aligned ellipse if polygon has too few points.
-- **Lighting gate**: `lighting.ts` checks luminance distribution *before* tongue segmentation to fast-fail on underexposed images.
+- **Lighting diagnostic**: `lighting.ts` checks luminance distribution as a secondary diagnostic *after* segmentation or color-gate failure, providing actionable "improve lighting" errors instead of generic ones.
 - **`types.ts` is import-only**: Pure type definitions, no runtime code. All types use `readonly` fields.
 
 ## NOTES

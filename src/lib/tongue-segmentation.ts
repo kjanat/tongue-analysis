@@ -257,7 +257,7 @@ function hasTongueLikeColor(r: number, g: number, b: number): boolean {
 /**
  * Build a binary mask of pixels matching the tongue color profile.
  *
- * For each pixel: skip if outside `allowedMask` → apply {@link hasTongueLikeRedness}
+ * For each pixel: skip if outside `allowedMask` → apply {@link hasTongueLikeColor}
  * pre-filter → convert to HSV → test against {@link HsvThreshold}.
  *
  * @param imageData - Source RGBA image data.

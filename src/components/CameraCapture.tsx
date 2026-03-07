@@ -480,6 +480,7 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 	}, [clearCameraError, clearLiveError]);
 
 	const endSession = useCallback(() => {
+		restartLiveAfterSwitchRef.current = false;
 		resetLiveAnnouncement();
 		resetLiveAnalysis();
 		resetCamera();
@@ -488,6 +489,7 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 	// ── Camera release ─────────────────────────
 
 	const handleRelease = useCallback(() => {
+		restartLiveAfterSwitchRef.current = false;
 		stopLiveAnalysis();
 		resetCamera();
 		setCameraAutoPaused(true);

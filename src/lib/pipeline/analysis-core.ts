@@ -33,13 +33,16 @@ import type { FrameSource } from './types.ts';
  * Forward a pipeline step notification to the caller.
  *
  * Duplicated from the public API module to avoid a circular import;
- * both call through to {@link AnalyzeTongueOptions.onStep}.
+ * both call through to {@link AnalyzeTongueOptions.onStep}. A throwing
+ * callback is swallowed so a faulty observer cannot break the pipeline.
  *
  * @param step - Pipeline stage identifier.
  * @param options - Caller options containing the optional callback.
  */
 function emitStep(step: AnalysisStep, options?: AnalyzeTongueOptions): void {
-	options?.onStep?.(step);
+	try {
+		options?.onStep?.(step);
+	} catch { /* observer must not break the pipeline */ }
 }
 
 /**
