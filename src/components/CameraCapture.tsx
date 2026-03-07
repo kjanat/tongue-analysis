@@ -302,12 +302,12 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 		endSession();
 	}, [clearReleaseTimer, endSession]);
 
-	const handleStartCamera = useCallback(async () => {
+	const handleStartCamera = useCallback(() => {
 		clearReleaseTimer();
 		setCameraAutoPaused(false);
 		stopLiveAnalysis();
 		clearLiveError();
-		await startCamera();
+		void startCamera();
 	}, [clearLiveError, clearReleaseTimer, startCamera, stopLiveAnalysis]);
 
 	const handleOpenModal = useCallback(() => {
@@ -319,7 +319,7 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 		setCameraAutoPaused(false);
 		clearAllErrors();
 		if (isIdle) {
-			void handleStartCamera();
+			handleStartCamera();
 		}
 	}, [clearAllErrors, clearReleaseTimer, handleStartCamera, isIdle]);
 
@@ -347,22 +347,23 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 		};
 	}, [clearReleaseTimer, handlePageHidden]);
 
-	const handleCapture = useCallback(async () => {
+	const handleCapture = useCallback(() => {
 		const video = videoRef.current;
 		if (video === null) {
 			setCameraError('Geen camerabeeld beschikbaar om vast te leggen.');
 			return;
 		}
 
-		const result = await captureVideoFrame(video);
-		if (!result.ok) {
-			setCameraError(captureErrorMessage(result.error));
-			return;
-		}
+		void captureVideoFrame(video).then((result) => {
+			if (!result.ok) {
+				setCameraError(captureErrorMessage(result.error));
+				return;
+			}
 
-		const objectUrl = URL.createObjectURL(result.value);
-		dialogRef.current?.close();
-		onCapture(result.value, objectUrl);
+			const objectUrl = URL.createObjectURL(result.value);
+			dialogRef.current?.close();
+			onCapture(result.value, objectUrl);
+		});
 	}, [onCapture, setCameraError, videoRef]);
 
 	const handleLiveToggle = useCallback(() => {
@@ -374,10 +375,10 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 		startLiveAnalysis();
 	}, [isLiveRunning, startLiveAnalysis, stopLiveAnalysis]);
 
-	const handleSwitchCamera = useCallback(async () => {
+	const handleSwitchCamera = useCallback(() => {
 		stopLiveAnalysis();
 		clearLiveError();
-		await switchToNextCamera();
+		void switchToNextCamera();
 	}, [clearLiveError, stopLiveAnalysis, switchToNextCamera]);
 
 	const handleUseLiveDiagnosis = useCallback(() => {
@@ -432,7 +433,7 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 						<CameraIdleActions
 							cameraAutoPaused={cameraAutoPaused}
 							error={error}
-							onStart={() => void handleStartCamera()}
+							onStart={handleStartCamera}
 						/>
 					)}
 
@@ -443,8 +444,8 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 							canSwitchCamera={canSwitchCamera}
 							activeCameraLabel={activeCameraLabel}
 							isLiveRunning={isLiveRunning}
-							onCapture={() => void handleCapture()}
-							onSwitchCamera={() => void handleSwitchCamera()}
+							onCapture={handleCapture}
+							onSwitchCamera={handleSwitchCamera}
 							onLiveToggle={handleLiveToggle}
 						/>
 					)}

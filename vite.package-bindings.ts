@@ -251,7 +251,9 @@ async function ensureDownloads(downloads: readonly ResolvedDownload[]): Promise<
 
 			const controller = new AbortController();
 			const timeoutMs = 30_000;
-			const timer = setTimeout(() => { controller.abort(); }, timeoutMs);
+			const timer = setTimeout(() => {
+				controller.abort();
+			}, timeoutMs);
 			let response: Response;
 			try {
 				response = await fetch(download.url, { signal: controller.signal });
