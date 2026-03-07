@@ -9,9 +9,10 @@
  */
 
 import type { MouthRegion } from '../face-detection.ts';
+import { clamp } from '../math-utils.ts';
 import type { AnalysisError } from '../pipeline.ts';
 import { err, ok, type Result } from '../result.ts';
-import { clamp, getFrameDimensions } from './frame-source.ts';
+import { getFrameDimensions } from './frame-source.ts';
 import type { FrameSource, MouthCrop } from './types.ts';
 
 /**

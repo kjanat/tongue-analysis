@@ -18,6 +18,7 @@ import {
 } from '../data/tongue-types.ts';
 import type { TongueColorClassification } from './color-classification.ts';
 import type { RgbColor } from './color-correction.ts';
+import { clamp } from './math-utils.ts';
 
 /**
  * Single organ-to-tongue-zone mapping used in diagnosis results.
@@ -82,18 +83,6 @@ const BASE_MERIDIAN_VALUE = 32;
  * Only applied once per meridian (no stacking).
  */
 const AFFECTED_MERIDIAN_BOOST = 50;
-
-/**
- * Constrain a number to an inclusive range.
- *
- * @param value - Input value.
- * @param min - Lower bound (inclusive).
- * @param max - Upper bound (inclusive).
- * @returns The clamped value.
- */
-function clamp(value: number, min: number, max: number): number {
-	return Math.min(max, Math.max(min, value));
-}
 
 /**
  * Compute Five-Element (Wu Xing) scores from affected organs.

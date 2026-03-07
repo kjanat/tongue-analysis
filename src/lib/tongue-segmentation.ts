@@ -10,6 +10,7 @@
  * @module
  */
 
+import { clamp } from './math-utils.ts';
 import { err, ok, type Result } from './result.ts';
 
 /**
@@ -151,18 +152,6 @@ interface HsvColor {
 	readonly s: number;
 	/** Value (brightness) as percentage (0–100). */
 	readonly v: number;
-}
-
-/**
- * Constrain a value to the inclusive range `[min, max]`.
- *
- * @param value - Input value.
- * @param min - Lower bound.
- * @param max - Upper bound.
- * @returns Clamped value.
- */
-function clamp(value: number, min: number, max: number): number {
-	return Math.min(max, Math.max(min, value));
 }
 
 /**

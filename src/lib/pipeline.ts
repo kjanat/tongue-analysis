@@ -16,6 +16,7 @@ import type { MouthDetectionError, MouthRegion } from './face-detection.ts';
 import { detectMouthRegion, detectMouthRegionForVideo } from './face-detection.ts';
 import type { LightingIssue } from './pipeline/lighting.ts';
 import { err, type Result } from './result.ts';
+import type { TongueSegmentationError } from './tongue-segmentation.ts';
 
 import { analyzeTongueFrame } from './pipeline/analysis-core.ts';
 import { loadImage } from './pipeline/frame-source.ts';
@@ -42,12 +43,19 @@ export type AnalysisStep = (typeof ANALYSIS_STEPS)[number]['step'];
 /**
  * Lookup table mapping each {@link AnalysisStep} to its Dutch display label.
  *
- * Built at module load from {@link ANALYSIS_STEPS}; used by UI components
- * (e.g. `LoadingSequence`) to render progress text.
+ * Used by UI components (e.g. `LoadingSequence`) to render progress text.
+ * Written as an explicit object literal so TypeScript can verify exhaustiveness
+ * without a type assertion; `satisfies` enforces full coverage at compile time.
  */
-export const ANALYSIS_STEP_LABELS: Readonly<Record<AnalysisStep, string>> = Object.fromEntries(
-	ANALYSIS_STEPS.map(({ step, label }) => [step, label]),
-) as Record<AnalysisStep, string>;
+export const ANALYSIS_STEP_LABELS = {
+	loading_image: 'Foto laden',
+	loading_model: 'Model initialiseren',
+	detecting_mouth: 'Mondregio detecteren',
+	segmenting_tongue: 'Tong segmenteren',
+	correcting_color: 'Kleur normaliseren',
+	classifying_color: 'Tongkleur classificeren',
+	building_diagnosis: 'Diagnose opstellen',
+} satisfies Record<AnalysisStep, string>;
 
 /**
  * Discriminated union of all failure modes in the analysis pipeline.
@@ -81,7 +89,7 @@ export type AnalysisError =
 	| ({ readonly kind: 'poor_lighting' } & LightingIssue)
 	| {
 		readonly kind: 'tongue_segmentation_error';
-		readonly error: import('./tongue-segmentation.ts').TongueSegmentationError;
+		readonly error: TongueSegmentationError;
 	}
 	| {
 		readonly kind: 'inconclusive_color';

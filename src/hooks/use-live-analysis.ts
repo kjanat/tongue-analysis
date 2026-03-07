@@ -25,14 +25,9 @@ const LIVE_UPDATED_AT_THROTTLE_MS = 1000;
  */
 const DEBUG_OVERLAY_ENABLED = import.meta.env.VITE_DEBUG_OVERLAY === 'true';
 
-// Derived nested discriminant types for compile-time validation of runtime arrays.
-type FaceDetectionErrorKind = Extract<AnalysisError, { readonly kind: 'face_detection_error' }>['error']['kind'];
-type SegmentationErrorKind = Extract<AnalysisError, { readonly kind: 'tongue_segmentation_error' }>['error']['kind'];
-type LightingIssueValue = Extract<AnalysisError, { readonly kind: 'poor_lighting' }>['issue'];
-
 /**
  * All top-level {@link AnalysisError} `kind` discriminants.
- * Used by {@link isAnalysisError} to validate unknown values at runtime.
+ * Used by {@link isAnalysisError} to validate unknown catch-block values.
  * `satisfies` ensures every element is a valid `AnalysisError['kind']`.
  */
 const ANALYSIS_ERROR_KINDS = [
@@ -46,49 +41,8 @@ const ANALYSIS_ERROR_KINDS = [
 	'inconclusive_color',
 ] as const satisfies readonly AnalysisError['kind'][];
 
-/**
- * Nested `kind` values for the `face_detection_error` variant of {@link AnalysisError}.
- * @see {@link isAnalysisError}
- */
-const FACE_DETECTION_ERROR_KINDS = [
-	'invalid_image_dimensions',
-	'model_load_failed',
-	'detection_failed',
-	'no_face_detected',
-	'multiple_faces_detected',
-	'mouth_not_visible',
-] as const satisfies readonly FaceDetectionErrorKind[];
-
-/**
- * Nested `kind` values for the `tongue_segmentation_error` variant of {@link AnalysisError}.
- * @see {@link isAnalysisError}
- */
-const TONGUE_SEGMENTATION_ERROR_KINDS = [
-	'empty_input',
-	'allowed_mask_size_mismatch',
-	'no_tongue_pixels_detected',
-	'multiple_regions_detected',
-	'insufficient_pixels',
-] as const satisfies readonly SegmentationErrorKind[];
-
-/**
- * Possible `issue` values for the `poor_lighting` variant of {@link AnalysisError}.
- * @see {@link isAnalysisError}
- */
-const POOR_LIGHTING_ISSUES = [
-	'too_dark',
-	'too_bright',
-	'high_contrast',
-] as const satisfies readonly LightingIssueValue[];
-
 /** O(1) lookup set derived from {@link ANALYSIS_ERROR_KINDS}. */
 const ANALYSIS_ERROR_KIND_SET = new Set<string>(ANALYSIS_ERROR_KINDS);
-/** O(1) lookup set derived from {@link FACE_DETECTION_ERROR_KINDS}. */
-const FACE_DETECTION_ERROR_KIND_SET = new Set<string>(FACE_DETECTION_ERROR_KINDS);
-/** O(1) lookup set derived from {@link TONGUE_SEGMENTATION_ERROR_KINDS}. */
-const TONGUE_SEGMENTATION_ERROR_KIND_SET = new Set<string>(TONGUE_SEGMENTATION_ERROR_KINDS);
-/** O(1) lookup set derived from {@link POOR_LIGHTING_ISSUES}. */
-const POOR_LIGHTING_ISSUE_SET = new Set<string>(POOR_LIGHTING_ISSUES);
 
 /**
  * Whether the live analysis rAF loop is currently active.
@@ -133,11 +87,18 @@ interface UseLiveAnalysisResult {
 	readonly liveHasStarted: boolean;
 	/** Begin the rAF analysis loop. No-op if already running or `enabled` is `false`. */
 	readonly start: () => void;
-	/** Stop the loop, cancel pending rAF, clear overlay and all state. */
+	/**
+	 * Stop the loop, cancel pending rAF, clear overlay and analysis state.
+	 * Preserves {@link UseLiveAnalysisResult.liveHasStarted} so the live
+	 * diagnosis panel stays mounted across camera switches.
+	 */
 	readonly stop: () => void;
 	/** Clear {@link UseLiveAnalysisResult.liveError} without stopping the loop. */
 	readonly clearError: () => void;
-	/** Alias for {@link UseLiveAnalysisResult.stop}; exists for API symmetry with {@link useMediaStream}. */
+	/**
+	 * Full teardown: stops the loop and resets {@link UseLiveAnalysisResult.liveHasStarted},
+	 * unmounting the live diagnosis panel. Use at end of session.
+	 */
 	readonly reset: () => void;
 }
 
@@ -222,56 +183,22 @@ function liveErrorMessage(error: AnalysisError): string {
 
 /**
  * Runtime type guard for {@link AnalysisError}.
- * Needed because `catch` blocks yield `unknown`; this validates the
- * discriminant hierarchy (top-level `kind`, nested `error.kind` / `issue`)
- * using pre-built {@link ANALYSIS_ERROR_KIND_SET} and friends.
+ * Needed because `catch` blocks yield `unknown`. Validates only the
+ * top-level `kind` discriminant via {@link ANALYSIS_ERROR_KIND_SET};
+ * nested sub-variant structure is enforced by TypeScript in
+ * {@link liveErrorMessage} via exhaustive switches.
  *
  * @param value - Caught exception of unknown shape.
- * @returns `true` when `value` structurally matches an {@link AnalysisError}.
+ * @returns `true` when `value` has a recognised `AnalysisError` top-level `kind`.
  */
 function isAnalysisError(value: unknown): value is AnalysisError {
-	if (typeof value !== 'object' || value === null || !('kind' in value)) {
-		return false;
-	}
-
-	const kindValue = value.kind;
-	if (typeof kindValue !== 'string' || !ANALYSIS_ERROR_KIND_SET.has(kindValue)) {
-		return false;
-	}
-
-	switch (kindValue) {
-		case 'face_detection_error': {
-			if (!('error' in value) || typeof value.error !== 'object' || value.error === null || !('kind' in value.error)) {
-				return false;
-			}
-
-			const nestedKindValue = value.error.kind;
-			return typeof nestedKindValue === 'string' && FACE_DETECTION_ERROR_KIND_SET.has(nestedKindValue);
-		}
-		case 'tongue_segmentation_error': {
-			if (!('error' in value) || typeof value.error !== 'object' || value.error === null || !('kind' in value.error)) {
-				return false;
-			}
-
-			const nestedKindValue = value.error.kind;
-			return typeof nestedKindValue === 'string' && TONGUE_SEGMENTATION_ERROR_KIND_SET.has(nestedKindValue);
-		}
-		case 'poor_lighting': {
-			if (!('issue' in value)) {
-				return false;
-			}
-
-			return typeof value.issue === 'string' && POOR_LIGHTING_ISSUE_SET.has(value.issue);
-		}
-		case 'image_load_failed':
-		case 'canvas_unavailable':
-		case 'mouth_crop_failed':
-		case 'color_correction_error':
-		case 'inconclusive_color':
-			return true;
-		default:
-			return false;
-	}
+	return (
+		typeof value === 'object'
+		&& value !== null
+		&& 'kind' in value
+		&& typeof value.kind === 'string'
+		&& ANALYSIS_ERROR_KIND_SET.has(value.kind)
+	);
 }
 
 /**
@@ -332,7 +259,8 @@ export function useLiveAnalysis(options: UseLiveAnalysisOptions): UseLiveAnalysi
 		setLiveError(null);
 		setLiveDiagnosis(null);
 		setLiveUpdatedAt(null);
-		setLiveHasStarted(false);
+		// Intentionally does NOT reset liveHasStarted — preserves the live
+		// diagnosis panel across camera switches. Use reset() for full teardown.
 	}, [overlayCanvasRef]);
 
 	const clearError = useCallback(() => {
@@ -341,6 +269,7 @@ export function useLiveAnalysis(options: UseLiveAnalysisOptions): UseLiveAnalysi
 
 	const reset = useCallback(() => {
 		stop();
+		setLiveHasStarted(false);
 	}, [stop]);
 
 	const runLiveAnalysis = useCallback(async () => {
@@ -473,9 +402,9 @@ export function useLiveAnalysis(options: UseLiveAnalysisOptions): UseLiveAnalysi
 
 	useEffect(() => {
 		return () => {
-			stop();
+			reset();
 		};
-	}, [stop]);
+	}, [reset]);
 
 	return {
 		liveMode,

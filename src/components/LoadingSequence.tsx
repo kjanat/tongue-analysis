@@ -71,10 +71,10 @@ export default function LoadingSequence({ step }: LoadingSequenceProps) {
 			<div
 				className='progress-bar'
 				role='progressbar'
-				aria-valuenow={progress}
+				aria-valuenow={Math.round(progress)}
 				aria-valuemin={0}
 				aria-valuemax={100}
-				aria-label='Analyse voortgang'
+				aria-label='Analysevoortgang'
 			>
 				<div
 					className='progress-fill'

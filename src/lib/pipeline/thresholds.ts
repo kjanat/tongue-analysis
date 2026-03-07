@@ -50,5 +50,5 @@ export const MAX_STD_DEV = 70;
 /** Minimum number of sampled pixels required for lighting stats to be meaningful. */
 export const MIN_LIGHTING_SAMPLE_COUNT = 50;
 
-/** When both dark and bright ratios exceed this, lighting is flagged as high-contrast. */
+/** When either dark or bright ratio exceeds this, lighting is flagged as high-contrast. */
 export const HIGH_CONTRAST_RATIO_THRESHOLD = 0.18;

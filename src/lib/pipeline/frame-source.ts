@@ -10,24 +10,6 @@
 import type { FrameDimensions, FrameSource } from './types.ts';
 
 /**
- * Constrain `value` to the inclusive range `[min, max]`.
- *
- * @param value - The number to clamp.
- * @param min - Lower bound (inclusive).
- * @param max - Upper bound (inclusive).
- * @returns The clamped value.
- *
- * @example
- * ```ts
- * clamp(-5, 0, 100); // 0
- * clamp(150, 0, 100); // 100
- * ```
- */
-export function clamp(value: number, min: number, max: number): number {
-	return Math.min(max, Math.max(min, value));
-}
-
-/**
  * Load an image from a URL into an `HTMLImageElement`.
  *
  * Wraps the browser's async image loading in a Promise. The returned

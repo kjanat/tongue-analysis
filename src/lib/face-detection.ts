@@ -16,6 +16,7 @@ import {
 	type NormalizedLandmark,
 } from '@mediapipe/tasks-vision';
 import { type AssetSource, getDownloadBinding, getPackageBinding } from 'virtual:package-bindings';
+import { clamp } from './math-utils.ts';
 import { err, ok, type Result } from './result.ts';
 
 /** 2D point in pixel coordinates (not normalized). */
@@ -162,16 +163,13 @@ let faceLandmarkerPromise: Promise<FaceLandmarker> | undefined;
 let currentMode: DetectionMode | undefined;
 
 /**
- * Constrain a value to the inclusive range `[min, max]`.
+ * Monotonically increasing counter, incremented on every {@link releaseFaceLandmarker} call.
  *
- * @param value - Input value.
- * @param min - Lower bound.
- * @param max - Upper bound.
- * @returns Clamped value.
+ * Captured before each `await` in {@link getFaceLandmarker} and re-checked after. If the counter
+ * changed while awaiting, a release raced the in-flight creation; the just-created landmarker
+ * must be discarded rather than assigned to {@link cachedFaceLandmarker}.
  */
-function clamp(value: number, min: number, max: number): number {
-	return Math.min(max, Math.max(min, value));
-}
+let releaseGeneration = 0;
 
 /**
  * Resolve the WASM fileset base URL for a given asset source.
@@ -419,17 +417,37 @@ async function getFaceLandmarker(mode: DetectionMode): Promise<FaceLandmarker> {
 		return cachedFaceLandmarker;
 	}
 
+	// Capture generation before yielding so we can detect a concurrent release.
+	const gen = releaseGeneration;
+
 	faceLandmarkerPromise ??= createFaceLandmarker(mode);
 
+	let faceLandmarker: FaceLandmarker;
 	try {
-		const faceLandmarker = await faceLandmarkerPromise;
-		cachedFaceLandmarker = faceLandmarker;
-		currentMode = mode;
-		return faceLandmarker;
+		faceLandmarker = await faceLandmarkerPromise;
 	} catch (error) {
 		faceLandmarkerPromise = undefined;
 		throw error;
 	}
+
+	// A concurrent releaseFaceLandmarker() ran while we were awaiting.
+	// The landmarker we just created is now orphaned — close it and bail.
+	if (gen !== releaseGeneration) {
+		faceLandmarker.close();
+		throw new Error('FaceLandmarker released during initialization');
+	}
+
+	cachedFaceLandmarker = faceLandmarker;
+
+	// Concurrent callers may have shared this promise (via ??=) but requested
+	// a different mode than the one createFaceLandmarker was called with.
+	// Bring the landmarker into the correct mode before returning.
+	if (currentMode !== mode) {
+		await faceLandmarker.setOptions({ runningMode: mode });
+	}
+	currentMode = mode;
+
+	return faceLandmarker;
 }
 
 /**
@@ -445,6 +463,7 @@ async function getFaceLandmarker(mode: DetectionMode): Promise<FaceLandmarker> {
  * ```
  */
 export function releaseFaceLandmarker(): void {
+	releaseGeneration++;
 	cachedFaceLandmarker?.close();
 	cachedFaceLandmarker = undefined;
 	faceLandmarkerPromise = undefined;

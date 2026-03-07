@@ -88,10 +88,7 @@ export default function Guide() {
 							<strong>Centrum:</strong> Milt &amp; Maag
 						</li>
 						<li>
-							<strong>Wortel (zijkanten):</strong> Nieren
-						</li>
-						<li>
-							<strong>Wortel (centrum):</strong> Blaas
+							<strong>Wortel:</strong> Nieren &amp; Blaas
 						</li>
 					</ul>
 				</div>
@@ -108,7 +105,7 @@ export default function Guide() {
 							bloed-stagnatie.
 						</li>
 						<li>
-							<strong>Beslag (苔 tái):</strong>{' '}
+							<strong>Beslag (苔 tāi):</strong>{' '}
 							Een dun wit laagje is normaal. Dik wit beslag wijst op Damp, geel op Hitte. Geen beslag duidt op
 							Yin-tekort.
 						</li>

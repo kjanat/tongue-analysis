@@ -212,6 +212,9 @@ export function analyzeTongueFrame(
 		? CLOSEUP_MIN_CLASSIFIABLE_CONFIDENCE
 		: STANDARD_MIN_CLASSIFIABLE_CONFIDENCE;
 
+	// Both conditions required: low chroma alone is valid (pale tongue types like
+	// qi-deficiëntie are naturally desaturated), and low confidence alone still
+	// carries useful signal. Only reject when there's genuinely nothing to work with.
 	if (classification.oklch.c < minChroma && classification.confidence < minConfidence) {
 		const lightingError = mapLightingError(crop.imageData, allowedMask);
 		if (lightingError !== undefined) return err(lightingError);

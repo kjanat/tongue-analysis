@@ -1,3 +1,17 @@
+/* ── Utilities ───────────────────────────────────────────────── */
+
+.visually-hidden {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
+	border: 0;
+}
+
 /* ── Background pattern ─────────────────────────────────────── */
 
 .bg-pattern {
@@ -52,7 +66,7 @@
 .subtitle {
 	margin-top: 0.8rem;
 	font-size: 0.85rem;
-	color: #7a6a55;
+	color: #a89478;
 	font-style: italic;
 }
 
@@ -97,7 +111,7 @@
 
 .upload-hint {
 	font-size: 0.8rem;
-	color: #6a5a45;
+	color: #a89478;
 }
 
 .upload-error {
@@ -513,7 +527,7 @@ dialog.camera-modal::backdrop {
 .loading-step {
 	padding: 0.4rem 0;
 	font-size: 0.85rem;
-	color: #5a4a35;
+	color: #9a8a70;
 	transition: color 0.5s ease;
 }
 
@@ -579,7 +593,7 @@ dialog.camera-modal::backdrop {
 
 .results-header .diagnosis-date {
 	font-size: 0.8rem;
-	color: #6a5a45;
+	color: #a89478;
 	margin-top: 0.3rem;
 }
 
@@ -595,7 +609,7 @@ dialog.camera-modal::backdrop {
 	font-size: 0.75rem;
 	text-transform: uppercase;
 	letter-spacing: 0.15em;
-	color: #8a7a65;
+	color: #a89478;
 	margin-bottom: 0.6rem;
 }
 
@@ -718,7 +732,7 @@ dialog.camera-modal::backdrop {
 
 .meridian-label {
 	font-size: 0.65rem;
-	color: #7a6a55;
+	color: #9a8a70;
 }
 
 /* ── Disclaimer ────────────────────────────────────────────── */
@@ -728,7 +742,7 @@ dialog.camera-modal::backdrop {
 	margin-top: 2.5rem;
 	padding: 1rem;
 	font-size: 0.7rem;
-	color: #7a6a55;
+	color: #9a8a70;
 	border-top: 1px solid rgba(201, 165, 78, 0.1);
 }
 
@@ -853,7 +867,7 @@ dialog.camera-modal::backdrop {
 
 .type-card-detail {
 	font-size: 0.78rem;
-	color: #8a7a65;
+	color: #a89478;
 	line-height: 1.5;
 }
 
@@ -954,6 +968,16 @@ dialog.camera-modal::backdrop {
 
 	.progress-fill,
 	.meridian-fill {
+		transition: none;
+	}
+
+	.loading-step {
+		transition: none;
+	}
+
+	.camera-live-dot,
+	.camera-live-diagnosis,
+	.guide summary::before {
 		transition: none;
 	}
 }

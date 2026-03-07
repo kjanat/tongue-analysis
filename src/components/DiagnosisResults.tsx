@@ -81,6 +81,7 @@ export default function DiagnosisResults(
 					<div className='detected-color'>
 						<span
 							className='detected-color-swatch'
+							aria-hidden='true'
 							style={{
 								backgroundColor: `rgb(${String(observedColor.r)} ${String(observedColor.g)} ${
 									String(observedColor.b)
@@ -131,7 +132,10 @@ export default function DiagnosisResults(
 										style={{ height: `${String(m.val)}%` }}
 									/>
 								</div>
-								<div className='meridian-label'>{m.name}</div>
+								<div className='meridian-label'>
+									{m.name}
+									<span className='visually-hidden'>{String(m.val)}%</span>
+								</div>
 							</div>
 						))}
 					</div>
@@ -145,7 +149,7 @@ export default function DiagnosisResults(
 							{organZones.map((o, i) => (
 								<span key={o.organ}>
 									{i > 0 && <br />}
-									De <strong>{o.zone}</strong> toont activiteit gerelateerd aan de <strong>{o.organ}</strong>.
+									De <strong>{o.zone}</strong> toont activiteit gerelateerd aan <strong>{o.organ}</strong>.
 								</span>
 							))}
 						</p>
@@ -155,22 +159,22 @@ export default function DiagnosisResults(
 				{/* TCM patterns */}
 				<div className='result-card fade-in'>
 					<h3>TCM-Patroonherkenning</h3>
-					{patterns.map((p, i) => (
-						<p key={`${String(i)}-${p}`} className='result-card-spaced'>
-							{p}
-						</p>
-					))}
+					<ul>
+						{patterns.map((p) => <li key={p}>{p}</li>)}
+					</ul>
 				</div>
 
 				{/* Recommendations */}
 				<div className='result-card fade-in'>
 					<h3>Aanbevelingen</h3>
-					{tips.map((t, i) => <p key={`${String(i)}-${t}`}>&bull; {t}</p>)}
+					<ul>
+						{tips.map((t) => <li key={t}>{t}</li>)}
+					</ul>
 				</div>
 			</div>
 
 			<button type='button' className='restart-btn' onClick={onRestart}>
-				&#8635; Nieuwe analyse
+				<span aria-hidden='true'>&#8635;</span>Nieuwe analyse
 			</button>
 		</>
 	);

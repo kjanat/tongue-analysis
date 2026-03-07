@@ -131,7 +131,7 @@ interface CameraStageProps {
 	/** Whether live analysis has been started at least once in this session. */
 	readonly liveHasStarted: boolean;
 	/** Derived status string for the live indicator dot: `'active'`, `'error'`, or `'idle'`. */
-	readonly liveStatus: string;
+	readonly liveStatus: 'active' | 'error' | 'idle';
 	/** Combined error from camera or live analysis, if any. */
 	readonly activeError: string | null;
 }
@@ -340,7 +340,7 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 	const isReady = mode === 'ready';
 	const isRequesting = mode === 'requesting';
 	const isLiveRunning = liveMode === 'running';
-	const cameraActive = !isIdle || isLiveRunning;
+	const cameraActive = !isIdle;
 	const activeError = liveError ?? error;
 	const liveStatus = liveError !== null ? 'error' : isLiveRunning ? 'active' : 'idle';
 	const activeCameraLabel = availableCameras.find((device) => device.deviceId === activeCameraId)?.label;
@@ -442,9 +442,10 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 				return;
 			}
 
+			// Ownership: caller (App.tsx) is responsible for revoking this URL via objectUrlRef
 			const objectUrl = URL.createObjectURL(result.value);
-			dialogRef.current?.close();
 			onCapture(result.value, objectUrl);
+			dialogRef.current?.close();
 		});
 	}, [onCapture, setCameraError, videoRef]);
 
@@ -471,7 +472,7 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 		onLiveDiagnosis(liveDiagnosis);
 	}, [announceLiveStatus, clearReleaseTimer, liveDiagnosis, onLiveDiagnosis]);
 
-	const handleDialogMouseDown = useCallback((event: MouseEvent<HTMLDialogElement>) => {
+	const handleDialogClick = useCallback((event: MouseEvent<HTMLDialogElement>) => {
 		if (event.target === event.currentTarget) {
 			handleCloseModal();
 		}
@@ -492,7 +493,7 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 				className='camera-modal'
 				aria-label='Live camera analyse'
 				aria-describedby='camera-modal-desc'
-				onMouseDown={handleDialogMouseDown}
+				onClick={handleDialogClick}
 				onClose={handleDialogClose}
 			>
 				<p id='camera-modal-desc' className='visually-hidden'>

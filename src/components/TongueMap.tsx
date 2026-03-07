@@ -3,7 +3,7 @@
  * Drawn from the viewer/practitioner perspective (looking at patient's tongue):
  * Galblaas (viewer L / patient R), Lever (viewer R / patient L).
  *
- * Zones top-to-bottom: Nier+Blaas (root), Lever+Milt/Maag+Galblaas (middle),
+ * Zones top-to-bottom: Nier+Blaas (wortel/root), Lever+Milt/Maag+Galblaas (middle),
  * Longen (above tip), Hart (tip).
  */
 
@@ -48,7 +48,7 @@ export default function TongueMap() {
 				<desc id={descId}>
 					Schematische tong met orgaanzones volgens de Traditionele Chinese Geneeskunde. Vanuit het perspectief van de
 					kijker: Galblaas links, Lever rechts, Hart aan de punt, Longen daarboven, Milt en Maag in het midden, Nieren
-					achterin aan de zijkanten, Blaas centraal achterin.
+					en Blaas achterin aan de wortel.
 				</desc>
 
 				<defs>

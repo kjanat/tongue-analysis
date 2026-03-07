@@ -12,21 +12,10 @@ import { hexToOklch, type Oklch, rgbToOklch } from 'hex-to-oklch';
 import type { TongueType } from '../data/tongue-types.ts';
 import type { ColorProfile } from './color-analysis.ts';
 import type { RgbColor } from './color-correction.ts';
+import { clamp } from './math-utils.ts';
 import { oklchDistance } from './oklch-distance.ts';
 
 // ── HSL profile → OKLCH conversion ─────────────────────────────
-
-/**
- * Clamp a numeric value to an inclusive range.
- *
- * @param value - Value to clamp.
- * @param min - Lower bound.
- * @param max - Upper bound.
- * @returns The clamped value.
- */
-function clamp(value: number, min: number, max: number): number {
-	return Math.min(max, Math.max(min, value));
-}
 
 /**
  * Normalize a hue angle into the 0–360° range.

@@ -11,6 +11,7 @@
 import { hexToOklch, type Oklch, rgbToOklch } from 'hex-to-oklch';
 import { TONGUE_TYPES, type TongueType } from '../data/tongue-types.ts';
 import type { RgbColor } from './color-correction.ts';
+import { clamp } from './math-utils.ts';
 import { MAX_DISTANCE, oklchDistance } from './oklch-distance.ts';
 
 /**
@@ -42,18 +43,6 @@ export interface TongueColorClassification {
 	readonly confidence: number;
 	/** All types ranked by distance, ascending (best first). */
 	readonly rankings: readonly TypeMatch[];
-}
-
-/**
- * Clamp a numeric value to an inclusive range.
- *
- * @param value - Value to clamp.
- * @param min - Lower bound.
- * @param max - Upper bound.
- * @returns The clamped value.
- */
-function clamp(value: number, min: number, max: number): number {
-	return Math.min(max, Math.max(min, value));
 }
 
 /**
