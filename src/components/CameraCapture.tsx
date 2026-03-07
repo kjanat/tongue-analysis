@@ -391,6 +391,7 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 	const isRequesting = mode === 'requesting';
 	const showPreviewSkeleton = previewPrimed || isRequesting || (isReady && !videoReady);
 	const isPreviewVisible = previewPrimed || isReady || isRequesting;
+	const isCameraStarting = previewPrimed && isIdle;
 	const isLiveRunning = liveMode === 'running';
 	const cameraActive = !isIdle;
 	const activeError = liveError ?? error;
@@ -724,7 +725,7 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 				</div>
 
 				<div className='camera-actions'>
-					{isIdle && (
+					{isIdle && !isCameraStarting && (
 						<CameraIdleActions
 							cameraAutoPaused={cameraAutoPaused}
 							error={error}
@@ -732,7 +733,7 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 						/>
 					)}
 
-					{isRequesting && <div className='camera-status'>Camera wordt gestart...</div>}
+					{(isRequesting || isCameraStarting) && <div className='camera-status'>Camera wordt gestart...</div>}
 
 					{isReady && (
 						<CameraReadyControls
