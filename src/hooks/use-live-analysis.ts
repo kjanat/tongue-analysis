@@ -308,6 +308,7 @@ export function useLiveAnalysis(options: UseLiveAnalysisOptions): UseLiveAnalysi
 
 		const sessionId = liveSessionIdRef.current;
 		const isCurrentSession = (): boolean => sessionId === liveSessionIdRef.current && isLiveActive();
+		const shouldUpdateState = Date.now() - lastUpdatedAtRef.current >= LIVE_UPDATED_AT_THROTTLE_MS;
 
 		lastVideoTimeRef.current = video.currentTime;
 		liveInFlightRef.current = true;
@@ -317,7 +318,7 @@ export function useLiveAnalysis(options: UseLiveAnalysisOptions): UseLiveAnalysi
 			const result = await analyzeTongueVideoFrame(video, timestampMs, {
 				onStep: (step) => {
 					if (!isCurrentSession()) return;
-					setLiveStep(step);
+					if (shouldUpdateState) setLiveStep(step);
 				},
 			});
 
@@ -334,18 +335,22 @@ export function useLiveAnalysis(options: UseLiveAnalysisOptions): UseLiveAnalysi
 					console.error('Live face model load failed:', result.error.error.cause);
 				}
 
-				setLiveError(liveErrorMessage(result.error));
+				if (shouldUpdateState) {
+					const now = Date.now();
+					setLiveError(liveErrorMessage(result.error));
+					setLiveUpdatedAt(now);
+					lastUpdatedAtRef.current = now;
+				}
 				if (DEBUG_OVERLAY_ENABLED) {
 					clearOverlayCanvas(overlayCanvasRef.current);
 				}
 				return;
 			}
 
-			setLiveDiagnosis(result.value.diagnosis);
-			setLiveError(null);
-
-			const now = Date.now();
-			if (now - lastUpdatedAtRef.current >= LIVE_UPDATED_AT_THROTTLE_MS) {
+			if (shouldUpdateState) {
+				const now = Date.now();
+				setLiveDiagnosis(result.value.diagnosis);
+				setLiveError(null);
 				setLiveUpdatedAt(now);
 				lastUpdatedAtRef.current = now;
 			}
@@ -364,10 +369,15 @@ export function useLiveAnalysis(options: UseLiveAnalysisOptions): UseLiveAnalysi
 				return;
 			}
 
-			if (isAnalysisError(caughtError)) {
-				setLiveError(liveErrorMessage(caughtError));
-			} else {
-				setLiveError('Onbekende live-analysefout.');
+			if (shouldUpdateState) {
+				const now = Date.now();
+				if (isAnalysisError(caughtError)) {
+					setLiveError(liveErrorMessage(caughtError));
+				} else {
+					setLiveError('Onbekende live-analysefout.');
+				}
+				setLiveUpdatedAt(now);
+				lastUpdatedAtRef.current = now;
 			}
 
 			if (DEBUG_OVERLAY_ENABLED) {
@@ -390,6 +400,7 @@ export function useLiveAnalysis(options: UseLiveAnalysisOptions): UseLiveAnalysi
 		setLiveStep('loading_model');
 		setLiveError(null);
 		lastVideoTimeRef.current = -1;
+		lastUpdatedAtRef.current = 0;
 
 		const tick = (): void => {
 			if (!liveRunningRef.current) return;
@@ -402,6 +413,10 @@ export function useLiveAnalysis(options: UseLiveAnalysisOptions): UseLiveAnalysi
 
 		liveRafRef.current = window.requestAnimationFrame(tick);
 	}, [enabled, runLiveAnalysis]);
+
+	useEffect(() => {
+		if (!enabled) stop();
+	}, [enabled, stop]);
 
 	useEffect(() => {
 		return () => {

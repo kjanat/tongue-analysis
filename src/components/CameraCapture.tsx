@@ -385,10 +385,6 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 					</div>
 				</div>
 
-				{import.meta.env.VITE_DEBUG_OVERLAY === 'true' && mode === 'ready' && (
-					<div className='camera-status'>DEBUG: mondregio-overlay actief</div>
-				)}
-
 				<output ref={liveAnnouncementRef} className='visually-hidden' aria-live='polite' aria-atomic='true' />
 
 				{liveHasStarted && (
