@@ -280,8 +280,9 @@ export default function App() {
 			</main>
 			{import.meta.env.VITE_DEBUG_OVERLAY === 'true' && (
 				<footer className='debug-footer'>
-					debug build &middot; {import.meta.env.VITE_COMMIT_SHA?.slice(0, 7) ?? '?'} &middot;{' '}
-					{import.meta.env.VITE_BUILD_DATE?.slice(0, 10) ?? '?'}
+					debug {import.meta.env.DEV ? 'mode' : 'build'} &middot;{' '}
+					{(import.meta.env.VITE_COMMIT_SHA?.slice(0, 7) ?? '?') + (import.meta.env.DEV ? '+dev' : '')} &middot;{' '}
+					{import.meta.env.VITE_BUILD_DATE ?? '?'}
 				</footer>
 			)}
 		</>
