@@ -261,8 +261,7 @@ export function useLiveAnalysis(options: UseLiveAnalysisOptions): UseLiveAnalysi
 		setLiveUpdatedAt(null);
 		// Intentionally does NOT reset liveHasStarted — preserves the live
 		// diagnosis panel across camera switches. Use reset() for full teardown.
-		// eslint-disable-next-line react-hooks/exhaustive-deps -- overlayCanvasRef is a useRef return (identity-stable)
-	}, []);
+	}, [overlayCanvasRef]);
 
 	const clearError = useCallback(() => {
 		setLiveError(null);
@@ -376,8 +375,7 @@ export function useLiveAnalysis(options: UseLiveAnalysisOptions): UseLiveAnalysi
 				liveInFlightRef.current = false;
 			}
 		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps -- overlayCanvasRef, videoRef are useRef returns (identity-stable)
-	}, [isLiveActive]);
+	}, [isLiveActive, overlayCanvasRef, videoRef]);
 
 	const start = useCallback(() => {
 		if (!enabled || liveRunningRef.current) return;
@@ -418,7 +416,6 @@ export function useLiveAnalysis(options: UseLiveAnalysisOptions): UseLiveAnalysi
 		return () => {
 			resetRef.current();
 		};
-		// eslint-disable-next-line react-hooks/exhaustive-deps -- resetRef is a useRef return (identity-stable); cleanup must run on unmount only
 	}, []);
 
 	return {

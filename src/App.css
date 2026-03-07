@@ -1036,6 +1036,41 @@ dialog.camera-modal::backdrop {
 	animation-duration: 0.3s;
 }
 
+::view-transition-old(camera-hero),
+::view-transition-new(camera-hero) {
+	animation-duration: 0.3s;
+	animation-timing-function: ease;
+	animation-fill-mode: both;
+}
+
+::view-transition-old(camera-hero) {
+	animation-name: camera-hero-old;
+}
+
+::view-transition-new(camera-hero) {
+	animation-name: camera-hero-new;
+}
+
+@keyframes camera-hero-old {
+	from {
+		opacity: 1;
+	}
+
+	to {
+		opacity: 1;
+	}
+}
+
+@keyframes camera-hero-new {
+	from {
+		opacity: 1;
+	}
+
+	to {
+		opacity: 1;
+	}
+}
+
 /* ── Reduced Motion ───────────────────────────────────────── */
 
 @media (prefers-reduced-motion: reduce) {
