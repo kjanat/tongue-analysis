@@ -461,12 +461,12 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 
 	const handleLiveToggle = useCallback(() => {
 		if (isLiveRunning) {
-			stopLiveAnalysis();
+			resetLiveAnalysis();
 			return;
 		}
 
 		startLiveAnalysis();
-	}, [isLiveRunning, startLiveAnalysis, stopLiveAnalysis]);
+	}, [isLiveRunning, resetLiveAnalysis, startLiveAnalysis]);
 
 	const handleSwitchCamera = useCallback(() => {
 		restartLiveAfterSwitchRef.current = isLiveRunning;
@@ -484,7 +484,13 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 	}, [announceLiveStatus, clearReleaseTimer, liveDiagnosis, onLiveDiagnosis]);
 
 	const handleDialogClick = useCallback((event: MouseEvent<HTMLDialogElement>) => {
-		if (event.target === event.currentTarget) {
+		const dialog = event.currentTarget;
+		const rect = dialog.getBoundingClientRect();
+		const clickedOutside = event.clientX < rect.left
+			|| event.clientX > rect.right
+			|| event.clientY < rect.top
+			|| event.clientY > rect.bottom;
+		if (clickedOutside) {
 			handleCloseModal();
 		}
 	}, [handleCloseModal]);
