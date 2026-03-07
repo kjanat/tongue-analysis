@@ -4,7 +4,7 @@
  * and optional continuous live analysis via {@link useLiveAnalysis}.
  */
 
-import type { MouseEvent, RefObject } from 'react';
+import type { MouseEvent, RefObject, SyntheticEvent } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useDeferredCameraRelease } from '../hooks/use-deferred-camera-release.ts';
 import type { LiveMode } from '../hooks/use-live-analysis.ts';
@@ -16,12 +16,15 @@ import type { Diagnosis } from '../lib/diagnosis.ts';
 import { formatUpdateTime } from '../lib/format-time.ts';
 import { ANALYSIS_STEP_LABELS } from '../lib/pipeline.ts';
 import type { AnalysisStep } from '../lib/pipeline.ts';
+import { withViewTransitionAndWait } from '../lib/view-transition.ts';
 
 /**
  * Delay (ms) before the camera stream is automatically released after a tab switch.
  * Gives users time to return before requiring a manual restart.
  */
 const CAMERA_RELEASE_DELAY_MS = 20_000;
+
+type HeroOwner = 'button' | 'dialog';
 
 // ── Presentational Components ──────────────────
 
@@ -290,7 +293,9 @@ interface CameraCaptureProps {
 export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCaptureProps) {
 	const dialogRef = useRef<HTMLDialogElement>(null);
 	const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
+	const modalTransitioningRef = useRef(false);
 	const [cameraAutoPaused, setCameraAutoPaused] = useState(false);
+	const [heroOwner, setHeroOwner] = useState<HeroOwner>('button');
 	/** Set to `true` when camera switch interrupted live analysis, so it auto-restarts. */
 	const restartLiveAfterSwitchRef = useRef(false);
 
@@ -376,12 +381,30 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 
 	// ── Handlers ───────────────────────────────
 
-	const handleCloseModal = useCallback(() => {
-		dialogRef.current?.close();
+	const closeModalWithTransition = useCallback(async (): Promise<void> => {
+		const dialog = dialogRef.current;
+		if (dialog === null || !dialog.open || modalTransitioningRef.current) return;
+
+		modalTransitioningRef.current = true;
+
+		try {
+			await withViewTransitionAndWait(() => {
+				setHeroOwner('button');
+				dialog.close();
+			});
+		} finally {
+			modalTransitioningRef.current = false;
+		}
 	}, []);
+
+	const handleCloseModal = useCallback(() => {
+		void closeModalWithTransition();
+	}, [closeModalWithTransition]);
 
 	const handleDialogClose = useCallback(() => {
 		clearReleaseTimer();
+		modalTransitioningRef.current = false;
+		setHeroOwner('button');
 		setCameraAutoPaused(false);
 		endSession();
 	}, [clearReleaseTimer, endSession]);
@@ -397,14 +420,29 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 	const handleOpenModal = useCallback(() => {
 		clearReleaseTimer();
 		const dialog = dialogRef.current;
-		if (dialog !== null && !dialog.open) {
-			dialog.showModal();
+		if (dialog === null || dialog.open || modalTransitioningRef.current) {
+			return;
 		}
-		setCameraAutoPaused(false);
-		clearAllErrors();
-		if (isIdle) {
-			handleStartCamera();
-		}
+
+		void (async () => {
+			modalTransitioningRef.current = true;
+
+			try {
+				setCameraAutoPaused(false);
+				clearAllErrors();
+
+				await withViewTransitionAndWait(() => {
+					setHeroOwner('dialog');
+					dialog.showModal();
+				});
+			} finally {
+				modalTransitioningRef.current = false;
+			}
+
+			if (isIdle) {
+				handleStartCamera();
+			}
+		})();
 	}, [clearAllErrors, clearReleaseTimer, handleStartCamera, isIdle]);
 
 	const handlePageHidden = useCallback(() => {
@@ -446,7 +484,9 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 			return;
 		}
 
-		void captureVideoFrame(video).then((result) => {
+		void (async () => {
+			const result = await captureVideoFrame(video);
+
 			if (!result.ok) {
 				setCameraError(captureErrorMessage(result.error));
 				return;
@@ -454,10 +494,10 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 
 			// Ownership: caller (App.tsx) is responsible for revoking this URL via objectUrlRef
 			const objectUrl = URL.createObjectURL(result.value);
+			await closeModalWithTransition();
 			onCapture(result.value, objectUrl);
-			dialogRef.current?.close();
-		});
-	}, [onCapture, setCameraError, videoRef]);
+		})();
+	}, [closeModalWithTransition, onCapture, setCameraError, videoRef]);
 
 	const handleLiveToggle = useCallback(() => {
 		if (isLiveRunning) {
@@ -479,11 +519,13 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 		if (liveDiagnosis === null || onLiveDiagnosis === undefined) return;
 		clearReleaseTimer();
 		announceLiveStatus(`Live-resultaat geselecteerd: ${liveDiagnosis.type.name}.`);
-		dialogRef.current?.close();
-		onLiveDiagnosis(liveDiagnosis);
-	}, [announceLiveStatus, clearReleaseTimer, liveDiagnosis, onLiveDiagnosis]);
+		void (async () => {
+			await closeModalWithTransition();
+			onLiveDiagnosis(liveDiagnosis);
+		})();
+	}, [announceLiveStatus, clearReleaseTimer, closeModalWithTransition, liveDiagnosis, onLiveDiagnosis]);
 
-	const handleDialogClick = useCallback((event: MouseEvent<HTMLDialogElement>) => {
+	const handleDialogMouseDown = useCallback((event: MouseEvent<HTMLDialogElement>) => {
 		const dialog = event.currentTarget;
 		const rect = dialog.getBoundingClientRect();
 		const clickedOutside = event.clientX < rect.left
@@ -491,15 +533,20 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 			|| event.clientY < rect.top
 			|| event.clientY > rect.bottom;
 		if (clickedOutside) {
-			handleCloseModal();
+			void closeModalWithTransition();
 		}
-	}, [handleCloseModal]);
+	}, [closeModalWithTransition]);
+
+	const handleDialogCancel = useCallback((event: SyntheticEvent<HTMLDialogElement>) => {
+		event.preventDefault();
+		void closeModalWithTransition();
+	}, [closeModalWithTransition]);
 
 	// ── Render ─────────────────────────────────
 
 	return (
 		<>
-			<div className='camera-capture'>
+			<div className='camera-capture' data-hero-owner={heroOwner}>
 				<button type='button' className='camera-btn camera-btn--primary' onClick={handleOpenModal}>
 					Gebruik live camera
 				</button>
@@ -508,9 +555,11 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 			<dialog
 				ref={dialogRef}
 				className='camera-modal'
+				data-hero-owner={heroOwner}
 				aria-label='Live camera analyse'
 				aria-describedby='camera-modal-desc'
-				onClick={handleDialogClick}
+				onMouseDown={handleDialogMouseDown}
+				onCancel={handleDialogCancel}
 				onClose={handleDialogClose}
 			>
 				<p id='camera-modal-desc' className='visually-hidden'>

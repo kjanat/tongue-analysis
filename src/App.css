@@ -118,6 +118,14 @@
 	justify-content: center;
 }
 
+.camera-capture[data-hero-owner="button"] .camera-btn--primary {
+	view-transition-name: camera-hero;
+}
+
+dialog.camera-modal[data-hero-owner="dialog"] {
+	view-transition-name: camera-hero;
+}
+
 dialog.camera-modal {
 	position: fixed;
 	inset: 0;
@@ -229,13 +237,32 @@ dialog.camera-modal::backdrop {
 }
 
 .camera-preview {
-	margin-top: 0.9rem;
-	display: none;
+	margin-top: 0;
+	display: flex;
 	justify-content: center;
+	max-height: 0;
+	opacity: 0;
+	overflow: clip;
+	visibility: hidden;
+	pointer-events: none;
+	transform: translateY(8px);
+	transition:
+		margin-top 0.3s ease,
+		max-height 0.3s ease,
+		opacity 0.25s ease,
+		transform 0.25s ease,
+		visibility 0s linear 0.3s;
 }
 
 .camera-preview[data-visible="true"] {
-	display: flex;
+	margin-top: 0.9rem;
+	max-height: min(75dvh, 760px);
+	opacity: 1;
+	visibility: visible;
+	pointer-events: auto;
+	transform: translateY(0);
+	transition-delay: 0s;
+	view-transition-name: camera-preview;
 }
 
 .camera-video {
@@ -934,6 +961,7 @@ dialog.camera-modal::backdrop {
 	.meridian-fill,
 	.loading-step,
 	.camera-live-dot,
+	.camera-preview,
 	.camera-live-diagnosis,
 	.guide summary::before {
 		transition: none;

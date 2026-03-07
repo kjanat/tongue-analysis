@@ -17,6 +17,45 @@ const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
 let activeTransition: ViewTransition | undefined;
 
 /**
+ * Start a managed View Transition when supported.
+ *
+ * Returns `null` when motion reduction is active or the API is unavailable,
+ * after running the update immediately.
+ *
+ * @param update - Synchronous callback that mutates React state.
+ */
+export function startManagedViewTransition(update: () => void): ViewTransition | null {
+	if (window.matchMedia(REDUCED_MOTION_QUERY).matches) {
+		update();
+		return null;
+	}
+
+	// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- runtime guard for browsers without View Transitions API
+	if (!document.startViewTransition) {
+		update();
+		return null;
+	}
+
+	activeTransition?.skipTransition();
+
+	const transition = document.startViewTransition(() => {
+		// eslint-disable-next-line react-dom/no-flush-sync -- required: View Transitions API needs synchronous DOM commit inside callback
+		flushSync(update);
+	});
+	activeTransition = transition;
+
+	const clearActiveTransition = (): void => {
+		if (activeTransition === transition) {
+			activeTransition = undefined;
+		}
+	};
+
+	void transition.finished.then(clearActiveTransition, clearActiveTransition);
+
+	return transition;
+}
+
+/**
  * Run a DOM update inside a View Transition when the browser supports it.
  *
  * - Bails to a plain `update()` call when `prefers-reduced-motion: reduce`
@@ -29,28 +68,22 @@ let activeTransition: ViewTransition | undefined;
  * @param update - Synchronous callback that mutates React state (e.g. `setPhase(...)`).
  */
 export function withViewTransition(update: () => void): void {
-	if (window.matchMedia(REDUCED_MOTION_QUERY).matches) {
-		update();
-		return;
+	startManagedViewTransition(update);
+}
+
+/**
+ * Run an update in a managed View Transition and resolve when animation settles.
+ *
+ * Resolves immediately when transitions are unavailable or reduced motion is active.
+ * Any skipped/replaced transition is swallowed so callers can sequence follow-up UI work.
+ *
+ * @param update - Synchronous callback that mutates React state.
+ */
+export function withViewTransitionAndWait(update: () => void): Promise<void> {
+	const transition = startManagedViewTransition(update);
+	if (transition === null) {
+		return Promise.resolve();
 	}
 
-	// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- runtime guard for browsers without View Transitions API
-	if (!document.startViewTransition) {
-		update();
-		return;
-	}
-
-	activeTransition?.skipTransition();
-
-	const transition = document.startViewTransition(() => {
-		// eslint-disable-next-line react-dom/no-flush-sync -- required: View Transitions API needs synchronous DOM commit inside callback
-		flushSync(update);
-	});
-	activeTransition = transition;
-
-	void transition.finished.then(() => {
-		if (activeTransition === transition) {
-			activeTransition = undefined;
-		}
-	});
+	return transition.finished.then(() => undefined, () => undefined);
 }

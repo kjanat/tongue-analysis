@@ -11,6 +11,11 @@ satirical TCM diagnosis generator. React 19 + Vite 8 beta + TypeScript 5.9 stric
 Hosted on GitHub Pages at `https://kjanat.github.io/tongue-analysis/`,
 CNAME `https://tong.kajkowalski.nl/`.
 
+Preview builds are deployed to CF Pages on every PR automatically from cloudflare's end to:
+
+- `https://<8-char-SHA>.tongue-analysis.pages.dev`, e.g. `https://d200bead.tongue-analysis.pages.dev`
+- `https://<truncated-branch-name>.tongue-analysis.pages.dev`, e.g. `https://claude-fix-camera-view-jumpi.tongue-analysis.pages.dev`
+
 ## STRUCTURE
 
 ```tree
