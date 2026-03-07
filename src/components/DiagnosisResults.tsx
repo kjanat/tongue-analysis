@@ -129,7 +129,7 @@ export default function DiagnosisResults(
 								<div className='meridian-bar'>
 									<div
 										className='meridian-fill'
-										style={{ height: `${String(m.val)}%` }}
+										style={{ transform: `scaleY(${String(m.val / 100)})` }}
 									/>
 								</div>
 								<div className='meridian-label'>

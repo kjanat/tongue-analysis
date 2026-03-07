@@ -1,17 +1,3 @@
-/* ── Utilities ───────────────────────────────────────────────── */
-
-.visually-hidden {
-	position: absolute;
-	width: 1px;
-	height: 1px;
-	padding: 0;
-	margin: -1px;
-	overflow: hidden;
-	clip-path: inset(50%);
-	white-space: nowrap;
-	border: 0;
-}
-
 /* ── Background pattern ─────────────────────────────────────── */
 
 .bg-pattern {
@@ -79,7 +65,7 @@
 	padding: 3rem 2rem;
 	text-align: center;
 	cursor: pointer;
-	transition: all 0.4s ease;
+	transition: border-color 0.4s ease, background-color 0.4s ease;
 	background: rgba(201, 165, 78, 0.03);
 	position: relative;
 	overflow: hidden;
@@ -191,7 +177,7 @@ dialog.camera-modal::backdrop {
 	color: #d4c4a8;
 	font-size: 0.82rem;
 	cursor: pointer;
-	transition: all 0.25s ease;
+	transition: border-color 0.25s ease, background-color 0.25s ease;
 }
 
 .camera-btn:hover {
@@ -431,7 +417,7 @@ dialog.camera-modal::backdrop {
 	font-weight: 600;
 	cursor: pointer;
 	letter-spacing: 0.08em;
-	transition: all 0.3s ease;
+	transition: transform 0.3s ease, box-shadow 0.3s ease;
 	text-transform: uppercase;
 }
 
@@ -455,7 +441,7 @@ dialog.camera-modal::backdrop {
 	border-radius: 50px;
 	font-size: 0.9rem;
 	cursor: pointer;
-	transition: all 0.3s ease;
+	transition: border-color 0.3s ease, color 0.3s ease;
 }
 
 .restart-btn:hover {
@@ -561,10 +547,12 @@ dialog.camera-modal::backdrop {
 
 .progress-fill {
 	height: 100%;
-	width: 0%;
+	width: 100%;
 	background: linear-gradient(90deg, #8b4513, #c9a54e);
-	transition: width 0.3s ease;
 	border-radius: 2px;
+	transform-origin: left;
+	transform: scaleX(0);
+	transition: transform 0.3s ease;
 }
 
 /* ── Results ───────────────────────────────────────────────── */
@@ -724,9 +712,12 @@ dialog.camera-modal::backdrop {
 
 .meridian-fill {
 	width: 100%;
+	height: 100%;
 	background: linear-gradient(0deg, #8b4513, #c9a54e);
 	border-radius: 4px;
-	transition: height 1s ease;
+	transform-origin: bottom;
+	transform: scaleY(0);
+	transition: transform 1s ease;
 }
 
 .meridian-label {
@@ -961,15 +952,14 @@ dialog.camera-modal::backdrop {
 		opacity: 1;
 	}
 
+	.upload-area,
+	.camera-btn,
+	.analyze-btn,
+	.restart-btn,
+	.guide summary,
 	.progress-fill,
-	.meridian-fill {
-		transition: none;
-	}
-
-	.loading-step {
-		transition: none;
-	}
-
+	.meridian-fill,
+	.loading-step,
 	.camera-live-dot,
 	.camera-live-diagnosis,
 	.guide summary::before {
