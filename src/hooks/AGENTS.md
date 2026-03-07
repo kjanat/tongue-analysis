@@ -40,7 +40,7 @@ CameraCapture.tsx
 ## NOTES
 
 - `useLiveAnalysis` is the sole caller of `analyzeTongueVideoFrame()` — the only bridge from React to the video-mode pipeline.
-- Debug overlay drawing (DPR-aware bounding box + lip polygon) extracted to `src/lib/debug-overlay.ts`. Only activates when `VITE_DEBUG_OVERLAY=true`.
+- `useLiveAnalysis` delegates debug drawing to `src/lib/debug-overlay.ts` (only when `VITE_DEBUG_OVERLAY=true`).
 - `useMediaStream` exposes `setError` for external error injection by `CameraCapture`.
 - `useDeferredCameraRelease` uses cleanup-only `useEffect` (`() => clear`) for auto-teardown on unmount.
 - `isFrontFacingTrack()` in `useMediaStream` uses `facingMode` then heuristic label matching (rear/back/environment) to decide mirroring.

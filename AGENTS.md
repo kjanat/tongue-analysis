@@ -1,6 +1,6 @@
 # PROJECT KNOWLEDGE BASE
 
-**Generated:** 2026-03-07 **Commit:** a4dbdaa **Branch:** master
+**Generated:** 2026-03-07 **Commit:** 782396c **Branch:** master
 
 ## OVERVIEW
 
@@ -23,7 +23,7 @@ tongue-analysis/
 ├── src/
 │   ├── main.tsx                  # React 19 entry (StrictMode + createRoot)
 │   ├── App.tsx                   # Root: 5-phase state machine (upload→preview→loading→results|error)
-│   ├── App.css                   # All component styles (~1185 lines, plain CSS)
+│   ├── App.css                   # All component styles (~1195 lines, plain CSS)
 │   ├── index.css                 # Global reset + button font-family inherit
 │   ├── components/               # 6 components — see src/components/AGENTS.md
 │   │   ├── CameraCapture.tsx     # Live camera + real-time analysis (962 lines)

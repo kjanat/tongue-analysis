@@ -160,7 +160,12 @@ function topItems(items: readonly string[], limit: number): readonly string[] {
  *
  * @example
  * ```ts
- * const classification = classifyTongueColor(correctedPixels, mask);
+ * const correction = applyGrayWorldCorrection(imageData, tongueMask);
+ * if (!correction.ok) {
+ * 	throw new Error(correction.error.kind);
+ * }
+ *
+ * const classification = classifyTongueColor(correction.value.averageTongueColor);
  * const diagnosis = generateDiagnosis(classification);
  * console.log(diagnosis.type.name, diagnosis.confidence);
  * ```

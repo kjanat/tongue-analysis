@@ -10,7 +10,7 @@ analyzeTongueFromUrl(url)           pipeline.ts (orchestrator, 234 lines)
   │
   ├─ loadImage(url)                 pipeline/frame-source.ts
   ├─ detectMouthRegion(image)       face-detection.ts   → Result<MouthRegion, MouthDetectionError>
-  │    └─ closeup fallback: if face detection fails, retries with full-image crop + relaxed thresholds
+  │    └─ closeup fallback (see pipeline/AGENTS.md)
   ├─ segmentTongue(imageData)       tongue-segmentation.ts → Result<TongueMask, TongueSegmentationError>
   ├─ applyGrayWorldCorrection()     color-correction.ts → Result<ColorCorrectionResult, ColorCorrectionError>
   ├─ classifyTongueColor()          color-classification.ts → TongueColorClassification
@@ -33,8 +33,8 @@ All return `Result<AnalysisSuccess, AnalysisError>`.
 | `face-detection.ts`         | 619   | MediaPipe FaceLandmarker. Singleton model. Mouth landmark extraction.     |
 | `tongue-segmentation.ts`    | 600   | HSV thresholding → erode/dilate → connected-component BFS → centroid.     |
 | `color-correction.ts`       | 260   | Gray-world on masked pixels. Returns corrected `ImageData` + avg RGB.     |
-| `diagnosis.ts`              | 193   | Maps `TongueColorClassification` → satirical TCM `Diagnosis`.             |
-| `color-classification.ts`   | 191   | RGB→OKLCh conversion. Distance to TCM type reference colors.              |
+| `diagnosis.ts`              | 205   | Maps `TongueColorClassification` → satirical TCM `Diagnosis`.             |
+| `color-classification.ts`   | 251   | RGB→OKLCh conversion. Distance to TCM type reference colors.              |
 | `color-analysis.ts`         | 186   | **Legacy.** Canvas center-crop RGB→HSL. Used by old PRNG path.            |
 | `color-matching.ts`         | 139   | **Legacy.** OKLCH Gaussian weight boosting for old diagnosis.             |
 | `debug-overlay.ts`          | 128   | DPR-aware debug canvas drawing (bounding box + lip polygons). Pure.       |
@@ -48,17 +48,7 @@ All return `Result<AnalysisSuccess, AnalysisError>`.
 
 ### pipeline/ subdirectory — see `src/lib/pipeline/AGENTS.md`
 
-Decomposed pipeline internals, extracted from the former monolithic `pipeline.ts`:
-
-| File                        | Lines | Role                                                              |
-| --------------------------- | ----- | ----------------------------------------------------------------- |
-| `pipeline/analysis-core.ts` | 237   | Core analysis logic: step orchestration, closeup fallback.        |
-| `pipeline/mask.ts`          | 176   | Polygon rasterization (inner lip) + fallback ellipse mask.        |
-| `pipeline/lighting.ts`      | 171   | Luminance histogram analysis, poor-lighting detection.            |
-| `pipeline/crop.ts`          | 126   | Image cropping from mouth landmarks to canvas `ImageData`.        |
-| `pipeline/types.ts`         | 70    | Shared types: `FrameSource`, `FrameDimensions`, `MouthCrop`, etc. |
-| `pipeline/frame-source.ts`  | 66    | Unified frame acquisition (URL load / direct ImageData / video).  |
-| `pipeline/thresholds.ts`    | 54    | Threshold constants for segmentation, lighting, and confidence.   |
+Decomposed pipeline internals (7 files, ~900 lines), extracted from the former monolithic `pipeline.ts`.
 
 ## ERROR TYPES
 
@@ -76,7 +66,7 @@ Every pipeline stage has its own discriminated union error type (`kind` tag):
 - **Singleton model**: `face-detection.ts` caches the MediaPipe `FaceLandmarker` instance. Call `releaseFaceLandmarker()` to free.
 - **Two detection modes**: `detectMouthRegion(image)` for stills, `detectMouthRegionForVideo(video, timestamp)` for live frames. Different MediaPipe API calls.
 - **Legacy modules**: `color-analysis.ts` and `color-matching.ts` are from the old PRNG-only path. Still imported by the diagnosis generator for seeded randomness.
-- **View transition helpers**: `view-transition.ts` wraps the browser View Transitions API with stale-transition cancellation and `prefers-reduced-motion` bypass. Contains 2 justified `eslint-disable-next-line` comments (browser feature guard + required `flushSync`).
+- **View transition helpers**: `view-transition.ts` wraps the browser View Transitions API with stale-transition cancellation and `prefers-reduced-motion` bypass.
 - **Pure utility modules**: `debug-overlay.ts`, `math-utils.ts`, `format-time.ts`, `view-transition.ts` have zero React coupling (pure functions).
 - **External deps**: `@mediapipe/tasks-vision`, `hex-to-oklch`, `virtual:package-bindings` (Vite virtual module).
 - **Internal data dep**: `src/data/tongue-types.ts` — TCM reference colors, organ zones, element mappings.
