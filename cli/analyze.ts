@@ -197,7 +197,8 @@ try {
 	printSection('CLASSIFICATION');
 	console.log(`  Matched type:  ${diagnosis.type.name} (${diagnosis.type.nameZh})`);
 	console.log(`  Type color:    ${diagnosis.type.color.label} ${diagnosis.type.color.hex}`);
-	console.log(`  Confidence:    ${(diagnosis.confidence * 100).toFixed(1)}%`);
+	console.log(`  Confidence:    ${(diagnosis.displayConfidence * 100).toFixed(1)}%`);
+	console.log(`  Raw conf.:     ${(diagnosis.confidence * 100).toFixed(1)}%`);
 	console.log(`  Observed:      ${formatRgb(diagnosis.observedColor)}`);
 
 	printSection('RANKINGS');

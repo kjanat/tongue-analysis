@@ -133,6 +133,66 @@ function computeConfidence(rankings: readonly TypeMatch[]): number {
 	return Math.round(weighted * 1000) / 1000;
 }
 
+// ── Display confidence ───────────────────────────
+
+/** Baseline multiplier — even a tied match shows decent confidence. */
+const DISPLAY_BASE = 0.75;
+
+/** Bonus multiplier for clear separation from the runner-up. */
+const DISPLAY_MARGIN_BONUS = 0.25;
+
+/**
+ * Compute a user-facing confidence from classification data.
+ *
+ * The raw {@link TongueColorClassification.confidence} is a conservative
+ * internal metric (65% weighted toward inter-type separation) that produces
+ * low values even for good matches when multiple types cluster nearby.
+ * Users interpret "22%" as "barely sure" even when the winner is 1.5× closer
+ * than any alternative.
+ *
+ * This function produces a display-friendly value that better matches user
+ * expectations of "how confident is the system?":
+ *
+ * ```
+ * displayConfidence = score × (BASE + MARGIN_BONUS × marginFactor)
+ * ```
+ *
+ * - **score** — the winner's raw perceptual similarity (`1 − distance / MAX_DISTANCE`).
+ *   Typically 0.6–0.9 for real tongue images. Anchors the result in actual
+ *   match quality.
+ * - **marginFactor** — `clamp(runnerUpDistance / winnerDistance − 1, 0, 1)`.
+ *   0 when tied, 1 when the runner-up is ≥ 2× farther. Rewards clear winners.
+ * - **BASE (0.75)** — ensures a good perceptual match reads as confident even
+ *   without large separation.
+ * - **MARGIN_BONUS (0.25)** — adds up to 25% extra for decisive wins.
+ *
+ * Typical outputs: 55–85% for real tongue images, with strong matches
+ * reaching 90%+. This is strictly a presentation metric — all internal
+ * gating uses the raw confidence.
+ *
+ * @param classification - Output of {@link classifyTongueColor}.
+ * @returns Display confidence in [0, 1], rounded to 3 decimal places.
+ */
+export function computeDisplayConfidence(classification: TongueColorClassification): number {
+	const primary = classification.rankings[0];
+	if (primary === undefined) return 0;
+
+	const score = primary.score;
+	const secondary = classification.rankings[1];
+
+	if (secondary === undefined) {
+		return Math.round(score * 1000) / 1000;
+	}
+
+	const ratio = primary.distance > 0
+		? secondary.distance / primary.distance
+		: 2;
+	const marginFactor = clamp(ratio - 1, 0, 1);
+
+	const display = score * (DISPLAY_BASE + DISPLAY_MARGIN_BONUS * marginFactor);
+	return Math.round(clamp(display, 0, 1) * 1000) / 1000;
+}
+
 /**
  * Classify a tongue's average color against known tongue types.
  *

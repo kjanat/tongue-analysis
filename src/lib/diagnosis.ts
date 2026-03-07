@@ -16,7 +16,7 @@ import {
 	type TongueType,
 	ZONE_LABEL,
 } from '../data/tongue-types.ts';
-import type { TongueColorClassification } from './color-classification.ts';
+import { computeDisplayConfidence, type TongueColorClassification } from './color-classification.ts';
 import type { RgbColor } from './color-correction.ts';
 import { clamp } from './math-utils.ts';
 
@@ -44,6 +44,12 @@ export interface Diagnosis {
 	readonly type: TongueType;
 	/** Classification confidence in `[0, 1]`. Higher means a closer color match. */
 	readonly confidence: number;
+	/**
+	 * User-facing confidence in `[0, 1]`. Blends perceptual match quality with
+	 * margin over the runner-up. Higher than {@link confidence} for typical inputs.
+	 * Use this for display; use {@link confidence} for internal gating.
+	 */
+	readonly displayConfidence: number;
 	/** Mean RGB of the segmented tongue pixels after color correction. */
 	readonly observedColor: RgbColor;
 	/** Five-Element (Wu Xing) scores, each clamped to `[10, 100]`. */
@@ -182,6 +188,7 @@ export function generateDiagnosis(classification: TongueColorClassification): Di
 	return {
 		type: matchedType,
 		confidence,
+		displayConfidence: computeDisplayConfidence(classification),
 		observedColor: averageColor,
 		elements,
 		meridians,
