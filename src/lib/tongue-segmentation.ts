@@ -316,8 +316,10 @@ export function segmentTongue(
 		return err({ kind: 'allowed_mask_size_mismatch' });
 	}
 
-	const totalPixels = imageData.width * imageData.height;
-	const minimumPixels = clamp(options?.minimumPixels ?? MIN_TONGUE_PIXELS, 1, totalPixels);
+	const clampCeiling = allowedMask !== undefined
+		? allowedMask.reduce((sum, pixel) => sum + pixel, 0)
+		: imageData.width * imageData.height;
+	const minimumPixels = clamp(options?.minimumPixels ?? MIN_TONGUE_PIXELS, 1, clampCeiling);
 
 	const thresholdMask = buildThresholdMask(imageData, threshold, allowedMask);
 	const openedMask = dilate(erode(thresholdMask, imageData.width, imageData.height), imageData.width, imageData.height);

@@ -191,6 +191,7 @@ function resolveDownloads(config: ResolvedConfig, options: PackageBindingsPlugin
 	const requestedDownloads = options.downloads ?? [];
 	const normalizedRoot = path.resolve(config.root);
 	const seenIds = new Set<string>();
+	const seenOutputPaths = new Set<string>();
 
 	return requestedDownloads.map((download) => {
 		const id = normalizeDownloadId(download.id);
@@ -204,6 +205,11 @@ function resolveDownloads(config: ResolvedConfig, options: PackageBindingsPlugin
 			'',
 		);
 		const absolutePath = path.resolve(normalizedRoot, outputPath);
+
+		if (seenOutputPaths.has(absolutePath)) {
+			throw new Error(`[package-bindings] duplicate download output path '${outputPath}'.`);
+		}
+		seenOutputPaths.add(absolutePath);
 
 		if (!isWithinRoot(normalizedRoot, absolutePath)) {
 			throw new Error(`[package-bindings] download path '${outputPath}' escapes project root.`);
@@ -242,7 +248,22 @@ async function ensureDownloads(downloads: readonly ResolvedDownload[]): Promise<
 		console.log(`[package-bindings] downloading asset: ${download.url}`);
 		try {
 			await mkdir(path.dirname(download.absolutePath), { recursive: true });
-			const response = await fetch(download.url);
+
+			const controller = new AbortController();
+			const timeoutMs = 30_000;
+			const timer = setTimeout(() => { controller.abort(); }, timeoutMs);
+			let response: Response;
+			try {
+				response = await fetch(download.url, { signal: controller.signal });
+			} catch (fetchError) {
+				clearTimeout(timer);
+				if (fetchError instanceof DOMException && fetchError.name === 'AbortError') {
+					throw new Error(`download timed out after ${String(timeoutMs)}ms`, { cause: fetchError });
+				}
+				throw fetchError;
+			}
+			clearTimeout(timer);
+
 			if (!response.ok) {
 				throw new Error(`download failed with status ${String(response.status)}`);
 			}

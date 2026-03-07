@@ -54,6 +54,10 @@ export function useLiveAnnouncements({
 		announce('');
 	}, [announce]);
 
+	// Announcement priority: step > diagnosis > timestamp.
+	// Early returns enforce this — a new liveStep (vs announcedStepRef.current)
+	// always wins over a new liveDiagnosis (vs announcedDiagnosisRef.current),
+	// which always wins over a new liveUpdatedAt (vs announcedUpdatedAtRef.current).
 	useEffect(() => {
 		if (!liveHasStarted) {
 			reset();

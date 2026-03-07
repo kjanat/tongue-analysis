@@ -55,16 +55,22 @@ function resolveCrop(
 
 	if (!cropResult.ok) return cropResult;
 
-	const allowedMask = mouthResult.ok
-		? makeMouthOpeningMask(cropResult.value, mouthResult.value)
-		: makeFallbackAllowedMask(cropResult.value.width, cropResult.value.height);
+	let allowedMask: Uint8Array;
+	let minimumPixels: number | undefined;
+
+	if (mouthResult.ok) {
+		allowedMask = makeMouthOpeningMask(cropResult.value, mouthResult.value);
+		minimumPixels = undefined;
+	} else {
+		const fallback = makeFallbackAllowedMask(cropResult.value.width, cropResult.value.height);
+		allowedMask = fallback.mask;
+		minimumPixels = fallbackMinimumPixels(cropResult.value.width, cropResult.value.height, fallback.allowedPixels);
+	}
 
 	return ok({
 		crop: cropResult.value,
 		allowedMask,
-		minimumPixels: mouthResult.ok
-			? undefined
-			: fallbackMinimumPixels(cropResult.value.width, cropResult.value.height),
+		minimumPixels,
 		mouthRegion: mouthResult.ok ? mouthResult.value : null,
 		usedFallback,
 	});

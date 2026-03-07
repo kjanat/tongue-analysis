@@ -42,7 +42,12 @@ export function makeMouthOpeningMask(
 	return mask;
 }
 
-export function makeFallbackAllowedMask(width: number, height: number): Uint8Array {
+interface FallbackAllowedMaskResult {
+	readonly mask: Uint8Array;
+	readonly allowedPixels: number;
+}
+
+function rasterizeFallbackEllipse(width: number, height: number): FallbackAllowedMaskResult {
 	const mask = new Uint8Array(width * height);
 
 	const centerX = width * 0.5;
@@ -51,29 +56,33 @@ export function makeFallbackAllowedMask(width: number, height: number): Uint8Arr
 	const radiusY = height * 0.4;
 	const minY = Math.floor(height * 0.18);
 
-	if (radiusX <= 0 || radiusY <= 0) return mask;
+	if (radiusX <= 0 || radiusY <= 0) return { mask, allowedPixels: 0 };
 
+	let allowedPixels = 0;
 	for (let y = minY; y < height; y++) {
 		for (let x = 0; x < width; x++) {
 			const dx = (x + 0.5 - centerX) / radiusX;
 			const dy = (y + 0.5 - centerY) / radiusY;
 			if (dx * dx + dy * dy <= 1) {
 				mask[y * width + x] = 1;
+				allowedPixels++;
 			}
 		}
 	}
 
-	return mask;
+	return { mask, allowedPixels };
 }
 
-export function fallbackMinimumPixels(width: number, height: number): number {
+export function makeFallbackAllowedMask(width: number, height: number): FallbackAllowedMaskResult {
+	return rasterizeFallbackEllipse(width, height);
+}
+
+export function fallbackMinimumPixels(
+	width: number,
+	height: number,
+	precomputedAllowedPixels?: number,
+): number {
 	const minimumPixels = Math.max(200, Math.floor(width * height * 0.03));
-	const allowedMask = makeFallbackAllowedMask(width, height);
-
-	let allowedPixels = 0;
-	for (const pixel of allowedMask) {
-		allowedPixels += pixel;
-	}
-
+	const allowedPixels = precomputedAllowedPixels ?? rasterizeFallbackEllipse(width, height).allowedPixels;
 	return Math.min(allowedPixels, minimumPixels);
 }
