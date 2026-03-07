@@ -273,9 +273,14 @@ export function useLiveAnalysis(options: UseLiveAnalysisOptions): UseLiveAnalysi
 
 		liveInFlightRef.current = false;
 		lastVideoTimeRef.current = -1;
+		clearOverlayCanvas(overlayCanvasRef.current);
 		setLiveMode('idle');
 		setLiveStep(null);
-	}, []);
+		setLiveError(null);
+		setLiveDiagnosis(null);
+		setLiveUpdatedAt(null);
+		setLiveHasStarted(false);
+	}, [overlayCanvasRef]);
 
 	const clearError = useCallback(() => {
 		setLiveError(null);
@@ -283,12 +288,7 @@ export function useLiveAnalysis(options: UseLiveAnalysisOptions): UseLiveAnalysi
 
 	const reset = useCallback(() => {
 		stop();
-		clearOverlayCanvas(overlayCanvasRef.current);
-		setLiveError(null);
-		setLiveDiagnosis(null);
-		setLiveUpdatedAt(null);
-		setLiveHasStarted(false);
-	}, [overlayCanvasRef, stop]);
+	}, [stop]);
 
 	const runLiveAnalysis = useCallback(async () => {
 		if (!isLiveActive() || liveInFlightRef.current) return;
