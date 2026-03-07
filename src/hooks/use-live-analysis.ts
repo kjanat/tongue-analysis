@@ -273,6 +273,11 @@ export function useLiveAnalysis(options: UseLiveAnalysisOptions): UseLiveAnalysi
 		setLiveHasStarted(false);
 	}, [stop]);
 
+	const resetRef = useRef(reset);
+	useEffect(() => {
+		resetRef.current = reset;
+	}, [reset]);
+
 	const runLiveAnalysis = useCallback(async () => {
 		if (!isLiveActive() || liveInFlightRef.current) return;
 
@@ -411,9 +416,10 @@ export function useLiveAnalysis(options: UseLiveAnalysisOptions): UseLiveAnalysi
 
 	useEffect(() => {
 		return () => {
-			reset();
+			resetRef.current();
 		};
-	}, [reset]);
+		// eslint-disable-next-line react-hooks/exhaustive-deps -- resetRef is a useRef return (identity-stable); cleanup must run on unmount only
+	}, []);
 
 	return {
 		liveMode,
