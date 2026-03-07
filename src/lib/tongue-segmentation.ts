@@ -550,8 +550,9 @@ export function segmentTongue(
 		return err({ kind: 'allowed_mask_size_mismatch' });
 	}
 
+	// Count only pixels marked exactly 1 — mirrors the `=== 1` check in `buildThresholdMask`.
 	const clampCeiling = allowedMask !== undefined
-		? allowedMask.reduce((sum, pixel) => sum + pixel, 0)
+		? allowedMask.reduce((count, pixel) => count + (pixel === 1 ? 1 : 0), 0)
 		: imageData.width * imageData.height;
 	const minimumPixels = clamp(options?.minimumPixels ?? MIN_TONGUE_PIXELS, 1, clampCeiling);
 

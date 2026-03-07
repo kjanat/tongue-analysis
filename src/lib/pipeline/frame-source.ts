@@ -27,6 +27,7 @@ import type { FrameDimensions, FrameSource } from './types.ts';
 export function loadImage(imageUrl: string): Promise<HTMLImageElement> {
 	return new Promise((resolve, reject) => {
 		const image = new Image();
+		image.crossOrigin = 'anonymous';
 		image.onload = () => {
 			resolve(image);
 		};

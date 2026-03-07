@@ -12,7 +12,12 @@ const MAX_FILE_SIZE = 10_000_000;
  * Props for {@link UploadArea}.
  */
 interface UploadAreaProps {
-	/** Callback fired after a valid image is selected. Receives the raw `File` and a freshly created object URL. */
+	/**
+	 * Callback fired after a valid image is selected. Receives the raw `File` and a freshly created object URL.
+	 *
+	 * **Ownership:** The caller is responsible for revoking the object URL via
+	 * {@link URL.revokeObjectURL} when it is no longer needed to avoid memory leaks.
+	 */
 	readonly onFileSelected: (file: File, objectUrl: string) => void;
 }
 

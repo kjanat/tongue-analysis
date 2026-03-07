@@ -90,6 +90,8 @@ export function cropMouth(
 	}
 
 	const { width, height } = dimensions;
+	// Defensive: `getFrameDimensions` guarantees positive values when it returns
+	// non-undefined, so this branch is currently unreachable.
 	if (width <= 0 || height <= 0) {
 		return err({ kind: 'mouth_crop_failed' });
 	}
@@ -124,6 +126,8 @@ export function cropFullImage(source: FrameSource): Result<MouthCrop, AnalysisEr
 	}
 
 	const { width, height } = dimensions;
+	// Defensive: `getFrameDimensions` guarantees positive values when it returns
+	// non-undefined, so this branch is currently unreachable.
 	if (width <= 0 || height <= 0) {
 		return err({ kind: 'mouth_crop_failed' });
 	}
