@@ -27,6 +27,17 @@ import { packageBindingsPlugin } from './vite.package-bindings.ts';
  */
 export default defineConfig(({ command }) => {
 	return {
+		resolve: {
+			alias: {
+				'$': `${import.meta.dirname}/src`,
+				'$assets': `${import.meta.dirname}/src/assets`,
+				'$components': `${import.meta.dirname}/src/components`,
+				'$data': `${import.meta.dirname}/src/data`,
+				'$hooks': `${import.meta.dirname}/src/hooks`,
+				'$lib': `${import.meta.dirname}/src/lib`,
+				'$types': `${import.meta.dirname}/src/types`,
+			},
+		},
 		define: {
 			'import.meta.env.VITE_DEBUG_OVERLAY': JSON.stringify(
 				env.VITE_DEBUG_OVERLAY ?? (String(command === 'serve')),
