@@ -118,7 +118,6 @@ body {
 .app-header {
 	text-align: center;
 	margin-bottom: 2.5rem;
-	view-transition-name: app-header;
 }
 
 .chinese-title {
@@ -1213,6 +1212,7 @@ dialog.camera-modal[data-closing="true"]::backdrop {
 
 ::view-transition-group(*) {
 	animation-duration: 0.3s;
+	animation-fill-mode: both;
 }
 
 ::view-transition-group(camera-hero) {
