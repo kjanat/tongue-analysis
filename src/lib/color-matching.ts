@@ -15,6 +15,29 @@ import type { RgbColor } from './color-correction.ts';
 import { clamp } from './math-utils.ts';
 import { oklchDistance } from './oklch-distance.ts';
 
+// ── Hex → OKLCH cache ──────────────────────────────────────────
+
+/**
+ * Memoizes {@link hexToOklch} results to avoid redundant conversion of
+ * constant tongue-type reference colors across repeated calls.
+ */
+const referenceColorCache = new Map<string, Oklch>();
+
+/**
+ * Cached wrapper around {@link hexToOklch}. Returns the same OKLCH
+ * object for a given hex string on every subsequent call.
+ *
+ * @param hex - CSS hex color string (e.g. `"#ff0000"`).
+ * @returns Cached OKLCH representation.
+ */
+function cachedHexToOklch(hex: string): Oklch {
+	const cached = referenceColorCache.get(hex);
+	if (cached !== undefined) return cached;
+	const oklch = hexToOklch(hex);
+	referenceColorCache.set(hex, oklch);
+	return oklch;
+}
+
 // ── HSL profile → OKLCH conversion ─────────────────────────────
 
 /**
@@ -132,7 +155,7 @@ export function colorBoosts(
 	const imageOklch = profileToOklch(profile);
 
 	return types.map((t) => {
-		const d = oklchDistance(imageOklch, hexToOklch(t.color.hex));
+		const d = oklchDistance(imageOklch, cachedHexToOklch(t.color.hex));
 		const similarity = Math.exp(-FALLOFF_K * d * d); // 0–1, absolute
 		return MIN_BOOST + similarity * (MAX_BOOST - MIN_BOOST);
 	});

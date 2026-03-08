@@ -432,6 +432,14 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 	const [modalClosing, setModalClosing] = useState(false);
 	/** Set to `true` when camera switch interrupted live analysis, so it auto-restarts. */
 	const restartLiveAfterSwitchRef = useRef(false);
+	/** Guard for async operations that may outlive the component (e.g. close animation delay). */
+	const mountedRef = useRef(true);
+	useEffect(() => {
+		mountedRef.current = true;
+		return () => {
+			mountedRef.current = false;
+		};
+	}, []);
 
 	const {
 		mode,
@@ -638,20 +646,25 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 					await delay(longestDelay);
 				}
 
+				// Component may have unmounted during the delay — bail out.
+				if (!mountedRef.current) return;
+
 				const currentDialog = dialogRef.current;
 				if (currentDialog?.open === true) {
 					currentDialog.close();
 				}
 			} finally {
-				transitionClosingRef.current = false;
-				modalTransitioningRef.current = false;
+				if (mountedRef.current) {
+					transitionClosingRef.current = false;
+					modalTransitioningRef.current = false;
 
-				if (dialogRef.current?.open !== true) {
-					finalizeModalClose(sequence);
-				} else {
-					setModalClosing(false);
-					setLivePanelClosing(false);
-					settleCloseRequest(sequence);
+					if (dialogRef.current?.open !== true) {
+						finalizeModalClose(sequence);
+					} else {
+						setModalClosing(false);
+						setLivePanelClosing(false);
+						settleCloseRequest(sequence);
+					}
 				}
 			}
 		})();

@@ -27,23 +27,23 @@ All return `Promise<Result<AnalysisSuccess, AnalysisError>>`.
 
 ## WHERE TO LOOK
 
-| File                        | Lines | Role                                                                      |
-| --------------------------- | ----- | ------------------------------------------------------------------------- |
-| `pipeline.ts`               | 230   | Orchestrator. Delegates to `pipeline/analysis-core.ts`. Closeup fallback. |
-| `face-detection.ts`         | 626   | MediaPipe FaceLandmarker. Singleton model. Mouth landmark extraction.     |
-| `tongue-segmentation.ts`    | 601   | HSV thresholding → erode/dilate → connected-component BFS → centroid.     |
-| `color-correction.ts`       | 260   | Gray-world on masked pixels. Returns corrected `ImageData` + avg RGB.     |
-| `color-classification.ts`   | 251   | RGB→OKLCh conversion. Distance to TCM type reference colors.              |
-| `diagnosis.ts`              | 205   | Maps `TongueColorClassification` → satirical TCM `Diagnosis`.             |
-| `color-analysis.ts`         | 186   | **Legacy.** Canvas center-crop RGB→HSL. Used by old PRNG path.            |
-| `color-matching.ts`         | 139   | **Legacy.** OKLCH Gaussian weight boosting for old diagnosis.             |
-| `debug-overlay.ts`          | 128   | DPR-aware debug canvas drawing (bounding box + lip polygons). Pure.       |
-| `capture-video-frame.ts`    | 126   | Captures single video frame as JPEG File via offscreen canvas.            |
-| `analysis-error-message.ts` | 96    | Exhaustive Dutch error message mapping for all `AnalysisError` variants.  |
-| `oklch-distance.ts`         | 72    | Weighted Euclidean distance in OKLCh with circular hue handling.          |
-| `result.ts`                 | 71    | `Result<T,E>` discriminated union. `ok(value)` / `err(error)`.            |
-| `math-utils.ts`             | 22    | Shared `clamp()` used across pipeline stages.                             |
-| `format-time.ts`            | 19    | Shared Dutch locale time formatter (`formatUpdateTime`).                  |
+| File                        | Lines | Role                                                                                          |
+| --------------------------- | ----- | --------------------------------------------------------------------------------------------- |
+| `pipeline.ts`               | 230   | Orchestrator. Delegates to `pipeline/analysis-core.ts`. Closeup fallback.                     |
+| `face-detection.ts`         | 626   | MediaPipe FaceLandmarker. Singleton model. Mouth landmark extraction.                         |
+| `tongue-segmentation.ts`    | 601   | HSV thresholding → erode/dilate → connected-component BFS → centroid.                         |
+| `color-correction.ts`       | 260   | Gray-world on masked pixels. Returns corrected `ImageData` + avg RGB.                         |
+| `color-classification.ts`   | 251   | RGB→OKLCh conversion. Distance to TCM type reference colors.                                  |
+| `diagnosis.ts`              | 205   | Maps `TongueColorClassification` → satirical TCM `Diagnosis`.                                 |
+| `color-analysis.ts`         | 186   | **Legacy.** Canvas center-crop RGB→HSL. Used by old PRNG path.                                |
+| `color-matching.ts`         | 139   | **Legacy.** OKLCH Gaussian weight boosting for old diagnosis.                                 |
+| `debug-overlay.ts`          | 128   | DPR-aware debug canvas (bbox + lip polygons). Gated on `VITE_DEBUG_OVERLAY === 'true'`. Pure. |
+| `capture-video-frame.ts`    | 126   | Captures single video frame as JPEG File via offscreen canvas.                                |
+| `analysis-error-message.ts` | 96    | Exhaustive Dutch error message mapping for all `AnalysisError` variants.                      |
+| `oklch-distance.ts`         | 72    | Weighted Euclidean distance in OKLCh with circular hue handling.                              |
+| `result.ts`                 | 71    | `Result<T,E>` discriminated union. `ok(value)` / `err(error)`.                                |
+| `math-utils.ts`             | 22    | Shared `clamp()` used across pipeline stages.                                                 |
+| `format-time.ts`            | 19    | Shared Dutch locale time formatter (`formatUpdateTime`).                                      |
 
 ### pipeline/ subdirectory — see `src/lib/pipeline/AGENTS.md`
 
@@ -66,5 +66,6 @@ Every pipeline stage has its own discriminated union error type (`kind` tag):
 - **Two detection modes**: `detectMouthRegion(image)` for stills, `detectMouthRegionForVideo(video, timestamp)` for live frames. Different MediaPipe API calls.
 - **Legacy modules**: `color-analysis.ts` and `color-matching.ts` are from the old PRNG-only path. Still imported by the diagnosis generator for seeded randomness.
 - **Pure utility modules**: `debug-overlay.ts`, `math-utils.ts`, `format-time.ts` have zero React coupling (pure functions).
+- **`VITE_DEBUG_OVERLAY` env var**: Must equal the string `'true'` to enable debug overlay; any other value or unset disables it. Update cadence throttled (~1s) by `use-live-analysis.ts` (`LIVE_UPDATED_AT_THROTTLE_MS`).
 - **External deps**: `@mediapipe/tasks-vision`, `hex-to-oklch`, `virtual:package-bindings` (Vite virtual module).
 - **Internal data dep**: `src/data/tongue-types.ts` — TCM reference colors, organ zones, element mappings.

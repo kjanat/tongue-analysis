@@ -26,7 +26,7 @@
 ## CONVENTIONS (beyond root)
 
 - **Specific `data-*` attrs**: `data-mirror`, `data-status`, `data-visible`, `data-dragover`, `data-closing`, `data-skeleton-visible`, `data-ready`, `data-stale`, `data-reveal-phase`, `data-running`.
-- **Debug gating**: Confidence values in `DiagnosisResults` only rendered when `VITE_DEBUG_OVERLAY` is truthy.
+- **Debug gating**: Confidence values in `DiagnosisResults` only rendered when `VITE_DEBUG_OVERLAY === 'true'` (strict string equality, not generic truthy).
 - **`<output>` as ARIA live region**: Used in `CameraCapture` for screen reader announcements.
 - **`useId()` for SVG IDs**: `TongueMap` generates unique `<linearGradient>` IDs via React's `useId()` to avoid DOM collisions.
 - **Index-prefixed keys**: `DiagnosisResults` uses `${String(i)}-${value}` keys for lists with non-unique string items.
