@@ -5,7 +5,7 @@
  */
 
 import type { MouseEvent, RefObject, SyntheticEvent } from 'react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { useDeferredCameraRelease } from '../hooks/use-deferred-camera-release.ts';
 import type { LiveMode } from '../hooks/use-live-analysis.ts';
 import { useLiveAnalysis } from '../hooks/use-live-analysis.ts';
@@ -321,7 +321,6 @@ function LiveDiagnosisPanel({
 	closingForModalClose,
 }: LiveDiagnosisPanelProps) {
 	const isLiveRunning = liveMode === 'running';
-	const revealPhase = liveUpdatedAt !== null && liveUpdatedAt % 2 === 0 ? 'a' : 'b';
 
 	return (
 		<div
@@ -342,9 +341,9 @@ function LiveDiagnosisPanel({
 
 			{liveDiagnosis !== null && (
 				<div
+					key={liveUpdatedAt}
 					className='camera-live-diagnosis'
 					data-stale={liveError !== null}
-					data-reveal-phase={revealPhase}
 				>
 					<div className='camera-live-type'>
 						<span lang='zh'>{liveDiagnosis.type.nameZh}</span> - {liveDiagnosis.type.name}
@@ -404,6 +403,7 @@ interface CameraCaptureProps {
  * ```
  */
 export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCaptureProps) {
+	const modalDescId = useId();
 	const dialogRef = useRef<HTMLDialogElement>(null);
 	const closeButtonRef = useRef<HTMLButtonElement>(null);
 	const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -691,11 +691,10 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 		setVideoReady(false);
 		setCameraAutoPaused(false);
 		stopLiveAnalysis();
-		clearLiveError();
 		void startCamera().finally(() => {
 			setPreviewPrimed(false);
 		});
-	}, [clearLiveError, clearReleaseTimer, startCamera, stopLiveAnalysis]);
+	}, [clearReleaseTimer, startCamera, stopLiveAnalysis]);
 
 	const handleOpenModal = useCallback(() => {
 		clearReleaseTimer();
@@ -931,12 +930,12 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 				data-hero-owner={heroOwner}
 				data-closing={modalClosing}
 				aria-label='Live camera analyse'
-				aria-describedby='camera-modal-desc'
+				aria-describedby={modalDescId}
 				onMouseDown={handleDialogMouseDown}
 				onCancel={handleDialogCancel}
 				onClose={handleDialogClose}
 			>
-				<p id='camera-modal-desc' className='visually-hidden'>
+				<p id={modalDescId} className='visually-hidden'>
 					Maak een foto van je tong of gebruik live-analyse voor een tongdiagnose.
 				</p>
 

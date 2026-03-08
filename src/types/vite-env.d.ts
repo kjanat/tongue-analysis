@@ -23,8 +23,3 @@ interface ImportMetaEnv {
 	/** ISO 8601 build timestamp for version display. */
 	readonly VITE_BUILD_DATE?: string;
 }
-
-/** Augments Vite's `ImportMeta` with typed env access. */
-interface ImportMeta {
-	readonly env: ImportMetaEnv;
-}
