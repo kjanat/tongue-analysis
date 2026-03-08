@@ -1,7 +1,7 @@
 {
 	"$schema": "https://biomejs.dev/schemas/latest/schema.json",
 	"vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true, "defaultBranch": "master" },
-	"files": { "includes": ["**", "!!**/dist", "!**/.cache"] },
+	"files": { "includes": ["**", "!!**/dist", "!!**/.cache"] },
 	"formatter": { "enabled": false, "indentStyle": "tab", "lineWidth": 100 },
 	"linter": {
 		"enabled": true,

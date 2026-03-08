@@ -80,7 +80,6 @@ export default defineConfig(({ command }) => {
 			port: 3000,
 			strictPort: true,
 			host: true,
-			allowedHosts: true,
 		},
 	};
 });
