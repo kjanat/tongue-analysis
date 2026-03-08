@@ -98,7 +98,7 @@ body {
 		),
 		radial-gradient(
 		circle at 80% 20%,
-		rgba(178, 34, 34, 0.06) 0%,
+		rgb(178 34 34 / 0.06) 0%,
 		transparent 50%
 	);
 	pointer-events: none;
@@ -193,8 +193,8 @@ body {
 	padding: 0.5rem 1rem;
 	font-size: 0.85rem;
 	color: var(--color-error-dark);
-	background: rgba(178, 34, 34, 0.08);
-	border: 1px solid rgba(178, 34, 34, 0.2);
+	background: rgb(178 34 34 / 0.08);
+	border: 1px solid rgb(178 34 34 / 0.2);
 	border-radius: 8px;
 	text-align: center;
 }
@@ -225,10 +225,10 @@ dialog.camera-modal {
 	border: 1px solid rgb(from var(--color-gold) r g b / 0.2);
 	background: linear-gradient(
 		180deg,
-		rgba(35, 25, 15, 0.96),
-		rgba(25, 18, 12, 0.96)
+		rgb(35 25 15 / 0.96),
+		rgb(25 18 12 / 0.96)
 	);
-	box-shadow: 0 18px 46px rgba(0, 0, 0, 0.38);
+	box-shadow: 0 18px 46px rgb(0 0 0 / 0.38);
 	color: inherit;
 	opacity: 1;
 	transform: translateY(0) scale(1);
@@ -238,7 +238,7 @@ dialog.camera-modal {
 }
 
 dialog.camera-modal::backdrop {
-	background: rgba(14, 9, 5, 0.78);
+	background: rgb(14 9 5 / 0.78);
 	backdrop-filter: blur(2px);
 	transition:
 		background var(--camera-modal-close-ms) var(--camera-modal-close-ease),
@@ -252,7 +252,7 @@ dialog.camera-modal[data-closing="true"] {
 }
 
 dialog.camera-modal[data-closing="true"]::backdrop {
-	background: rgba(14, 9, 5, 0);
+	background: rgb(14 9 5 / 0);
 	backdrop-filter: blur(0);
 }
 
@@ -354,25 +354,25 @@ dialog.camera-modal[data-closing="true"]::backdrop {
 }
 
 .camera-btn--live[data-running="true"] {
-	background: rgba(34, 139, 34, 0.18);
+	background: rgb(34 139 34 / 0.18);
 	border-color: rgb(from var(--color-success) r g b / 0.5);
 	color: var(--color-success-light);
 }
 
 .camera-btn--live[data-running="true"]:hover {
-	background: rgba(34, 139, 34, 0.26);
+	background: rgb(34 139 34 / 0.26);
 	border-color: rgb(from var(--color-success) r g b / 0.7);
 }
 
 .camera-btn--switch {
-	background: rgba(70, 105, 165, 0.2);
-	border-color: rgba(114, 151, 218, 0.52);
+	background: rgb(70 105 165 / 0.2);
+	border-color: rgb(114 151 218 / 0.52);
 	color: var(--color-info-light);
 }
 
 .camera-btn--switch:hover {
-	background: rgba(70, 105, 165, 0.3);
-	border-color: rgba(114, 151, 218, 0.7);
+	background: rgb(70 105 165 / 0.3);
+	border-color: rgb(114 151 218 / 0.7);
 }
 
 .camera-status {
@@ -382,7 +382,7 @@ dialog.camera-modal[data-closing="true"]::backdrop {
 
 .camera-error {
 	color: var(--color-error-light);
-	background: rgba(30, 8, 8, 0.82);
+	background: rgb(30 8 8 / 0.82);
 	padding: 0.5rem 0.7rem;
 	border-radius: 6px;
 	margin-top: 0.4rem;
@@ -441,8 +441,8 @@ dialog.camera-modal[data-closing="true"]::backdrop {
 	border: 1px solid rgb(from var(--color-gold) r g b / 0.25);
 	background: linear-gradient(
 		180deg,
-		rgba(26, 18, 12, 0.96),
-		rgba(18, 12, 8, 0.96)
+		rgb(26 18 12 / 0.96),
+		rgb(18 12 8 / 0.96)
 	);
 	overflow: hidden;
 }
@@ -461,10 +461,10 @@ dialog.camera-modal[data-closing="true"]::backdrop {
 		),
 		radial-gradient(
 		circle at 84% 74%,
-		rgba(166, 106, 52, 0.1),
+		rgb(166 106 52 / 0.1),
 		transparent 56%
 	),
-		rgba(22, 14, 9, 0.9);
+		rgb(22 14 9 / 0.9);
 }
 
 .camera-skeleton::before {
@@ -474,7 +474,7 @@ dialog.camera-modal[data-closing="true"]::backdrop {
 	background: linear-gradient(
 		100deg,
 		transparent 20%,
-		rgba(245, 219, 177, 0.2) 46%,
+		rgb(245 219 177 / 0.2) 46%,
 		transparent 74%
 	);
 	transform: translateX(-100%);
@@ -509,7 +509,7 @@ dialog.camera-modal[data-closing="true"]::backdrop {
 	font-size: 0.8rem;
 	color: var(--color-error-light);
 	text-align: center;
-	background: rgba(30, 8, 8, 0.82);
+	background: rgb(30 8 8 / 0.82);
 	border-radius: 0 0 10px 10px;
 }
 
@@ -521,7 +521,7 @@ dialog.camera-modal[data-closing="true"]::backdrop {
 	height: 10px;
 	border-radius: 50%;
 	background: var(--color-text-muted);
-	box-shadow: 0 0 4px rgba(0, 0, 0, 0.4);
+	box-shadow: 0 0 4px rgb(0 0 0 / 0.4);
 	transition: background 0.3s ease;
 }
 
@@ -758,8 +758,8 @@ dialog.camera-modal[data-closing="true"]::backdrop {
 	max-width: 420px;
 	padding: 1rem 1.1rem;
 	border-radius: 12px;
-	border: 1px solid rgba(178, 34, 34, 0.35);
-	background: rgba(178, 34, 34, 0.08);
+	border: 1px solid rgb(178 34 34 / 0.35);
+	background: rgb(178 34 34 / 0.08);
 }
 
 .analysis-error h3 {
@@ -945,33 +945,33 @@ dialog.camera-modal[data-closing="true"]::backdrop {
 }
 
 .element-badge[data-element="fire"] {
-	background: rgba(178, 34, 34, 0.2);
+	background: rgb(178 34 34 / 0.2);
 	color: var(--color-error-accent);
-	border: 1px solid rgba(178, 34, 34, 0.3);
+	border: 1px solid rgb(178 34 34 / 0.3);
 }
 
 .element-badge[data-element="water"] {
-	background: rgba(30, 60, 120, 0.2);
+	background: rgb(30 60 120 / 0.2);
 	color: var(--color-info-medium);
-	border: 1px solid rgba(30, 60, 120, 0.3);
+	border: 1px solid rgb(30 60 120 / 0.3);
 }
 
 .element-badge[data-element="wood"] {
-	background: rgba(34, 120, 50, 0.2);
+	background: rgb(34 120 50 / 0.2);
 	color: var(--color-success-hover);
-	border: 1px solid rgba(34, 120, 50, 0.3);
+	border: 1px solid rgb(34 120 50 / 0.3);
 }
 
 .element-badge[data-element="earth"] {
-	background: rgba(160, 130, 50, 0.2);
+	background: rgb(160 130 50 / 0.2);
 	color: var(--color-gold-darkest);
-	border: 1px solid rgba(160, 130, 50, 0.3);
+	border: 1px solid rgb(160 130 50 / 0.3);
 }
 
 .element-badge[data-element="metal"] {
-	background: rgba(160, 160, 170, 0.2);
+	background: rgb(160 160 170 / 0.2);
 	color: oklch(76.22% 0.0227 285.85);
-	border: 1px solid rgba(160, 160, 170, 0.3);
+	border: 1px solid rgb(160 160 170 / 0.3);
 }
 
 /* ── Meridian chart ────────────────────────────────────────── */
@@ -1215,43 +1215,16 @@ dialog.camera-modal[data-closing="true"]::backdrop {
 	animation-duration: 0.3s;
 }
 
-::view-transition-old(camera-hero),
-::view-transition-new(camera-hero) {
+::view-transition-group(camera-hero) {
 	animation-duration: var(--camera-hero-ms);
 	animation-timing-function: var(--camera-hero-ease);
 	animation-fill-mode: both;
 }
 
-::view-transition-old(camera-hero) {
-	animation-name: camera-hero-old;
-}
-
+/* Suppress default cross-fade — the morph via ::view-transition-group handles it. */
+::view-transition-old(camera-hero),
 ::view-transition-new(camera-hero) {
-	animation-name: camera-hero-new;
-}
-
-/* Intentionally no-op (opacity 1 → 1): overrides the default cross-fade so
-   both old and new snapshots stay fully visible while the View Transitions API
-   morphs position/size via ::view-transition-group(camera-hero). */
-
-@keyframes camera-hero-old {
-	from {
-		opacity: 1;
-	}
-
-	to {
-		opacity: 1;
-	}
-}
-
-@keyframes camera-hero-new {
-	from {
-		opacity: 1;
-	}
-
-	to {
-		opacity: 1;
-	}
+	animation: none;
 }
 
 /* ── Reduced Motion ───────────────────────────────────────── */

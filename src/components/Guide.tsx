@@ -4,6 +4,7 @@
  * and the 4 diagnostic axes (color, coating, shape, moisture).
  */
 
+import { useId } from 'react';
 import { TONGUE_TYPES } from '../data/tongue-types.ts';
 import TongueMap from './TongueMap.tsx';
 
@@ -20,9 +21,11 @@ import TongueMap from './TongueMap.tsx';
  * ```
  */
 export default function Guide() {
+	const headingId = useId();
+
 	return (
-		<section className='guide' aria-labelledby='guide-heading'>
-			<h2 id='guide-heading' lang='zh'>舌診指南</h2>
+		<section className='guide' aria-labelledby={headingId}>
+			<h2 id={headingId} lang='zh'>舌診指南</h2>
 
 			{/* ── 10 tongue types ─────────────────────────────── */}
 			<details>
