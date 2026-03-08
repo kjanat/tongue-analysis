@@ -10,6 +10,44 @@
 	--camera-diagnosis-reveal-ms: 340ms;
 	--camera-modal-close-ms: 240ms;
 	--camera-modal-close-ease: cubic-bezier(0.2, 0.7, 0.28, 1);
+
+	/* ── Color Palette ───────────────────────────────────── */
+	/* Core */
+	--color-bg: #ffffff;
+	--color-text: #1a1a1a;
+	--color-text-muted: #777777;
+	--color-border: #d4c4a8;
+
+	/* Gold/Brown (primary theme) — includes RGB components for rgb() / alpha */
+	--color-gold: #c9a54e;
+	--color-gold-rgb: rgb(201, 165, 78);
+	--color-gold-light: #d6b27b;
+	--color-gold-lighter: #dcc9a5;
+	--color-gold-lightest: #f2dcb1;
+	--color-gold-darkest: #c0a850;
+	--color-brown-dark: #8b4513;
+	--color-brown-dark-rgb: rgb(139, 69, 19);
+	--color-brown-medium: #a89478;
+	--color-brown-light: #b8a080;
+	--color-brown-lighter: #9a8a70;
+	--color-beige-light: #cfb387;
+	--color-beige-medium: #9f8b68;
+
+	/* Status colors */
+	--color-success: #4caf50;
+	--color-success-rgb: rgb(76, 175, 80);
+	--color-success-light: #c9e7c9;
+	--color-success-hover: #60b070;
+	--color-success-bright: #6a8a5a;
+	--color-error: #e53935;
+	--color-error-rgb: rgb(229, 57, 53);
+	--color-error-light: #f5d5d5;
+	--color-error-dark: #8b2020;
+	--color-error-accent: #e07070;
+
+	/* Accent/Info */
+	--color-info-light: #d7e6ff;
+	--color-info-medium: #7090d0;
 }
 
 .bg-pattern {
@@ -18,7 +56,7 @@
 	background-image:
 		radial-gradient(
 			circle at 20% 50%,
-			rgba(139, 69, 19, 0.08) 0%,
+			rgb(var(--color-brown-dark-rgb) / 0.08) 0%,
 			transparent 50%
 		),
 		radial-gradient(
@@ -49,15 +87,15 @@
 .chinese-title {
 	font-family: "Noto Serif SC", serif;
 	font-size: 3rem;
-	color: #c9a54e;
-	text-shadow: 0 0 30px rgba(201, 165, 78, 0.3);
+	color: var(--color-gold);
+	text-shadow: 0 0 30px rgb(var(--color-gold-rgb) / 0.3);
 	margin-bottom: 0.3rem;
 }
 
 .app-header h1 {
 	font-size: 1.3rem;
 	font-weight: 300;
-	color: #b8a080;
+	color: var(--color-brown-light);
 	letter-spacing: 0.15em;
 	text-transform: uppercase;
 }
@@ -65,7 +103,7 @@
 .subtitle {
 	margin-top: 0.8rem;
 	font-size: 0.85rem;
-	color: #a89478;
+	color: var(--color-brown-medium);
 	font-style: italic;
 }
 
@@ -73,13 +111,13 @@
 
 .upload-area {
 	width: 100%;
-	border: 2px dashed rgba(201, 165, 78, 0.3);
+	border: 2px dashed rgb(var(--color-gold-rgb) / 0.3);
 	border-radius: 16px;
 	padding: 3rem 2rem;
 	text-align: center;
 	cursor: pointer;
 	transition: border-color 0.4s ease, background-color 0.4s ease;
-	background: rgba(201, 165, 78, 0.03);
+	background: rgb(var(--color-gold-rgb) / 0.03);
 	position: relative;
 	overflow: hidden;
 	font: inherit;
@@ -88,13 +126,13 @@
 
 .upload-area:hover,
 .upload-area:focus-visible {
-	border-color: rgba(201, 165, 78, 0.6);
-	background: rgba(201, 165, 78, 0.06);
+	border-color: rgb(var(--color-gold-rgb) / 0.6);
+	background: rgb(var(--color-gold-rgb) / 0.06);
 }
 
 .upload-area[data-dragover="true"] {
-	border-color: #c9a54e;
-	background: rgba(201, 165, 78, 0.1);
+	border-color: var(--color-gold);
+	background: rgb(var(--color-gold-rgb) / 0.1);
 }
 
 .upload-icon {
@@ -104,20 +142,20 @@
 
 .upload-text {
 	font-size: 1.1rem;
-	color: #b8a080;
+	color: var(--color-brown-light);
 	margin-bottom: 0.5rem;
 }
 
 .upload-hint {
 	font-size: 0.8rem;
-	color: #a89478;
+	color: var(--color-brown-medium);
 }
 
 .upload-error {
 	margin-top: 0.75rem;
 	padding: 0.5rem 1rem;
 	font-size: 0.85rem;
-	color: #8b2020;
+	color: var(--color-error-dark);
 	background: rgba(178, 34, 34, 0.08);
 	border: 1px solid rgba(178, 34, 34, 0.2);
 	border-radius: 8px;
@@ -147,7 +185,7 @@ dialog.camera-modal {
 	overflow: auto;
 	padding: 1rem;
 	border-radius: 12px;
-	border: 1px solid rgba(201, 165, 78, 0.2);
+	border: 1px solid rgb(var(--color-gold-rgb) / 0.2);
 	background: linear-gradient(
 		180deg,
 		rgba(35, 25, 15, 0.96),
@@ -192,7 +230,7 @@ dialog.camera-modal[data-closing="true"]::backdrop {
 	font-size: 1rem;
 	letter-spacing: 0.06em;
 	text-transform: uppercase;
-	color: #d6b27b;
+	color: var(--color-gold-light);
 }
 
 .camera-actions {
@@ -235,29 +273,33 @@ dialog.camera-modal[data-closing="true"]::backdrop {
 	padding: 0.7rem 1.1rem;
 	min-height: 2.75rem;
 	border-radius: 24px;
-	border: 1px solid rgba(201, 165, 78, 0.35);
-	background: rgba(201, 165, 78, 0.08);
-	color: #d4c4a8;
+	border: 1px solid rgb(var(--color-gold-rgb) / 0.35);
+	background: rgb(var(--color-gold-rgb) / 0.08);
+	color: var(--color-border);
 	font-size: 0.82rem;
 	cursor: pointer;
 	transition: border-color 0.25s ease, background-color 0.25s ease;
 }
 
 .camera-btn:hover {
-	border-color: rgba(201, 165, 78, 0.65);
-	background: rgba(201, 165, 78, 0.14);
+	border-color: rgb(var(--color-gold-rgb) / 0.65);
+	background: rgb(var(--color-gold-rgb) / 0.14);
 }
 
 .camera-btn:focus-visible {
-	outline: 2px solid #c9a54e;
+	outline: 2px solid var(--color-gold);
 	outline-offset: 2px;
 }
 
 .camera-btn--primary {
-	background: linear-gradient(135deg, #8b4513, #c9a54e);
+	background: linear-gradient(
+		135deg,
+		var(--color-brown-dark),
+		var(--color-gold)
+	);
 	color: #fff;
 	border: none;
-	box-shadow: inset 0 0 0 1.25px rgba(139, 69, 19, 0.4);
+	box-shadow: inset 0 0 0 1.25px rgb(var(--color-brown-dark-rgb) / 0.4);
 }
 
 .camera-btn--primary:hover {
@@ -270,25 +312,25 @@ dialog.camera-modal[data-closing="true"]::backdrop {
 }
 
 .camera-btn--ghost:hover {
-	background: rgba(201, 165, 78, 0.06);
-	color: #b8a080;
+	background: rgb(var(--color-gold-rgb) / 0.06);
+	color: var(--color-brown-light);
 }
 
 .camera-btn--live[data-running="true"] {
 	background: rgba(34, 139, 34, 0.18);
-	border-color: rgba(76, 175, 80, 0.5);
-	color: #c9e7c9;
+	border-color: rgb(var(--color-success-rgb) / 0.5);
+	color: var(--color-success-light);
 }
 
 .camera-btn--live[data-running="true"]:hover {
 	background: rgba(34, 139, 34, 0.26);
-	border-color: rgba(76, 175, 80, 0.7);
+	border-color: rgb(var(--color-success-rgb) / 0.7);
 }
 
 .camera-btn--switch {
 	background: rgba(70, 105, 165, 0.2);
 	border-color: rgba(114, 151, 218, 0.52);
-	color: #d7e6ff;
+	color: var(--color-info-light);
 }
 
 .camera-btn--switch:hover {
@@ -298,11 +340,11 @@ dialog.camera-modal[data-closing="true"]::backdrop {
 
 .camera-status {
 	font-size: 0.85rem;
-	color: #b8a080;
+	color: var(--color-brown-light);
 }
 
 .camera-error {
-	color: #f5d5d5;
+	color: var(--color-error-light);
 	background: rgba(30, 8, 8, 0.82);
 	padding: 0.5rem 0.7rem;
 	border-radius: 6px;
@@ -359,7 +401,7 @@ dialog.camera-modal[data-closing="true"]::backdrop {
 	position: relative;
 	width: min(100%, 700px);
 	border-radius: 10px;
-	border: 1px solid rgba(201, 165, 78, 0.25);
+	border: 1px solid rgb(var(--color-gold-rgb) / 0.25);
 	background: linear-gradient(
 		180deg,
 		rgba(26, 18, 12, 0.96),
@@ -377,7 +419,7 @@ dialog.camera-modal[data-closing="true"]::backdrop {
 	background:
 		radial-gradient(
 			circle at 18% 18%,
-			rgba(201, 165, 78, 0.12),
+			rgb(var(--color-gold-rgb) / 0.12),
 			transparent 56%
 		),
 		radial-gradient(
@@ -407,7 +449,7 @@ dialog.camera-modal[data-closing="true"]::backdrop {
 	z-index: 1;
 	font-size: 0.82rem;
 	letter-spacing: 0.04em;
-	color: #cfb387;
+	color: var(--color-beige-light);
 	text-transform: uppercase;
 }
 
@@ -428,7 +470,7 @@ dialog.camera-modal[data-closing="true"]::backdrop {
 	inset: auto 0 0;
 	padding: 0.6rem 0.8rem;
 	font-size: 0.8rem;
-	color: #f5d5d5;
+	color: var(--color-error-light);
 	text-align: center;
 	background: rgba(30, 8, 8, 0.82);
 	border-radius: 0 0 10px 10px;
@@ -441,27 +483,27 @@ dialog.camera-modal[data-closing="true"]::backdrop {
 	width: 10px;
 	height: 10px;
 	border-radius: 50%;
-	background: #777;
+	background: var(--color-text-muted);
 	box-shadow: 0 0 4px rgba(0, 0, 0, 0.4);
 	transition: background 0.3s ease;
 }
 
 .camera-live-dot[data-status="active"] {
-	background: #4caf50;
-	box-shadow: 0 0 6px rgba(76, 175, 80, 0.6);
+	background: var(--color-success);
+	box-shadow: 0 0 6px rgb(var(--color-success-rgb) / 0.6);
 }
 
 .camera-live-dot[data-status="error"] {
-	background: #e53935;
-	box-shadow: 0 0 6px rgba(229, 57, 53, 0.5);
+	background: var(--color-error);
+	box-shadow: 0 0 6px rgb(var(--color-error-rgb) / 0.5);
 }
 
 .camera-live {
 	margin-top: 0.9rem;
 	padding: 0.85rem;
 	border-radius: 10px;
-	border: 1px solid rgba(201, 165, 78, 0.3);
-	background: rgba(139, 69, 19, 0.08);
+	border: 1px solid rgb(var(--color-gold-rgb) / 0.3);
+	background: rgb(var(--color-brown-dark-rgb) / 0.08);
 	min-height: 3.5rem;
 	max-height: 14rem;
 	overflow-y: auto;
@@ -495,14 +537,14 @@ dialog.camera-modal[data-closing="true"]::backdrop {
 	font-size: 0.82rem;
 	text-transform: uppercase;
 	letter-spacing: 0.08em;
-	color: #d6b27b;
+	color: var(--color-gold-light);
 }
 
 .camera-live-step {
 	font-size: 0.74rem;
 	text-transform: none;
 	letter-spacing: 0.02em;
-	color: #b8a080;
+	color: var(--color-brown-light);
 	flex: 1 1 auto;
 	text-align: right;
 }
@@ -530,18 +572,18 @@ dialog.camera-modal[data-closing="true"]::backdrop {
 
 .camera-live-type {
 	font-size: 1rem;
-	color: #f2dcb1;
+	color: var(--color-gold-lightest);
 }
 
 .camera-live-diagnosis p {
 	font-size: 0.85rem;
 	line-height: 1.45;
-	color: #dcc9a5;
+	color: var(--color-gold-lighter);
 }
 
 .camera-live-updated {
 	font-size: 0.74rem;
-	color: #9f8b68;
+	color: var(--color-beige-medium);
 }
 
 .camera-live .camera-btn {
@@ -550,7 +592,7 @@ dialog.camera-modal[data-closing="true"]::backdrop {
 
 .camera-live-loading {
 	font-size: 0.82rem;
-	color: #b8a080;
+	color: var(--color-brown-light);
 	font-style: italic;
 }
 
@@ -616,7 +658,7 @@ dialog.camera-modal[data-closing="true"]::backdrop {
 	width: min(92vw, 620px);
 	max-height: min(68dvh, 560px);
 	border-radius: 12px;
-	border: 2px solid rgba(201, 165, 78, 0.3);
+	border: 2px solid rgb(var(--color-gold-rgb) / 0.3);
 	object-fit: contain;
 }
 
@@ -633,7 +675,11 @@ dialog.camera-modal[data-closing="true"]::backdrop {
 	display: block;
 	margin: 1.5rem auto;
 	padding: 1rem 3rem;
-	background: linear-gradient(135deg, #8b4513, #c9a54e);
+	background: linear-gradient(
+		135deg,
+		var(--color-brown-dark),
+		var(--color-gold)
+	);
 	color: #fff;
 	border: none;
 	border-radius: 50px;
@@ -647,11 +693,11 @@ dialog.camera-modal[data-closing="true"]::backdrop {
 
 .analyze-btn:hover {
 	transform: translateY(-2px);
-	box-shadow: 0 8px 25px rgba(139, 69, 19, 0.4);
+	box-shadow: 0 8px 25px rgb(var(--color-brown-dark-rgb) / 0.4);
 }
 
 .analyze-btn:focus-visible {
-	outline: 2px solid #c9a54e;
+	outline: 2px solid var(--color-gold);
 	outline-offset: 2px;
 }
 
@@ -661,7 +707,7 @@ dialog.camera-modal[data-closing="true"]::backdrop {
 	padding: 0.7rem 2rem;
 	background: transparent;
 	color: #8a7a65;
-	border: 1px solid rgba(201, 165, 78, 0.3);
+	border: 1px solid rgb(var(--color-gold-rgb) / 0.3);
 	border-radius: 50px;
 	font-size: 0.9rem;
 	cursor: pointer;
@@ -669,12 +715,12 @@ dialog.camera-modal[data-closing="true"]::backdrop {
 }
 
 .restart-btn:hover {
-	border-color: #c9a54e;
-	color: #c9a54e;
+	border-color: var(--color-gold);
+	color: var(--color-gold);
 }
 
 .restart-btn:focus-visible {
-	outline: 2px solid #c9a54e;
+	outline: 2px solid var(--color-gold);
 	outline-offset: 2px;
 }
 
@@ -723,7 +769,7 @@ dialog.camera-modal[data-closing="true"]::backdrop {
 
 .loading-text {
 	font-size: 0.95rem;
-	color: #b8a080;
+	color: var(--color-brown-light);
 	margin-bottom: 1.5rem;
 }
 
@@ -736,7 +782,7 @@ dialog.camera-modal[data-closing="true"]::backdrop {
 .loading-step {
 	padding: 0.4rem 0;
 	font-size: 0.85rem;
-	color: #9a8a70;
+	color: var(--color-brown-lighter);
 	transition: color 0.5s ease;
 }
 
@@ -745,7 +791,7 @@ dialog.camera-modal[data-closing="true"]::backdrop {
 }
 
 .loading-step[data-status="active"] {
-	color: #c9a54e;
+	color: var(--color-gold);
 }
 
 .loading-step[data-status="active"]::before {
@@ -753,7 +799,7 @@ dialog.camera-modal[data-closing="true"]::backdrop {
 }
 
 .loading-step[data-status="done"] {
-	color: #6a8a5a;
+	color: var(--color-success-bright);
 }
 
 .loading-step[data-status="done"]::before {
@@ -763,7 +809,7 @@ dialog.camera-modal[data-closing="true"]::backdrop {
 .progress-bar {
 	width: 100%;
 	height: 3px;
-	background: rgba(201, 165, 78, 0.1);
+	background: rgb(var(--color-gold-rgb) / 0.1);
 	border-radius: 2px;
 	margin-top: 1.5rem;
 	overflow: hidden;
@@ -772,7 +818,11 @@ dialog.camera-modal[data-closing="true"]::backdrop {
 .progress-fill {
 	height: 100%;
 	width: 100%;
-	background: linear-gradient(90deg, #8b4513, #c9a54e);
+	background: linear-gradient(
+		90deg,
+		var(--color-brown-dark),
+		var(--color-gold)
+	);
 	border-radius: 2px;
 	transform-origin: left;
 	transform: scaleX(0);
@@ -793,24 +843,24 @@ dialog.camera-modal[data-closing="true"]::backdrop {
 .results-header h2 {
 	font-family: "Noto Serif SC", serif;
 	font-size: 1.5rem;
-	color: #c9a54e;
+	color: var(--color-gold);
 }
 
 .results-header .diagnosis-name {
 	font-size: 1.1rem;
-	color: #d4c4a8;
+	color: var(--color-border);
 	margin-top: 0.4rem;
 }
 
 .results-header .diagnosis-date {
 	font-size: 0.8rem;
-	color: #a89478;
+	color: var(--color-brown-medium);
 	margin-top: 0.3rem;
 }
 
 .result-card {
-	background: rgba(201, 165, 78, 0.05);
-	border: 1px solid rgba(201, 165, 78, 0.15);
+	background: rgb(var(--color-gold-rgb) / 0.05);
+	border: 1px solid rgb(var(--color-gold-rgb) / 0.15);
 	border-radius: 12px;
 	padding: 1.3rem 1.5rem;
 	margin-bottom: 1rem;
@@ -820,19 +870,19 @@ dialog.camera-modal[data-closing="true"]::backdrop {
 	font-size: 0.75rem;
 	text-transform: uppercase;
 	letter-spacing: 0.15em;
-	color: #a89478;
+	color: var(--color-brown-medium);
 	margin-bottom: 0.6rem;
 }
 
 .result-card p {
 	font-size: 0.95rem;
 	line-height: 1.6;
-	color: #d4c4a8;
+	color: var(--color-border);
 }
 
 .result-card .summary {
 	font-style: italic;
-	color: #c9a54e;
+	color: var(--color-gold);
 }
 
 .result-card-spaced {
@@ -856,7 +906,7 @@ dialog.camera-modal[data-closing="true"]::backdrop {
 	width: 18px;
 	height: 18px;
 	border-radius: 50%;
-	border: 1px solid rgba(201, 165, 78, 0.4);
+	border: 1px solid rgb(var(--color-gold-rgb) / 0.4);
 	flex-shrink: 0;
 }
 
@@ -880,25 +930,25 @@ dialog.camera-modal[data-closing="true"]::backdrop {
 
 .element-badge[data-element="fire"] {
 	background: rgba(178, 34, 34, 0.2);
-	color: #e07070;
+	color: var(--color-error-accent);
 	border: 1px solid rgba(178, 34, 34, 0.3);
 }
 
 .element-badge[data-element="water"] {
 	background: rgba(30, 60, 120, 0.2);
-	color: #7090d0;
+	color: var(--color-info-medium);
 	border: 1px solid rgba(30, 60, 120, 0.3);
 }
 
 .element-badge[data-element="wood"] {
 	background: rgba(34, 120, 50, 0.2);
-	color: #60b070;
+	color: var(--color-success-hover);
 	border: 1px solid rgba(34, 120, 50, 0.3);
 }
 
 .element-badge[data-element="earth"] {
 	background: rgba(160, 130, 50, 0.2);
-	color: #c0a850;
+	color: var(--color-gold-darkest);
 	border: 1px solid rgba(160, 130, 50, 0.3);
 }
 
@@ -925,7 +975,7 @@ dialog.camera-modal[data-closing="true"]::backdrop {
 
 .meridian-bar {
 	width: 40px;
-	background: rgba(201, 165, 78, 0.1);
+	background: rgb(var(--color-gold-rgb) / 0.1);
 	border-radius: 4px;
 	margin: 0 auto 0.3rem;
 	overflow: hidden;
@@ -937,7 +987,7 @@ dialog.camera-modal[data-closing="true"]::backdrop {
 .meridian-fill {
 	width: 100%;
 	height: 100%;
-	background: linear-gradient(0deg, #8b4513, #c9a54e);
+	background: linear-gradient(0deg, var(--color-brown-dark), var(--color-gold));
 	border-radius: 4px;
 	transform-origin: bottom;
 	transform: scaleY(0);
@@ -946,7 +996,7 @@ dialog.camera-modal[data-closing="true"]::backdrop {
 
 .meridian-label {
 	font-size: 0.65rem;
-	color: #9a8a70;
+	color: var(--color-brown-lighter);
 }
 
 /* ── Disclaimer ────────────────────────────────────────────── */
@@ -956,8 +1006,8 @@ dialog.camera-modal[data-closing="true"]::backdrop {
 	margin-top: 2.5rem;
 	padding: 1rem;
 	font-size: 0.7rem;
-	color: #9a8a70;
-	border-top: 1px solid rgba(201, 165, 78, 0.1);
+	color: var(--color-brown-lighter);
+	border-top: 1px solid rgb(var(--color-gold-rgb) / 0.1);
 }
 
 .debug-footer {
@@ -989,7 +1039,7 @@ dialog.camera-modal[data-closing="true"]::backdrop {
 
 .guide {
 	margin-top: 2rem;
-	border-top: 1px solid rgba(201, 165, 78, 0.1);
+	border-top: 1px solid rgb(var(--color-gold-rgb) / 0.1);
 	padding-top: 1.5rem;
 }
 
@@ -997,7 +1047,7 @@ dialog.camera-modal[data-closing="true"]::backdrop {
 	text-align: center;
 	font-family: "Noto Serif SC", serif;
 	font-size: 1.2rem;
-	color: #c9a54e;
+	color: var(--color-gold);
 	margin-bottom: 1rem;
 }
 
@@ -1009,11 +1059,11 @@ dialog.camera-modal[data-closing="true"]::backdrop {
 	cursor: pointer;
 	font-size: 0.95rem;
 	font-weight: 600;
-	color: #b8a080;
+	color: var(--color-brown-light);
 	padding: 0.7rem 1rem;
 	border-radius: 8px;
-	background: rgba(201, 165, 78, 0.05);
-	border: 1px solid rgba(201, 165, 78, 0.12);
+	background: rgb(var(--color-gold-rgb) / 0.05);
+	border: 1px solid rgb(var(--color-gold-rgb) / 0.12);
 	transition: background 0.3s ease;
 	list-style: none;
 }
@@ -1030,11 +1080,11 @@ dialog.camera-modal[data-closing="true"]::backdrop {
 }
 
 .guide summary:hover {
-	background: rgba(201, 165, 78, 0.1);
+	background: rgb(var(--color-gold-rgb) / 0.1);
 }
 
 .guide summary:focus-visible {
-	outline: 2px solid #c9a54e;
+	outline: 2px solid var(--color-gold);
 	outline-offset: 2px;
 }
 
@@ -1051,8 +1101,8 @@ dialog.camera-modal[data-closing="true"]::backdrop {
 }
 
 .type-card {
-	background: rgba(201, 165, 78, 0.04);
-	border: 1px solid rgba(201, 165, 78, 0.12);
+	background: rgb(var(--color-gold-rgb) / 0.04);
+	border: 1px solid rgb(var(--color-gold-rgb) / 0.12);
 	border-radius: 10px;
 	padding: 1rem;
 }
@@ -1068,18 +1118,18 @@ dialog.camera-modal[data-closing="true"]::backdrop {
 	width: 20px;
 	height: 20px;
 	border-radius: 50%;
-	border: 2px solid rgba(201, 165, 78, 0.3);
+	border: 2px solid rgb(var(--color-gold-rgb) / 0.3);
 	flex-shrink: 0;
 }
 
 .type-card-header .type-name {
 	font-weight: 600;
-	color: #d4c4a8;
+	color: var(--color-border);
 	font-size: 0.9rem;
 }
 
 .type-card-header .type-name-zh {
-	color: #c9a54e;
+	color: var(--color-gold);
 	font-family: "Noto Serif SC", serif;
 	font-size: 0.8rem;
 	margin-left: 0.3rem;
@@ -1087,7 +1137,7 @@ dialog.camera-modal[data-closing="true"]::backdrop {
 
 .type-card-detail {
 	font-size: 0.78rem;
-	color: #a89478;
+	color: var(--color-brown-medium);
 	line-height: 1.5;
 }
 
@@ -1102,9 +1152,9 @@ dialog.camera-modal[data-closing="true"]::backdrop {
 	font-size: 0.7rem;
 	padding: 0.15rem 0.5rem;
 	border-radius: 12px;
-	background: rgba(201, 165, 78, 0.08);
-	color: #b8a080;
-	border: 1px solid rgba(201, 165, 78, 0.15);
+	background: rgb(var(--color-gold-rgb) / 0.08);
+	color: var(--color-brown-light);
+	border: 1px solid rgb(var(--color-gold-rgb) / 0.15);
 }
 
 /* ── Tongue map ────────────────────────────────────────────── */
@@ -1129,9 +1179,9 @@ dialog.camera-modal[data-closing="true"]::backdrop {
 
 .axes-list li {
 	padding: 0.6rem 0;
-	border-bottom: 1px solid rgba(201, 165, 78, 0.06);
+	border-bottom: 1px solid rgb(var(--color-gold-rgb) / 0.06);
 	font-size: 0.85rem;
-	color: #d4c4a8;
+	color: var(--color-border);
 	line-height: 1.5;
 }
 
@@ -1140,7 +1190,7 @@ dialog.camera-modal[data-closing="true"]::backdrop {
 }
 
 .axes-list strong {
-	color: #c9a54e;
+	color: var(--color-gold);
 }
 
 /* ── View Transitions ──────────────────────────────────────── */
