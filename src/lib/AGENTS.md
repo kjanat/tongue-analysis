@@ -23,7 +23,7 @@ Three entry points in `pipeline.ts`:
 - `analyzeTongueImage(imageData, onStep)` — direct ImageData input
 - `analyzeTongueVideoFrame(video, timestamp)` — live camera frame (uses video-mode MediaPipe)
 
-All return `Result<AnalysisSuccess, AnalysisError>`.
+All return `Promise<Result<AnalysisSuccess, AnalysisError>>`.
 
 ## WHERE TO LOOK
 
