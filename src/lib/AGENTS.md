@@ -33,8 +33,8 @@ All return `Result<AnalysisSuccess, AnalysisError>`.
 | `face-detection.ts`         | 626   | MediaPipe FaceLandmarker. Singleton model. Mouth landmark extraction.     |
 | `tongue-segmentation.ts`    | 601   | HSV thresholding → erode/dilate → connected-component BFS → centroid.     |
 | `color-correction.ts`       | 260   | Gray-world on masked pixels. Returns corrected `ImageData` + avg RGB.     |
-| `diagnosis.ts`              | 205   | Maps `TongueColorClassification` → satirical TCM `Diagnosis`.             |
 | `color-classification.ts`   | 251   | RGB→OKLCh conversion. Distance to TCM type reference colors.              |
+| `diagnosis.ts`              | 205   | Maps `TongueColorClassification` → satirical TCM `Diagnosis`.             |
 | `color-analysis.ts`         | 186   | **Legacy.** Canvas center-crop RGB→HSL. Used by old PRNG path.            |
 | `color-matching.ts`         | 139   | **Legacy.** OKLCH Gaussian weight boosting for old diagnosis.             |
 | `debug-overlay.ts`          | 128   | DPR-aware debug canvas drawing (bounding box + lip polygons). Pure.       |
@@ -47,7 +47,7 @@ All return `Result<AnalysisSuccess, AnalysisError>`.
 
 ### pipeline/ subdirectory — see `src/lib/pipeline/AGENTS.md`
 
-Decomposed pipeline internals (7 files, ~925 lines), extracted from the former monolithic `pipeline.ts`.
+Decomposed pipeline internals (7 files, ~1,065 lines), extracted from the former monolithic `pipeline.ts`.
 
 ## ERROR TYPES
 

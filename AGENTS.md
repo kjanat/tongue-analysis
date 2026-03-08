@@ -1,6 +1,6 @@
 # PROJECT KNOWLEDGE BASE
 
-**Generated:** 2026-03-07 **Commit:** 67035ab **Branch:** master
+**Generated:** 2026-03-08 **Commit:** 9e292cf **Branch:** master
 
 ## OVERVIEW
 
@@ -23,12 +23,11 @@ tongue-analysis/
 ├── src/
 │   ├── main.tsx                  # React 19 entry (StrictMode + createRoot)
 │   ├── App.tsx                   # Root: 5-phase state machine (upload→preview→loading→results|error)
-│   ├── App.css                   # All component styles (~1222 lines, plain CSS)
-│   ├── index.css                 # Global reset + button font-family inherit
+│   ├── App.css                   # All component styles (~1253 lines, plain CSS)
 │   ├── components/               # 6 components — see src/components/AGENTS.md
-│   │   ├── CameraCapture.tsx     # Live camera + real-time analysis (985 lines)
+│   │   ├── CameraCapture.tsx     # Live camera + real-time analysis (1036 lines)
 │   │   ├── DiagnosisResults.tsx  # Results display (181 lines)
-│   │   ├── Guide.tsx             # Interactive TCM guide (127 lines)
+│   │   ├── Guide.tsx             # Interactive TCM guide (130 lines)
 │   │   ├── LoadingSequence.tsx   # 7-step analysis progress animation (86 lines)
 │   │   ├── TongueMap.tsx         # Tongue zone SVG visualization (115 lines)
 │   │   └── UploadArea.tsx        # File upload with drag/drop (125 lines)
@@ -38,7 +37,7 @@ tongue-analysis/
 │   │   ├── use-live-announcements.ts  # ARIA screen reader announcements (123 lines)
 │   │   └── use-media-stream.ts   # Camera stream lifecycle + device switching (534 lines)
 │   ├── data/
-│   │   └── tongue-types.ts       # TCM domain data (organs, elements, zones, tongue types)
+│   │   └── tongue-types.ts       # TCM domain data (organs, elements, zones, tongue types) (434 lines)
 │   ├── lib/                      # Core pipeline + utilities — see src/lib/AGENTS.md
 │   ├── types/
 │   │   ├── package-bindings.d.ts # SYNC: must match vite.package-bindings.ts virtualModuleSource()
@@ -78,6 +77,7 @@ tongue-analysis/
 | CI/deploy          | `.github/workflows/pages.yml`                     | Triggers on `master`, path-filtered, no lint/test gates                |
 | TS strictness      | `tsconfig.app.json`                               | `noUncheckedIndexedAccess`, `erasableSyntaxOnly`                       |
 | Lint rules         | `eslint.config.js`                                | Flat config, `strictTypeChecked` + 4 React plugins                     |
+| Secondary linter   | `biome.json`                                      | Biome linter enabled, formatter disabled. `bun run lint:biome`         |
 | Formatting         | `.dprint.jsonc`                                   | Remote shared config from kjanat/kjanat repo                           |
 
 ## CONVENTIONS
@@ -113,6 +113,7 @@ tongue-analysis/
 - **CSS custom properties** for animation timings (`--camera-hero-ms`, `--camera-modal-close-ms`, etc.), read at runtime via `getComputedStyle()`
 - **GPU-composited transforms** preferred over layout-triggering properties (`transform: scaleX/scaleY` instead of `width`/`height` animations)
 - **View transition pseudo-elements** (`::view-transition-*`) for cross-fade and hero animations between app phases
+- **OKLCH color palette** via CSS custom properties for consistent theming
 
 ### Accessibility
 
@@ -152,6 +153,7 @@ bun run dev       # Vite dev server (port 3000, strict)
 bun run build     # Custom build: tsc -b → vite build (via scripts/build.ts)
 bun run typecheck # tsgo --noEmit (native TS compiler preview)
 bun run lint      # eslint .
+bun run lint:biome # Biome supplementary linting (formatter disabled)
 bun run preview   # Full build + vite preview
 bun run fmt       # dprint fmt
 bun run analyze   # CLI tongue analysis (bun cli/analyze.ts)
@@ -184,3 +186,5 @@ bun run cf-build  # Cloudflare Pages build variant
 - **Volta pin**: Node 24.13.0 pinned in package.json `volta` field.
 - **Zero `eslint-disable`**: No suppression comments remain in the codebase.
 - **Only `SYNC:` comments** as cross-file verification markers. No `TODO`, `FIXME`, `HACK`, `@ts-ignore`, `as any`.
+- **Dual linting**: ESLint (`strictTypeChecked`) primary, Biome (linter-only, formatter disabled) supplementary. Both run as Zed language servers.
+- **`$`-prefixed path aliases**: SvelteKit-style aliases (`$lib`, `$hooks`, `$components`, etc.) in a React project.
