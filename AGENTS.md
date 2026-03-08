@@ -58,27 +58,27 @@ tongue-analysis/
 
 ## WHERE TO LOOK
 
-| Task               | Location                                   | Notes                                                    |
-| ------------------ | ------------------------------------------ | -------------------------------------------------------- |
-| Analysis pipeline  | `src/lib/`                                 | See `src/lib/AGENTS.md` for full pipeline breakdown      |
-| App state machine  | `src/App.tsx`                              | `Phase` discriminated union, 5 variants with `kind` tag  |
-| View transitions   | `src/lib/view-transition.ts`               | All `setPhase()` calls wrapped in `withViewTransition()` |
-| Live camera        | `src/hooks/use-live-analysis.ts`           | Real-time video frame analysis loop                      |
-| Camera stream      | `src/hooks/use-media-stream.ts`            | getUserMedia lifecycle, device enumeration               |
-| ARIA announcements | `src/hooks/use-live-announcements.ts`      | Screen reader support during live analysis               |
-| Camera cleanup     | `src/hooks/use-deferred-camera-release.ts` | Delayed camera release on tab switch                     |
-| Debug overlay      | `src/lib/debug-overlay.ts`                 | DPR-aware bounding box + lip polygon canvas drawing      |
-| Time formatting    | `src/lib/format-time.ts`                   | Shared Dutch locale time formatter                       |
-| Math utilities     | `src/lib/math-utils.ts`                    | Shared `clamp()` used across pipeline stages             |
-| Domain data (TCM)  | `src/data/tongue-types.ts`                 | Organs, elements, meridians, tongue type definitions     |
-| Styles             | `src/App.css`                              | Single file, all component styles, section-divided       |
-| MediaPipe assets   | `vite.package-bindings.ts`                 | WASM copy, model download, CDN fallback, virtual module  |
-| Build script       | `scripts/build.ts`                         | Resolves env (GH Actions / CF Pages), runs tsc+vite      |
-| CLI tool           | `cli/analyze.ts`                           | Headless analysis, polyfills `ImageData` for Bun runtime |
-| CI/deploy          | `.github/workflows/pages.yml`              | Triggers on `master`, path-filtered, no lint/test gates  |
-| TS strictness      | `tsconfig.app.json`                        | `noUncheckedIndexedAccess`, `erasableSyntaxOnly`         |
-| Lint rules         | `eslint.config.js`                         | Flat config, `strictTypeChecked` + 4 React plugins       |
-| Formatting         | `.dprint.jsonc`                            | Remote shared config from kjanat/kjanat repo             |
+| Task               | Location                                          | Notes                                                                  |
+| ------------------ | ------------------------------------------------- | ---------------------------------------------------------------------- |
+| Analysis pipeline  | `src/lib/`                                        | See `src/lib/AGENTS.md` for full pipeline breakdown                    |
+| App state machine  | `src/App.tsx`                                     | `Phase` discriminated union, 5 variants with `kind` tag                |
+| View transitions   | `src/App.tsx`, `src/components/CameraCapture.tsx` | React `<ViewTransition>` + `startTransition()` + `addTransitionType()` |
+| Live camera        | `src/hooks/use-live-analysis.ts`                  | Real-time video frame analysis loop                                    |
+| Camera stream      | `src/hooks/use-media-stream.ts`                   | getUserMedia lifecycle, device enumeration                             |
+| ARIA announcements | `src/hooks/use-live-announcements.ts`             | Screen reader support during live analysis                             |
+| Camera cleanup     | `src/hooks/use-deferred-camera-release.ts`        | Delayed camera release on tab switch                                   |
+| Debug overlay      | `src/lib/debug-overlay.ts`                        | DPR-aware bounding box + lip polygon canvas drawing                    |
+| Time formatting    | `src/lib/format-time.ts`                          | Shared Dutch locale time formatter                                     |
+| Math utilities     | `src/lib/math-utils.ts`                           | Shared `clamp()` used across pipeline stages                           |
+| Domain data (TCM)  | `src/data/tongue-types.ts`                        | Organs, elements, meridians, tongue type definitions                   |
+| Styles             | `src/App.css`                                     | Single file, all component styles, section-divided                     |
+| MediaPipe assets   | `vite.package-bindings.ts`                        | WASM copy, model download, CDN fallback, virtual module                |
+| Build script       | `scripts/build.ts`                                | Resolves env (GH Actions / CF Pages), runs tsc+vite                    |
+| CLI tool           | `cli/analyze.ts`                                  | Headless analysis, polyfills `ImageData` for Bun runtime               |
+| CI/deploy          | `.github/workflows/pages.yml`                     | Triggers on `master`, path-filtered, no lint/test gates                |
+| TS strictness      | `tsconfig.app.json`                               | `noUncheckedIndexedAccess`, `erasableSyntaxOnly`                       |
+| Lint rules         | `eslint.config.js`                                | Flat config, `strictTypeChecked` + 4 React plugins                     |
+| Formatting         | `.dprint.jsonc`                                   | Remote shared config from kjanat/kjanat repo                           |
 
 ## CONVENTIONS
 
@@ -106,7 +106,7 @@ tongue-analysis/
 - **`lang='zh'`** on Chinese text spans
 - **React Compiler** enabled (`babel-plugin-react-compiler`)
 - **`useId()`** for DOM IDs referenced by ARIA/SVG (no hardcoded ID strings)
-- **View Transitions API** for phase changes — all `setPhase()` calls wrapped in `withViewTransition()`
+- **React `<ViewTransition>`** for phase changes — `setPhase()` calls wrapped in `startTransition()`, `addTransitionType()` for typed transitions, `<ViewTransition name>` for shared element hero animations
 
 ### CSS
 
@@ -143,7 +143,7 @@ tongue-analysis/
 - **No CSS modules/Tailwind/CSS-in-JS** — plain CSS with `data-*` state attributes
 - **No implicit coercion in templates** — use `String()` explicitly
 - **No `@ts-ignore`** — use `@ts-expect-error` with justification if unavoidable
-- **No `eslint-disable`** — justified `eslint-disable-next-line` only (4 instances in `view-transition.ts` with explanations)
+- **No `eslint-disable`** — zero instances in codebase
 
 ## COMMANDS
 
@@ -182,5 +182,5 @@ bun run cf-build  # Cloudflare Pages build variant
 - **`tsgo` for typecheck**: `@typescript/native-preview` used for `bun run typecheck`, but `tsc -b` used in actual build. Two different TS compilers.
 - **`gl` in devDependencies**: Native OpenGL bindings for headless WebGL / CLI canvas support.
 - **Volta pin**: Node 24.13.0 pinned in package.json `volta` field.
-- **Four `eslint-disable-next-line`**: All in `view-transition.ts` — runtime browser API guard + `flushSync` calls required by View Transitions API. Each has an inline justification comment.
+- **Zero `eslint-disable`**: No suppression comments remain in the codebase.
 - **Only `SYNC:` comments** as cross-file verification markers. No `TODO`, `FIXME`, `HACK`, `@ts-ignore`, `as any`.

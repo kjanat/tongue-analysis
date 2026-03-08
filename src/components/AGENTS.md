@@ -18,14 +18,14 @@
 - **`CameraCapture`** is the complexity hub — 4 private sub-components (`CameraIdleActions`, `CameraReadyControls`, `CameraStage`, `LiveDiagnosisPanel`), all unexported.
 - **Two output paths from camera**: `onCapture` (still frame blob → upload flow) and `onLiveDiagnosis` (bypass upload, direct results).
 - **`<dialog>` modal**: Native dialog element with backdrop bounding-rect check for click-to-close.
-- **View Transitions**: Modal open uses `withViewTransitionAndWait()` for hero animation between camera button and dialog.
-- **Concurrent close**: `closeModalWithTransition()` freezes interaction immediately (`transitionClosingRef` gates all handlers), starts live-panel collapse + modal fade concurrently, waits for `Math.max(collapseMs, modalMs)`, then calls `dialog.close()`. Skips in-flight open view transition via `skipActiveViewTransition()` when close is requested during open.
+- **View Transitions**: Modal open uses React `<ViewTransition name="camera-hero">` with `startTransition()` + `addTransitionType('camera-modal')` for shared element hero animation between camera button and dialog. `useLayoutEffect` fires `showModal()` inside the snapshot window; `useEffect` runs post-animation work.
+- **Concurrent close**: `closeModalWithTransition()` freezes interaction immediately (`transitionClosingRef` gates all handlers), starts live-panel collapse + modal fade concurrently, waits for `Math.max(collapseMs, modalMs)`, then calls `dialog.close()`. Defers close via `pendingCloseRef` when open transition is still in flight.
 - **Preview priming**: `previewPrimed` + `previewAspectRatio` states with skeleton loader until first video frame renders.
 - **Upload as `<button>`**: `UploadArea` wraps upload zone in `<button>` for keyboard accessibility. File input reset (`input.value = ''`) enables re-selecting the same file.
 
 ## CONVENTIONS (beyond root)
 
-- **Specific `data-*` attrs**: `data-mirror`, `data-status`, `data-visible`, `data-dragover`, `data-hero-owner`, `data-closing`, `data-skeleton-visible`, `data-ready`, `data-stale`, `data-reveal-phase`, `data-running`.
+- **Specific `data-*` attrs**: `data-mirror`, `data-status`, `data-visible`, `data-dragover`, `data-closing`, `data-skeleton-visible`, `data-ready`, `data-stale`, `data-reveal-phase`, `data-running`.
 - **Debug gating**: Confidence values in `DiagnosisResults` only rendered when `VITE_DEBUG_OVERLAY` is truthy.
 - **`<output>` as ARIA live region**: Used in `CameraCapture` for screen reader announcements.
 - **`useId()` for SVG IDs**: `TongueMap` generates unique `<linearGradient>` IDs via React's `useId()` to avoid DOM collisions.
