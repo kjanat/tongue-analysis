@@ -16,6 +16,7 @@ import type { RefObject } from 'react';
  * - `'ready'` — stream acquired and `<video>` playing.
  */
 export type CameraMode = 'idle' | 'requesting' | 'ready';
+type CameraFacing = 'front' | 'back';
 
 /**
  * Return value of {@link useMediaStream}.
@@ -120,6 +121,10 @@ function isFrontFacingTrack(track: MediaStreamTrack): boolean {
 	return true;
 }
 
+function facingFromTrack(track: MediaStreamTrack): CameraFacing {
+	return isFrontFacingTrack(track) ? 'front' : 'back';
+}
+
 /**
  * Extract the `deviceId` from a track's settings.
  * Returns `null` when the browser doesn't expose it (e.g. before permission grant).
@@ -151,6 +156,38 @@ function isFrontFacingLabel(label: string): boolean {
 	return label.includes('front')
 		|| label.includes('user')
 		|| label.includes('face');
+}
+
+function facingFromLabel(label: string): CameraFacing | null {
+	const normalizedLabel = normalizeCameraLabel(label);
+	if (normalizedLabel === '') return null;
+	if (isRearFacingLabel(normalizedLabel)) return 'back';
+	if (isFrontFacingLabel(normalizedLabel)) return 'front';
+	return null;
+}
+
+function isLikelyMobileDevice(): boolean {
+	if (typeof navigator === 'undefined' || typeof window === 'undefined') {
+		return false;
+	}
+
+	const userAgentData = (
+		navigator as Navigator & {
+			readonly userAgentData?: {
+				readonly mobile?: boolean;
+			};
+		}
+	).userAgentData;
+	if (userAgentData?.mobile === true) {
+		return true;
+	}
+
+	const userAgent = navigator.userAgent.toLowerCase();
+	if (/android|iphone|ipad|ipod|mobile/.test(userAgent)) {
+		return true;
+	}
+
+	return window.matchMedia('(pointer: coarse)').matches;
 }
 
 function findMatchingCameraId(
@@ -281,6 +318,8 @@ export function useMediaStream(): UseMediaStreamResult {
 	const streamRef = useRef<MediaStream | null>(null);
 	const videoRef = useRef<HTMLVideoElement>(null);
 	const preferredCameraIdRef = useRef<string | null>(null);
+	const cameraFacingByIdRef = useRef(new Map<string, CameraFacing>());
+	const activeCameraFacingRef = useRef<CameraFacing | null>(null);
 	const requestIdRef = useRef(0);
 	/**
 	 * Synchronous mirror of {@link mode} that is always current,
@@ -367,6 +406,13 @@ export function useMediaStream(): UseMediaStreamResult {
 		setError(message);
 	}, []);
 
+	const rememberCameraFacing = useCallback((cameraId: string | null, facing: CameraFacing | null) => {
+		activeCameraFacingRef.current = facing;
+		if (cameraId !== null && facing !== null) {
+			cameraFacingByIdRef.current.set(cameraId, facing);
+		}
+	}, []);
+
 	const startWithCameraId = useCallback(async (requestedCameraId: string | null) => {
 		// Guard uses ref — immune to stale closures from React's batched renders.
 		if (modeRef.current === 'requesting') return;
@@ -409,8 +455,8 @@ export function useMediaStream(): UseMediaStreamResult {
 			}
 
 			const videoTrack = stream.getVideoTracks()[0];
-			const trackIsFrontFacing = videoTrack === undefined ? null : isFrontFacingTrack(videoTrack);
-			setMirrorPreview(trackIsFrontFacing ?? false);
+			const trackFacing = videoTrack === undefined ? null : facingFromTrack(videoTrack);
+			setMirrorPreview(trackFacing === 'front');
 			const resolvedCameraId = videoTrack === undefined
 				? requestedCameraId
 				: getTrackDeviceId(videoTrack) ?? requestedCameraId;
@@ -422,6 +468,7 @@ export function useMediaStream(): UseMediaStreamResult {
 			const effectiveCameraId = requestedCameraId ?? resolvedCameraId;
 			setActiveCameraId(effectiveCameraId);
 			preferredCameraIdRef.current = effectiveCameraId;
+			rememberCameraFacing(effectiveCameraId, trackFacing);
 			// Normalise the active camera against enumerateDevices() before the
 			// UI becomes ready again. Otherwise the switch button can read a
 			// transient track ID and spend one tap re-opening the current camera.
@@ -429,8 +476,9 @@ export function useMediaStream(): UseMediaStreamResult {
 				isCurrentRequest,
 				effectiveCameraId,
 				videoTrack?.label ?? null,
-				trackIsFrontFacing,
+				trackFacing === 'front',
 			);
+			rememberCameraFacing(preferredCameraIdRef.current, trackFacing);
 
 			streamRef.current = stream;
 
@@ -505,21 +553,23 @@ export function useMediaStream(): UseMediaStreamResult {
 					// Continue with the fallback stream — reuse the success
 					// path below by assigning and returning early.
 					const fallbackTrack = fallbackStream.getVideoTracks()[0];
-					const fallbackTrackIsFrontFacing = fallbackTrack === undefined
+					const fallbackTrackFacing = fallbackTrack === undefined
 						? null
-						: isFrontFacingTrack(fallbackTrack);
-					setMirrorPreview(fallbackTrackIsFrontFacing ?? false);
+						: facingFromTrack(fallbackTrack);
+					setMirrorPreview(fallbackTrackFacing === 'front');
 					const fallbackDeviceId = fallbackTrack === undefined
 						? null
 						: getTrackDeviceId(fallbackTrack);
 					setActiveCameraId(fallbackDeviceId);
 					preferredCameraIdRef.current = fallbackDeviceId;
+					rememberCameraFacing(fallbackDeviceId, fallbackTrackFacing);
 					await refreshAvailableCameras(
 						isCurrentRequest,
 						fallbackDeviceId,
 						fallbackTrack?.label ?? null,
-						fallbackTrackIsFrontFacing,
+						fallbackTrackFacing === 'front',
 					);
+					rememberCameraFacing(preferredCameraIdRef.current, fallbackTrackFacing);
 
 					streamRef.current = fallbackStream;
 					const video = videoRef.current;
@@ -558,7 +608,7 @@ export function useMediaStream(): UseMediaStreamResult {
 			setMirrorPreview(false);
 			updateMode('idle');
 		}
-	}, [refreshAvailableCameras, stopCurrentStream, updateMode]);
+	}, [refreshAvailableCameras, rememberCameraFacing, stopCurrentStream, updateMode]);
 
 	const start = useCallback(async () => {
 		await startWithCameraId(preferredCameraIdRef.current);
@@ -570,6 +620,37 @@ export function useMediaStream(): UseMediaStreamResult {
 
 		const activeCameraIdForCycle = preferredCameraIdRef.current ?? activeCameraId;
 		const activeIndex = availableCameras.findIndex((device) => device.deviceId === activeCameraIdForCycle);
+		const activeFacing = activeCameraFacingRef.current
+			?? (activeCameraIdForCycle === null
+				? null
+				: cameraFacingByIdRef.current.get(activeCameraIdForCycle)
+					?? availableCameras.reduce<CameraFacing | null>((resolvedFacing, device) => {
+						if (resolvedFacing !== null || device.deviceId !== activeCameraIdForCycle) {
+							return resolvedFacing;
+						}
+
+						return facingFromLabel(device.label);
+					}, null));
+
+		if (isLikelyMobileDevice() && activeFacing !== null) {
+			const targetFacing: CameraFacing = activeFacing === 'front' ? 'back' : 'front';
+
+			for (let offset = 1; offset <= availableCameras.length; offset += 1) {
+				const nextIndex = activeIndex < 0
+					? offset - 1
+					: (activeIndex + offset) % availableCameras.length;
+				const candidate = availableCameras[nextIndex];
+				if (candidate === undefined) continue;
+
+				const candidateFacing = cameraFacingByIdRef.current.get(candidate.deviceId)
+					?? facingFromLabel(candidate.label);
+				if (candidateFacing === targetFacing) {
+					await startWithCameraId(candidate.deviceId);
+					return;
+				}
+			}
+		}
+
 		const nextIndex = activeIndex < 0 ? 0 : (activeIndex + 1) % availableCameras.length;
 		const nextCamera = availableCameras[nextIndex];
 		if (nextCamera === undefined) return;
