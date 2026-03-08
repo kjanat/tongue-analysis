@@ -26,7 +26,7 @@ tongue-analysis/
 │   ├── App.css                   # All component styles (~1222 lines, plain CSS)
 │   ├── index.css                 # Global reset + button font-family inherit
 │   ├── components/               # 6 components — see src/components/AGENTS.md
-│   │   ├── CameraCapture.tsx     # Live camera + real-time analysis (964 lines)
+│   │   ├── CameraCapture.tsx     # Live camera + real-time analysis (985 lines)
 │   │   ├── DiagnosisResults.tsx  # Results display (181 lines)
 │   │   ├── Guide.tsx             # Interactive TCM guide (127 lines)
 │   │   ├── LoadingSequence.tsx   # 7-step analysis progress animation (86 lines)
@@ -143,7 +143,7 @@ tongue-analysis/
 - **No CSS modules/Tailwind/CSS-in-JS** — plain CSS with `data-*` state attributes
 - **No implicit coercion in templates** — use `String()` explicitly
 - **No `@ts-ignore`** — use `@ts-expect-error` with justification if unavoidable
-- **No `eslint-disable`** — justified `eslint-disable-next-line` only (2 instances in `view-transition.ts` with explanations)
+- **No `eslint-disable`** — justified `eslint-disable-next-line` only (4 instances in `view-transition.ts` with explanations)
 
 ## COMMANDS
 
@@ -182,5 +182,5 @@ bun run cf-build  # Cloudflare Pages build variant
 - **`tsgo` for typecheck**: `@typescript/native-preview` used for `bun run typecheck`, but `tsc -b` used in actual build. Two different TS compilers.
 - **`gl` in devDependencies**: Native OpenGL bindings for headless WebGL / CLI canvas support.
 - **Volta pin**: Node 24.13.0 pinned in package.json `volta` field.
-- **Two `eslint-disable-next-line`**: Both in `view-transition.ts` — runtime browser feature guard + required `flushSync` for View Transitions API. Each has an inline justification comment.
+- **Four `eslint-disable-next-line`**: All in `view-transition.ts` — runtime browser API guard + `flushSync` calls required by View Transitions API. Each has an inline justification comment.
 - **Only `SYNC:` comments** as cross-file verification markers. No `TODO`, `FIXME`, `HACK`, `@ts-ignore`, `as any`.

@@ -1,12 +1,12 @@
 # src/components — UI Components
 
-6 React components, flat structure. ~1,598 lines total. All styles in `src/App.css`.
+6 React components, flat structure. ~1,619 lines total. All styles in `src/App.css`.
 
 ## WHERE TO LOOK
 
 | File                   | Lines | Role                                                                                                      |
 | ---------------------- | ----- | --------------------------------------------------------------------------------------------------------- |
-| `CameraCapture.tsx`    | 964   | Modal dialog: live camera, still capture, device switching, real-time analysis. Orchestrates all 4 hooks. |
+| `CameraCapture.tsx`    | 985   | Modal dialog: live camera, still capture, device switching, real-time analysis. Orchestrates all 4 hooks. |
 | `DiagnosisResults.tsx` | 181   | Full diagnosis report: color, type, elements, meridians, organs, patterns, tips.                          |
 | `Guide.tsx`            | 127   | Collapsible TCM reference guide. Embeds `TongueMap`.                                                      |
 | `UploadArea.tsx`       | 125   | Drag-and-drop file upload with MIME/size validation (10MB limit).                                         |
@@ -19,7 +19,7 @@
 - **Two output paths from camera**: `onCapture` (still frame blob → upload flow) and `onLiveDiagnosis` (bypass upload, direct results).
 - **`<dialog>` modal**: Native dialog element with backdrop bounding-rect check for click-to-close.
 - **View Transitions**: Modal open uses `withViewTransitionAndWait()` for hero animation between camera button and dialog.
-- **Sequenced close**: `closeModalWithTransition()` orchestrates collapse live panel → fade modal → close dialog via CSS custom property timings (`parseDurationMs()` reads `--camera-modal-close-ms` etc. from `getComputedStyle()`).
+- **Concurrent close**: `closeModalWithTransition()` freezes interaction immediately (`transitionClosingRef` gates all handlers), starts live-panel collapse + modal fade concurrently, waits for `Math.max(collapseMs, modalMs)`, then calls `dialog.close()`. Skips in-flight open view transition via `skipActiveViewTransition()` when close is requested during open.
 - **Preview priming**: `previewPrimed` + `previewAspectRatio` states with skeleton loader until first video frame renders.
 - **Upload as `<button>`**: `UploadArea` wraps upload zone in `<button>` for keyboard accessibility. File input reset (`input.value = ''`) enables re-selecting the same file.
 

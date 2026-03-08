@@ -1,6 +1,6 @@
 # src/lib/pipeline — Pipeline Internals
 
-Decomposed pipeline stages extracted from the former monolithic `pipeline.ts`. 7 files, ~900 lines total.
+Decomposed pipeline stages extracted from the former monolithic `pipeline.ts`. 7 files, ~925 lines total.
 
 ## WHERE TO LOOK
 
@@ -9,7 +9,7 @@ Decomposed pipeline stages extracted from the former monolithic `pipeline.ts`. 7
 | `analysis-core.ts` | 240   | Core analysis loop: step orchestration, closeup fallback logic.  |
 | `mask.ts`          | 176   | Inner lip polygon rasterization + fallback ellipse mask.         |
 | `lighting.ts`      | 171   | Luminance histogram analysis, poor-lighting detection threshold. |
-| `crop.ts`          | 136   | Mouth region → canvas `ImageData` cropping with padding.         |
+| `crop.ts`          | 147   | Mouth bounding-box/image intersection → canvas `ImageData` crop. |
 | `types.ts`         | 70    | Shared ADTs: `FrameSource`, `FrameDimensions`, `MouthCrop`, etc. |
 | `frame-source.ts`  | 67    | Unified frame acquisition: URL load, direct ImageData, video.    |
 | `thresholds.ts`    | 54    | Numeric constants for segmentation, lighting, and confidence.    |
@@ -38,5 +38,5 @@ pipeline.ts (entry points)
 
 - `analysis-core.ts` is the sole consumer of all other files in this directory.
 - Closeup fallback (retry with full-image crop when face detection fails) is implemented in `analysis-core.ts`, not in `pipeline.ts`.
-- `crop.ts` adds configurable padding around the mouth bounding box to capture surrounding tongue area.
-- `mask.ts` exports `rasterizePolygonMask()` and `createEllipseMask()` independently — they can be tested in isolation.
+- `crop.ts` computes the intersection of the mouth bounding box with image bounds; padding is applied upstream in `face-detection.ts`.
+- `mask.ts` exports `makeMouthOpeningMask()`, `makeFallbackAllowedMask()`, and `fallbackMinimumPixels()` — independently testable.
