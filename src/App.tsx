@@ -3,7 +3,7 @@
  * Orchestrates the 5-phase tongue analysis flow: upload, preview, loading, results, error.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { startTransition, useCallback, useEffect, useRef, useState, ViewTransition } from 'react';
 import './App.css';
 import CameraCapture from './components/CameraCapture.tsx';
 import DiagnosisResults from './components/DiagnosisResults.tsx';
@@ -14,7 +14,6 @@ import { analysisErrorMessage } from './lib/analysis-error-message.ts';
 import type { Diagnosis } from './lib/diagnosis.ts';
 import { releaseFaceLandmarker } from './lib/face-detection.ts';
 import { type AnalysisError, type AnalysisStep, analyzeTongueFromUrl } from './lib/pipeline.ts';
-import { withViewTransition } from './lib/view-transition.ts';
 
 /**
  * Discriminated union driving the entire UI state machine.
@@ -124,7 +123,7 @@ export default function App() {
 				},
 			});
 
-			withViewTransition(() => {
+			startTransition(() => {
 				setPhase((previous) => {
 					if (previous.kind !== 'loading' || previous.analysisId !== loadingAnalysisId) {
 						return previous;
@@ -152,13 +151,13 @@ export default function App() {
 	}, [loadingAnalysisId, loadingImageUrl]);
 
 	const handleImageSelected = useCallback((_file: File, imageUrl: string) => {
-		withViewTransition(() => {
+		startTransition(() => {
 			setPhase({ kind: 'preview', imageUrl });
 		});
 	}, []);
 
 	const handleAnalyze = useCallback(() => {
-		withViewTransition(() => {
+		startTransition(() => {
 			setPhase((previous) => {
 				if (previous.kind !== 'preview') return previous;
 				nextAnalysisIdRef.current += 1;
@@ -168,7 +167,7 @@ export default function App() {
 	}, []);
 
 	const handleRetry = useCallback(() => {
-		withViewTransition(() => {
+		startTransition(() => {
 			setPhase((previous) => {
 				if (previous.kind !== 'error') return previous;
 				nextAnalysisIdRef.current += 1;
@@ -178,13 +177,13 @@ export default function App() {
 	}, []);
 
 	const handleRestart = useCallback(() => {
-		withViewTransition(() => {
+		startTransition(() => {
 			setPhase(INITIAL);
 		});
 	}, []);
 
 	const handleUseLiveDiagnosis = useCallback((diagnosis: Diagnosis) => {
-		withViewTransition(() => {
+		startTransition(() => {
 			setPhase({
 				kind: 'results',
 				diagnosis,
@@ -196,15 +195,22 @@ export default function App() {
 		<>
 			<div className='bg-pattern' />
 			<main className='container'>
-				<header className='app-header'>
-					<div className='chinese-title' lang='zh'>
-						舌診
-					</div>
-					<h1>Tongdiagnose</h1>
-					<p className='subtitle'>
-						Traditionele Chinese Geneeskunde — AI-analyse
-					</p>
-				</header>
+				{
+					/* During camera-modal transitions, header opts out ('none') so it
+				    joins the root snapshot and darkens with the backdrop cross-fade.
+				    During phase transitions it morphs independently ('auto'). */
+				}
+				<ViewTransition default={{ default: 'auto', 'camera-modal': 'none' }}>
+					<header className='app-header'>
+						<div className='chinese-title' lang='zh'>
+							舌診
+						</div>
+						<h1>Tongdiagnose</h1>
+						<p className='subtitle'>
+							Traditionele Chinese Geneeskunde — AI-analyse
+						</p>
+					</header>
+				</ViewTransition>
 
 				{phase.kind === 'upload' && (
 					<>

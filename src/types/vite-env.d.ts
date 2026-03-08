@@ -6,6 +6,7 @@
  */
 
 /// <reference types="vite/client" />
+/// <reference types="react/canary" />
 
 /**
  * Build-time environment variables injected via Vite's `define` config.

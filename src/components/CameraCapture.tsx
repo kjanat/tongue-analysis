@@ -5,7 +5,17 @@
  */
 
 import type { MouseEvent, RefObject, SyntheticEvent } from 'react';
-import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import {
+	addTransitionType,
+	startTransition,
+	useCallback,
+	useEffect,
+	useId,
+	useLayoutEffect,
+	useRef,
+	useState,
+	ViewTransition,
+} from 'react';
 import { useDeferredCameraRelease } from '../hooks/use-deferred-camera-release.ts';
 import type { LiveMode } from '../hooks/use-live-analysis.ts';
 import { useLiveAnalysis } from '../hooks/use-live-analysis.ts';
@@ -16,7 +26,6 @@ import type { Diagnosis } from '../lib/diagnosis.ts';
 import { formatUpdateTime } from '../lib/format-time.ts';
 import type { AnalysisStep } from '../lib/pipeline.ts';
 import { ANALYSIS_STEP_LABELS } from '../lib/pipeline.ts';
-import { skipActiveViewTransition, withViewTransitionAndWait } from '../lib/view-transition.ts';
 
 /**
  * Delay (ms) before the camera stream is automatically released after a tab switch.
@@ -581,8 +590,8 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 		// Dialog not yet open (early opening phase before showModal).
 		if (dialog?.open !== true) {
 			if (modalTransitioningRef.current && !transitionClosingRef.current) {
+				// React manages the view transition — defer close until it settles.
 				pendingCloseRef.current = true;
-				skipActiveViewTransition();
 				return promise;
 			}
 
@@ -598,10 +607,9 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 			return promise;
 		}
 
-		// Open transition still in flight — defer close but skip animation.
+		// Open transition still in flight — defer close until React's animation settles.
 		if (modalTransitioningRef.current) {
 			pendingCloseRef.current = true;
-			skipActiveViewTransition();
 			return promise;
 		}
 
@@ -696,6 +704,35 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 		});
 	}, [clearReleaseTimer, startCamera, stopLiveAnalysis]);
 
+	// Open the dialog via showModal() inside React's startViewTransition snapshot window.
+	// heroOwner drives the conditional <ViewTransition name="camera-hero"> in the render,
+	// and useLayoutEffect fires inside the updateCallback before the new snapshot is captured.
+	useLayoutEffect(() => {
+		const dialog = dialogRef.current;
+		if (heroOwner === 'dialog' && dialog !== null && !dialog.open) {
+			dialog.showModal();
+		}
+	}, [heroOwner]);
+
+	// Post-transition work: start camera, handle pending close.
+	// React defers useEffect until after the view transition animation finishes.
+	const openTransitionPendingRef = useRef(false);
+	useEffect(() => {
+		if (!openTransitionPendingRef.current) return;
+		if (heroOwner !== 'dialog') return;
+		openTransitionPendingRef.current = false;
+		modalTransitioningRef.current = false;
+
+		if (pendingCloseRef.current) {
+			void closeModalWithTransition();
+			return;
+		}
+
+		if (isIdle && dialogRef.current?.open === true) {
+			handleStartCamera();
+		}
+	}, [heroOwner, isIdle, closeModalWithTransition, handleStartCamera]); // heroOwner triggers re-run after startTransition commits
+
 	const handleOpenModal = useCallback(() => {
 		clearReleaseTimer();
 		const dialog = dialogRef.current;
@@ -703,50 +740,20 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 			return;
 		}
 
-		void (async () => {
-			modalTransitioningRef.current = true;
+		modalTransitioningRef.current = true;
+		openTransitionPendingRef.current = true;
 
-			try {
-				setCameraAutoPaused(false);
-				clearAllErrors();
-				setModalClosing(false);
-				setLivePanelClosing(false);
-
-				// Exclude header from this transition so the backdrop cross-fade darkens it.
-				// Phase transitions keep app-header via the CSS custom property fallback.
-				document.documentElement.style.setProperty('--header-vt-name', 'none');
-				try {
-					await withViewTransitionAndWait(() => {
-						setHeroOwner('dialog');
-						setPreviewPrimed(true);
-						setVideoReady(false);
-						dialog.showModal();
-					});
-				} catch {
-					const currentDialog = dialogRef.current;
-					if (currentDialog?.open !== true) {
-						currentDialog?.showModal();
-					}
-					setPreviewPrimed(true);
-					setVideoReady(false);
-					setHeroOwner('dialog');
-				} finally {
-					document.documentElement.style.removeProperty('--header-vt-name');
-				}
-			} finally {
-				modalTransitioningRef.current = false;
-			}
-
-			if (pendingCloseRef.current) {
-				void closeModalWithTransition();
-				return;
-			}
-
-			if (isIdle && dialogRef.current?.open === true) {
-				handleStartCamera();
-			}
-		})();
-	}, [clearAllErrors, clearReleaseTimer, closeModalWithTransition, handleStartCamera, isIdle]);
+		startTransition(() => {
+			addTransitionType('camera-modal');
+			setCameraAutoPaused(false);
+			clearAllErrors();
+			setModalClosing(false);
+			setLivePanelClosing(false);
+			setHeroOwner('dialog');
+			setPreviewPrimed(true);
+			setVideoReady(false);
+		});
+	}, [clearAllErrors, clearReleaseTimer]);
 
 	const handlePageHidden = useCallback(() => {
 		if (!cameraActive) return;
@@ -923,96 +930,107 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 
 	return (
 		<>
-			<div className='camera-capture' data-hero-owner={heroOwner}>
-				<button type='button' className='camera-btn camera-btn--primary' onClick={handleOpenModal}>
-					Gebruik live camera
-				</button>
+			<div className='camera-capture'>
+				<ViewTransition
+					name={heroOwner === 'button' ? 'camera-hero' : undefined}
+					share='camera-hero-morph'
+					default='none'
+				>
+					<button type='button' className='camera-btn camera-btn--primary' onClick={handleOpenModal}>
+						Gebruik live camera
+					</button>
+				</ViewTransition>
 			</div>
 
-			<dialog
-				ref={dialogRef}
-				className='camera-modal'
-				data-hero-owner={heroOwner}
-				data-closing={modalClosing}
-				aria-label='Live camera analyse'
-				aria-describedby={modalDescId}
-				onMouseDown={handleDialogMouseDown}
-				onCancel={handleDialogCancel}
-				onClose={handleDialogClose}
+			<ViewTransition
+				name={heroOwner === 'dialog' ? 'camera-hero' : undefined}
+				share='camera-hero-morph'
+				default='none'
 			>
-				<p id={modalDescId} className='visually-hidden'>
-					Maak een foto van je tong of gebruik live-analyse voor een tongdiagnose.
-				</p>
+				<dialog
+					ref={dialogRef}
+					className='camera-modal'
+					data-closing={modalClosing}
+					aria-label='Live camera analyse'
+					aria-describedby={modalDescId}
+					onMouseDown={handleDialogMouseDown}
+					onCancel={handleDialogCancel}
+					onClose={handleDialogClose}
+				>
+					<p id={modalDescId} className='visually-hidden'>
+						Maak een foto van je tong of gebruik live-analyse voor een tongdiagnose.
+					</p>
 
-				<div className='camera-modal-header'>
-					<h3>Live camera</h3>
-					<button
-						ref={closeButtonRef}
-						type='button'
-						className='camera-btn camera-btn--ghost'
-						onClick={handleCloseModal}
-					>
-						Sluiten
-					</button>
-				</div>
+					<div className='camera-modal-header'>
+						<h3>Live camera</h3>
+						<button
+							ref={closeButtonRef}
+							type='button'
+							className='camera-btn camera-btn--ghost'
+							onClick={handleCloseModal}
+						>
+							Sluiten
+						</button>
+					</div>
 
-				<div className='camera-actions'>
-					{isIdle && !isCameraStarting && (
-						<CameraIdleActions
-							cameraAutoPaused={cameraAutoPaused}
-							error={error}
-							onStart={handleStartCamera}
+					<div className='camera-actions'>
+						{isIdle && !isCameraStarting && (
+							<CameraIdleActions
+								cameraAutoPaused={cameraAutoPaused}
+								error={error}
+								onStart={handleStartCamera}
+							/>
+						)}
+
+						{(isRequesting || isCameraStarting) && <div className='camera-status'>Camera wordt gestart...</div>}
+
+						{isReady && (
+							<CameraReadyControls
+								canSwitchCamera={canSwitchCamera}
+								activeCameraLabel={activeCameraLabel}
+								isLiveRunning={isLiveRunning}
+								onCapture={handleCapture}
+								onSwitchCamera={handleSwitchCamera}
+								onLiveToggle={handleLiveToggle}
+							/>
+						)}
+					</div>
+
+					<div className='camera-preview' data-visible={isPreviewVisible}>
+						<CameraStage
+							videoRef={videoRef}
+							previewAspectRatio={previewAspectRatio}
+							showSkeleton={showPreviewSkeleton}
+							videoReady={videoReady}
+							overlayCanvasRef={overlayCanvasRef}
+							mirrorPreview={mirrorPreview}
+							liveHasStarted={liveHasStarted}
+							liveStatus={liveStatus}
+							activeError={activeError}
+						/>
+					</div>
+
+					<output
+						ref={liveAnnouncementRef}
+						className='visually-hidden'
+						aria-live='polite'
+						aria-atomic='true'
+					/>
+
+					{liveHasStarted && (
+						<LiveDiagnosisPanel
+							liveMode={liveMode}
+							liveStep={liveStep}
+							liveError={liveError}
+							liveDiagnosis={liveDiagnosis}
+							liveUpdatedAt={liveUpdatedAt}
+							canUseLiveDiagnosis={onLiveDiagnosis !== undefined}
+							onUseLiveDiagnosis={handleUseLiveDiagnosis}
+							closingForModalClose={livePanelClosing}
 						/>
 					)}
-
-					{(isRequesting || isCameraStarting) && <div className='camera-status'>Camera wordt gestart...</div>}
-
-					{isReady && (
-						<CameraReadyControls
-							canSwitchCamera={canSwitchCamera}
-							activeCameraLabel={activeCameraLabel}
-							isLiveRunning={isLiveRunning}
-							onCapture={handleCapture}
-							onSwitchCamera={handleSwitchCamera}
-							onLiveToggle={handleLiveToggle}
-						/>
-					)}
-				</div>
-
-				<div className='camera-preview' data-visible={isPreviewVisible}>
-					<CameraStage
-						videoRef={videoRef}
-						previewAspectRatio={previewAspectRatio}
-						showSkeleton={showPreviewSkeleton}
-						videoReady={videoReady}
-						overlayCanvasRef={overlayCanvasRef}
-						mirrorPreview={mirrorPreview}
-						liveHasStarted={liveHasStarted}
-						liveStatus={liveStatus}
-						activeError={activeError}
-					/>
-				</div>
-
-				<output
-					ref={liveAnnouncementRef}
-					className='visually-hidden'
-					aria-live='polite'
-					aria-atomic='true'
-				/>
-
-				{liveHasStarted && (
-					<LiveDiagnosisPanel
-						liveMode={liveMode}
-						liveStep={liveStep}
-						liveError={liveError}
-						liveDiagnosis={liveDiagnosis}
-						liveUpdatedAt={liveUpdatedAt}
-						canUseLiveDiagnosis={onLiveDiagnosis !== undefined}
-						onUseLiveDiagnosis={handleUseLiveDiagnosis}
-						closingForModalClose={livePanelClosing}
-					/>
-				)}
-			</dialog>
+				</dialog>
+			</ViewTransition>
 		</>
 	);
 }

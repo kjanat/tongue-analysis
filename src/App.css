@@ -118,7 +118,6 @@ body {
 .app-header {
 	text-align: center;
 	margin-bottom: 2.5rem;
-	view-transition-name: var(--header-vt-name, app-header);
 }
 
 .chinese-title {
@@ -203,14 +202,6 @@ body {
 	margin-top: 1rem;
 	display: flex;
 	justify-content: center;
-}
-
-.camera-capture[data-hero-owner="button"] .camera-btn--primary {
-	view-transition-name: camera-hero;
-}
-
-dialog.camera-modal[data-hero-owner="dialog"] {
-	view-transition-name: camera-hero;
 }
 
 dialog.camera-modal {
@@ -1216,15 +1207,16 @@ dialog.camera-modal[data-closing="true"]::backdrop {
 	animation-fill-mode: both;
 }
 
-::view-transition-group(camera-hero) {
+/* Camera-hero shared element: morph position/size, suppress cross-fade.
+   .camera-hero-morph is the View Transition Class applied by <ViewTransition share>. */
+::view-transition-group(.camera-hero-morph) {
 	animation-duration: var(--camera-hero-ms);
 	animation-timing-function: var(--camera-hero-ease);
 	animation-fill-mode: both;
 }
 
-/* Suppress default cross-fade — the morph via ::view-transition-group handles it. */
-::view-transition-old(camera-hero),
-::view-transition-new(camera-hero) {
+::view-transition-old(.camera-hero-morph),
+::view-transition-new(.camera-hero-morph) {
 	animation: none;
 }
 
