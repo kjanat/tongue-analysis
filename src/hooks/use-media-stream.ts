@@ -251,10 +251,13 @@ export function useMediaStream(): UseMediaStreamResult {
 	}, []);
 
 	const refreshAvailableCameras = useCallback(
-		async (isCurrentRequest: () => boolean, fallbackActiveCameraId: string | null): Promise<void> => {
+		async (
+			isCurrentRequest: () => boolean,
+			fallbackActiveCameraId: string | null,
+		): Promise<string | null> => {
 			try {
 				const devices = await navigator.mediaDevices.enumerateDevices();
-				if (!isCurrentRequest()) return;
+				if (!isCurrentRequest()) return fallbackActiveCameraId;
 
 				const videoDevices = toVideoInputDevices(devices);
 				setAvailableCameras(videoDevices);
@@ -270,15 +273,17 @@ export function useMediaStream(): UseMediaStreamResult {
 
 				setActiveCameraId(nextActiveCameraId);
 				preferredCameraIdRef.current = nextActiveCameraId;
+				return nextActiveCameraId;
 			} catch (enumerateError: unknown) {
 				if (import.meta.env.DEV) {
 					console.warn('enumerateDevices() failed:', enumerateError);
 				}
 
-				if (!isCurrentRequest()) return;
+				if (!isCurrentRequest()) return fallbackActiveCameraId;
 				setAvailableCameras([]);
 				setActiveCameraId(fallbackActiveCameraId);
 				preferredCameraIdRef.current = fallbackActiveCameraId;
+				return fallbackActiveCameraId;
 			}
 		},
 		[],
@@ -371,7 +376,10 @@ export function useMediaStream(): UseMediaStreamResult {
 			const effectiveCameraId = requestedCameraId ?? resolvedCameraId;
 			setActiveCameraId(effectiveCameraId);
 			preferredCameraIdRef.current = effectiveCameraId;
-			void refreshAvailableCameras(isCurrentRequest, effectiveCameraId);
+			// Normalise the active camera against enumerateDevices() before the
+			// UI becomes ready again. Otherwise the switch button can read a
+			// transient track ID and spend one tap re-opening the current camera.
+			await refreshAvailableCameras(isCurrentRequest, effectiveCameraId);
 
 			streamRef.current = stream;
 
@@ -452,7 +460,7 @@ export function useMediaStream(): UseMediaStreamResult {
 						: getTrackDeviceId(fallbackTrack);
 					setActiveCameraId(fallbackDeviceId);
 					preferredCameraIdRef.current = fallbackDeviceId;
-					void refreshAvailableCameras(isCurrentRequest, fallbackDeviceId);
+					await refreshAvailableCameras(isCurrentRequest, fallbackDeviceId);
 
 					streamRef.current = fallbackStream;
 					const video = videoRef.current;
@@ -501,7 +509,8 @@ export function useMediaStream(): UseMediaStreamResult {
 		if (modeRef.current !== 'ready') return;
 		if (availableCameras.length < 2) return;
 
-		const activeIndex = availableCameras.findIndex((device) => device.deviceId === activeCameraId);
+		const activeCameraIdForCycle = preferredCameraIdRef.current ?? activeCameraId;
+		const activeIndex = availableCameras.findIndex((device) => device.deviceId === activeCameraIdForCycle);
 		const nextIndex = activeIndex < 0 ? 0 : (activeIndex + 1) % availableCameras.length;
 		const nextCamera = availableCameras[nextIndex];
 		if (nextCamera === undefined) return;
