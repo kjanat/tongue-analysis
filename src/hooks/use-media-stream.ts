@@ -40,6 +40,8 @@ interface UseMediaStreamResult {
 	readonly start: () => Promise<void>;
 	/** Cycle to the next camera in {@link UseMediaStreamResult.availableCameras}. No-op if fewer than 2 cameras. */
 	readonly switchToNextCamera: () => Promise<void>;
+	/** Start a specific camera by device ID. No-op when already active. */
+	readonly selectCamera: (cameraId: string) => Promise<void>;
 	/** Stop the stream, detach from the video element, and return to `'idle'`. */
 	readonly stop: () => void;
 	/** {@link UseMediaStreamResult.stop} + clear any lingering error. */
@@ -205,9 +207,7 @@ function findMatchingCameraId(
 
 	if (activeTrackLabel !== null) {
 		const normalizedTrackLabel = normalizeCameraLabel(activeTrackLabel);
-		const labelMatch = videoDevices.find((device) =>
-			normalizeCameraLabel(device.label) === normalizedTrackLabel
-		);
+		const labelMatch = videoDevices.find((device) => normalizeCameraLabel(device.label) === normalizedTrackLabel);
 		if (labelMatch !== undefined) {
 			return labelMatch.deviceId;
 		}
@@ -658,6 +658,16 @@ export function useMediaStream(): UseMediaStreamResult {
 		await startWithCameraId(nextCamera.deviceId);
 	}, [activeCameraId, availableCameras, startWithCameraId]);
 
+	const selectCamera = useCallback(async (cameraId: string) => {
+		if (modeRef.current !== 'ready') return;
+		if (cameraId === '') return;
+
+		const activeCameraIdForSelection = preferredCameraIdRef.current ?? activeCameraId;
+		if (activeCameraIdForSelection === cameraId) return;
+
+		await startWithCameraId(cameraId);
+	}, [activeCameraId, startWithCameraId]);
+
 	useEffect(() => {
 		return () => {
 			requestIdRef.current += 1;
@@ -675,6 +685,7 @@ export function useMediaStream(): UseMediaStreamResult {
 		videoRef,
 		start,
 		switchToNextCamera,
+		selectCamera,
 		stop,
 		reset,
 		clearError,

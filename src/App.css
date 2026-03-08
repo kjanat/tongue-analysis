@@ -297,6 +297,39 @@ dialog.camera-modal[data-closing="true"]::backdrop {
 	justify-content: center;
 }
 
+.camera-picker {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.45rem 0.8rem;
+	min-height: 2.75rem;
+	border-radius: 24px;
+	border: 1px solid rgb(from var(--color-gold) r g b / 0.2);
+	background: rgb(from var(--color-gold) r g b / 0.04);
+}
+
+.camera-picker-label {
+	font-size: 0.78rem;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--color-brown-light);
+}
+
+.camera-select {
+	min-width: 12rem;
+	border: 1px solid rgb(from var(--color-gold) r g b / 0.28);
+	border-radius: 999px;
+	background: rgb(18 13 9 / 0.92);
+	color: var(--color-border);
+	padding: 0.45rem 2rem 0.45rem 0.8rem;
+	font-size: 0.82rem;
+}
+
+.camera-select:focus-visible {
+	outline: 2px solid var(--color-gold);
+	outline-offset: 2px;
+}
+
 .camera-btn {
 	padding: 0.7rem 1.1rem;
 	min-height: 2.75rem;
@@ -650,6 +683,16 @@ dialog.camera-modal[data-closing="true"]::backdrop {
 
 	.camera-controls {
 		gap: 0.4rem;
+	}
+
+	.camera-picker {
+		width: 100%;
+		justify-content: space-between;
+	}
+
+	.camera-select {
+		min-width: 0;
+		flex: 1;
 	}
 }
 
