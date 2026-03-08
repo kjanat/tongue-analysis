@@ -121,20 +121,6 @@ function isFrontFacingTrack(track: MediaStreamTrack): boolean {
 }
 
 /**
- * Check the first video track of a stream to decide whether the
- * preview should be horizontally mirrored.
- *
- * @param stream - Newly acquired `MediaStream`.
- * @returns `true` when the stream's video track is front-facing.
- * @see {@link isFrontFacingTrack}
- */
-function shouldMirrorPreview(stream: MediaStream): boolean {
-	const videoTrack = stream.getVideoTracks()[0];
-	if (videoTrack === undefined) return false;
-	return isFrontFacingTrack(videoTrack);
-}
-
-/**
  * Extract the `deviceId` from a track's settings.
  * Returns `null` when the browser doesn't expose it (e.g. before permission grant).
  *
@@ -148,6 +134,65 @@ function getTrackDeviceId(track: MediaStreamTrack): string | null {
 	}
 
 	return null;
+}
+
+function normalizeCameraLabel(label: string): string {
+	return label.trim().toLowerCase();
+}
+
+function isRearFacingLabel(label: string): boolean {
+	return label.includes('rear')
+		|| label.includes('back')
+		|| label.includes('environment')
+		|| label.includes('world');
+}
+
+function isFrontFacingLabel(label: string): boolean {
+	return label.includes('front')
+		|| label.includes('user')
+		|| label.includes('face');
+}
+
+function findMatchingCameraId(
+	videoDevices: readonly MediaDeviceInfo[],
+	fallbackActiveCameraId: string | null,
+	activeTrackLabel: string | null,
+	activeTrackIsFrontFacing: boolean | null,
+): string | null {
+	if (fallbackActiveCameraId !== null) {
+		const exactMatch = videoDevices.find((device) => device.deviceId === fallbackActiveCameraId);
+		if (exactMatch !== undefined) {
+			return exactMatch.deviceId;
+		}
+	}
+
+	if (activeTrackLabel !== null) {
+		const normalizedTrackLabel = normalizeCameraLabel(activeTrackLabel);
+		const labelMatch = videoDevices.find((device) =>
+			normalizeCameraLabel(device.label) === normalizedTrackLabel
+		);
+		if (labelMatch !== undefined) {
+			return labelMatch.deviceId;
+		}
+	}
+
+	if (activeTrackIsFrontFacing !== null) {
+		const orientationMatch = videoDevices.find((device) => {
+			const label = normalizeCameraLabel(device.label);
+			if (label === '') return false;
+
+			if (activeTrackIsFrontFacing) {
+				return isFrontFacingLabel(label) || !isRearFacingLabel(label);
+			}
+
+			return isRearFacingLabel(label);
+		});
+		if (orientationMatch !== undefined) {
+			return orientationMatch.deviceId;
+		}
+	}
+
+	return videoDevices[0]?.deviceId ?? null;
 }
 
 /**
@@ -254,6 +299,8 @@ export function useMediaStream(): UseMediaStreamResult {
 		async (
 			isCurrentRequest: () => boolean,
 			fallbackActiveCameraId: string | null,
+			activeTrackLabel: string | null,
+			activeTrackIsFrontFacing: boolean | null,
 		): Promise<string | null> => {
 			try {
 				const devices = await navigator.mediaDevices.enumerateDevices();
@@ -262,14 +309,12 @@ export function useMediaStream(): UseMediaStreamResult {
 				const videoDevices = toVideoInputDevices(devices);
 				setAvailableCameras(videoDevices);
 
-				const firstCameraId = videoDevices[0]?.deviceId ?? null;
-				const requestedCameraId = fallbackActiveCameraId ?? firstCameraId;
-				const hasRequestedCamera = requestedCameraId !== null
-					? videoDevices.some((device) => device.deviceId === requestedCameraId)
-					: false;
-				const nextActiveCameraId = hasRequestedCamera
-					? requestedCameraId
-					: firstCameraId;
+				const nextActiveCameraId = findMatchingCameraId(
+					videoDevices,
+					fallbackActiveCameraId,
+					activeTrackLabel,
+					activeTrackIsFrontFacing,
+				);
 
 				setActiveCameraId(nextActiveCameraId);
 				preferredCameraIdRef.current = nextActiveCameraId;
@@ -363,8 +408,9 @@ export function useMediaStream(): UseMediaStreamResult {
 				return;
 			}
 
-			setMirrorPreview(shouldMirrorPreview(stream));
 			const videoTrack = stream.getVideoTracks()[0];
+			const trackIsFrontFacing = videoTrack === undefined ? null : isFrontFacingTrack(videoTrack);
+			setMirrorPreview(trackIsFrontFacing ?? false);
 			const resolvedCameraId = videoTrack === undefined
 				? requestedCameraId
 				: getTrackDeviceId(videoTrack) ?? requestedCameraId;
@@ -379,7 +425,12 @@ export function useMediaStream(): UseMediaStreamResult {
 			// Normalise the active camera against enumerateDevices() before the
 			// UI becomes ready again. Otherwise the switch button can read a
 			// transient track ID and spend one tap re-opening the current camera.
-			await refreshAvailableCameras(isCurrentRequest, effectiveCameraId);
+			await refreshAvailableCameras(
+				isCurrentRequest,
+				effectiveCameraId,
+				videoTrack?.label ?? null,
+				trackIsFrontFacing,
+			);
 
 			streamRef.current = stream;
 
@@ -453,14 +504,22 @@ export function useMediaStream(): UseMediaStreamResult {
 					}
 					// Continue with the fallback stream — reuse the success
 					// path below by assigning and returning early.
-					setMirrorPreview(shouldMirrorPreview(fallbackStream));
 					const fallbackTrack = fallbackStream.getVideoTracks()[0];
+					const fallbackTrackIsFrontFacing = fallbackTrack === undefined
+						? null
+						: isFrontFacingTrack(fallbackTrack);
+					setMirrorPreview(fallbackTrackIsFrontFacing ?? false);
 					const fallbackDeviceId = fallbackTrack === undefined
 						? null
 						: getTrackDeviceId(fallbackTrack);
 					setActiveCameraId(fallbackDeviceId);
 					preferredCameraIdRef.current = fallbackDeviceId;
-					await refreshAvailableCameras(isCurrentRequest, fallbackDeviceId);
+					await refreshAvailableCameras(
+						isCurrentRequest,
+						fallbackDeviceId,
+						fallbackTrack?.label ?? null,
+						fallbackTrackIsFrontFacing,
+					);
 
 					streamRef.current = fallbackStream;
 					const video = videoRef.current;
