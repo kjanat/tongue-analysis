@@ -1,10 +1,31 @@
-import { TONGUE_TYPES } from '../data/tongue-types.ts';
+/**
+ * @module Interactive TCM reference guide.
+ * Three collapsible sections: the 10 tongue types, the organ-zone diagram ({@link TongueMap}),
+ * and the 4 diagnostic axes (color, coating, shape, moisture).
+ */
+
+import { TONGUE_TYPES } from '$data/tongue-types.ts';
+import { useId } from 'react';
 import TongueMap from './TongueMap.tsx';
 
+/**
+ * Collapsible reference guide for Traditional Chinese Medicine tongue diagnosis.
+ * Renders below the results panel to educate the user on TCM tongue classification.
+ * All text is in Dutch.
+ *
+ * @returns A `<section>` with three `<details>` blocks.
+ *
+ * @example
+ * ```tsx
+ * <Guide />
+ * ```
+ */
 export default function Guide() {
+	const headingId = useId();
+
 	return (
-		<section className='guide' aria-labelledby='guide-heading'>
-			<h2 id='guide-heading' lang='zh'>舌診指南</h2>
+		<section className='guide' aria-labelledby={headingId}>
+			<h2 id={headingId} lang='zh'>舌診指南</h2>
 
 			{/* ── 10 tongue types ─────────────────────────────── */}
 			<details>
@@ -70,10 +91,7 @@ export default function Guide() {
 							<strong>Centrum:</strong> Milt &amp; Maag
 						</li>
 						<li>
-							<strong>Wortel (zijkanten):</strong> Nieren
-						</li>
-						<li>
-							<strong>Wortel (centrum):</strong> Blaas
+							<strong>Wortel:</strong> Nieren &amp; Blaas
 						</li>
 					</ul>
 				</div>
@@ -85,24 +103,24 @@ export default function Guide() {
 				<div className='guide-content'>
 					<ul className='axes-list'>
 						<li>
-							<strong>Kleur (色 s&egrave;):</strong>{' '}
+							<strong>Kleur (色 sè):</strong>{' '}
 							Een gezonde tong is lichtroze. Rood duidt op hitte, bleek op tekort (Qi of Bloed), paars op
 							bloed-stagnatie.
 						</li>
 						<li>
-							<strong>Beslag (苔 t&aacute;i):</strong>{' '}
+							<strong>Beslag (苔 tāi):</strong>{' '}
 							Een dun wit laagje is normaal. Dik wit beslag wijst op Damp, geel op Hitte. Geen beslag duidt op
 							Yin-tekort.
 						</li>
 						<li>
-							<strong>Vorm (形 x&iacute;ng):</strong>{' '}
+							<strong>Vorm (形 xíng):</strong>{' '}
 							Gezwollen met tandafdrukken wijst op Milt-Qi-tekort. Dun en smal op Bloed-tekort. Scheurtjes op
-							Yin-defici&euml;ntie.
+							Yin-deficiëntie.
 						</li>
 						<li>
-							<strong>Vochtigheid (津 j&imacr;n):</strong>{' '}
+							<strong>Vochtigheid (津 jīn):</strong>{' '}
 							Balans is ideaal. Een natte tong wijst op verstoorde Yang-energie. Een droge tong op te veel hitte
-							(Yin-defici&euml;ntie).
+							(Yin-deficiëntie).
 						</li>
 					</ul>
 				</div>

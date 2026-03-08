@@ -1,5 +1,21 @@
+/**
+ * Traditional Chinese Medicine (TCM) domain data for tongue diagnosis.
+ *
+ * Defines the complete TCM model: organs, five elements, tongue zones,
+ * and the 10 canonical tongue types with their Dutch-language descriptions,
+ * symptoms, qi patterns, and lifestyle advice.
+ *
+ * @module
+ */
+
 // ── TCM Organ / Element / Zone mappings ─────────────────────────
 
+/**
+ * Dutch names of the eight TCM organs mapped in tongue diagnosis.
+ *
+ * Each organ corresponds to a five-element and a tongue zone via
+ * {@link ORGAN_ELEMENT} and {@link ORGAN_ZONE}.
+ */
 export type OrganName =
 	| 'Hart'
 	| 'Long'
@@ -10,18 +26,28 @@ export type OrganName =
 	| 'Nier'
 	| 'Blaas';
 
+/** The five TCM elements (五行 / Wǔ Xíng) used to classify organ relationships. */
 export type Element = 'wood' | 'fire' | 'earth' | 'metal' | 'water';
 
+/**
+ * Anatomical zones of the tongue in TCM tongue diagnosis.
+ *
+ * Each zone reflects a specific organ's health according to TCM mapping.
+ * Dutch labels: tongpunt (tip), wortel (root), rand (edge/side), centrum (center).
+ */
 export type TongueZone =
 	| 'tongpunt'
 	| 'boven-tongpunt'
 	| 'linkerrand'
 	| 'rechterrand'
 	| 'centrum'
-	| 'wortel-zijkant'
-	| 'wortel-centrum';
+	| 'wortel';
 
-/** Five-element label (Dutch + Chinese) and CSS class per element. */
+/**
+ * Five-element display data: Dutch name with Chinese character and CSS class.
+ *
+ * Used by {@link DiagnosisResults} to render the element distribution chart.
+ */
 export const ELEMENTS: readonly { readonly name: string; readonly cls: Element }[] = [
 	{ name: 'Hout 木', cls: 'wood' },
 	{ name: 'Vuur 火', cls: 'fire' },
@@ -30,7 +56,15 @@ export const ELEMENTS: readonly { readonly name: string; readonly cls: Element }
 	{ name: 'Water 水', cls: 'water' },
 ];
 
-/** Fixed TCM mapping: organ → five-element. */
+/**
+ * Fixed TCM mapping from organ to its governing five-element.
+ *
+ * @example
+ * ```ts
+ * ORGAN_ELEMENT['Hart']  // 'fire'
+ * ORGAN_ELEMENT['Nier']  // 'water'
+ * ```
+ */
 export const ORGAN_ELEMENT: Readonly<Record<OrganName, Element>> = {
 	Hart: 'fire',
 	Long: 'metal',
@@ -42,7 +76,15 @@ export const ORGAN_ELEMENT: Readonly<Record<OrganName, Element>> = {
 	Blaas: 'water',
 };
 
-/** Fixed TCM mapping: organ → tongue zone. */
+/**
+ * Fixed TCM mapping from organ to its diagnostic tongue zone.
+ *
+ * @example
+ * ```ts
+ * ORGAN_ZONE['Hart']  // 'tongpunt' (tongue tip reflects heart health)
+ * ORGAN_ZONE['Nier']  // 'wortel' (root reflects kidney health)
+ * ```
+ */
 export const ORGAN_ZONE: Readonly<Record<OrganName, TongueZone>> = {
 	Hart: 'tongpunt',
 	Long: 'boven-tongpunt',
@@ -50,22 +92,21 @@ export const ORGAN_ZONE: Readonly<Record<OrganName, TongueZone>> = {
 	Galblaas: 'rechterrand',
 	Maag: 'centrum',
 	Milt: 'centrum',
-	Nier: 'wortel-zijkant',
-	Blaas: 'wortel-centrum',
+	Nier: 'wortel',
+	Blaas: 'wortel',
 };
 
-/** Dutch label for each tongue zone. */
+/** Human-readable Dutch label for each tongue zone, used in UI descriptions. */
 export const ZONE_LABEL: Readonly<Record<TongueZone, string>> = {
 	'tongpunt': 'tongpunt',
 	'boven-tongpunt': 'gebied boven de tongpunt',
 	'linkerrand': 'linkerrand',
 	'rechterrand': 'rechterrand',
 	'centrum': 'tongcentrum',
-	'wortel-zijkant': 'tongwortel (zijkant)',
-	'wortel-centrum': 'tongwortel (centrum)',
+	'wortel': 'tongwortel',
 };
 
-/** All meridians shown in the bar chart. */
+/** Subset of organs displayed in the meridian strength bar chart. */
 export const MERIDIANS = [
 	'Lever',
 	'Hart',
@@ -73,29 +114,70 @@ export const MERIDIANS = [
 	'Long',
 	'Nier',
 	'Maag',
+	'Galblaas',
+	'Blaas',
 ] as const;
 
 // ── Tongue type definition ──────────────────────────────────────
 
+/**
+ * Complete definition of a TCM tongue type.
+ *
+ * Each type describes a pattern of imbalance (or balance) with its
+ * visual tongue characteristics, associated symptoms, qi explanations,
+ * and lifestyle advice. All text fields are in Dutch.
+ */
 export interface TongueType {
+	/** Unique slug identifier (e.g. `'hitte'`, `'qi-deficient'`). */
 	readonly id: string;
+	/** Dutch display name (e.g. `'Hitte'`, `'Qi Deficiënt'`). */
 	readonly name: string;
+	/** Chinese name (e.g. `'熱'`, `'氣虛'`). */
 	readonly nameZh: string;
+	/** Expected tongue body color: human-readable label and representative hex. */
 	readonly color: { readonly label: string; readonly hex: string };
+	/** Description of expected tongue coating (beslag). */
 	readonly coating: string;
+	/** Description of expected tongue shape. */
 	readonly shape: string;
+	/** Description of expected tongue moisture level. */
 	readonly moisture: string;
+	/** Common symptoms associated with this pattern. */
 	readonly symptoms: readonly string[];
+	/** One-sentence summary of the diagnosis, shown as headline. */
 	readonly summary: string;
+	/** TCM organs affected by this pattern — drives zone highlighting and charts. */
 	readonly affectedOrgans: readonly OrganName[];
+	/** Explanatory qi/meridian patterns with TCM reasoning. */
 	readonly qiPatterns: readonly string[];
+	/** Lifestyle and dietary advice based on TCM principles. */
 	readonly advice: readonly string[];
-	/** Relative selection weight (1 = normal, <1 = less likely). */
+	/**
+	 * Relative weight used by color-based type matching.
+	 *
+	 * `1` = standard weight, `< 1` = down-weighted (e.g. `0.4` for "normal" tongue
+	 * so interesting diagnoses surface more often when color distance is similar).
+	 */
 	readonly weight: number;
 }
 
 // ── The 10 canonical TCM tongue types ───────────────────────────
 
+/**
+ * The 10 canonical TCM tongue types used for diagnosis generation.
+ *
+ * Ordered: normaal (balanced) first, then pathological patterns.
+ * Each entry is a complete {@link TongueType} with Dutch descriptions,
+ * symptoms, qi patterns, and advice. Color hex values correspond to
+ * the expected tongue body color and are used by {@link colorBoosts}
+ * during color-based type matching.
+ *
+ * @example
+ * ```ts
+ * const hitte = TONGUE_TYPES.find(t => t.id === 'hitte');
+ * hitte?.color.hex // '#E04040'
+ * ```
+ */
 export const TONGUE_TYPES: readonly TongueType[] = [
 	{
 		id: 'normaal',
@@ -122,7 +204,7 @@ export const TONGUE_TYPES: readonly TongueType[] = [
 	{
 		id: 'hitte',
 		name: 'Hitte',
-		nameZh: '热',
+		nameZh: '熱',
 		color: { label: 'rood', hex: '#E04040' },
 		coating: 'geel beslag',
 		shape: 'normaal',
@@ -143,10 +225,10 @@ export const TONGUE_TYPES: readonly TongueType[] = [
 	{
 		id: 'damp',
 		name: 'Damp',
-		nameZh: '湿',
+		nameZh: '濕',
 		color: { label: 'lichtroze', hex: '#F0B0B0' },
 		coating: 'dik wit beslag',
-		shape: 'iets vergroot',
+		shape: 'iets vergroot met tandafdrukken',
 		moisture: 'vochtig, kleverig',
 		symptoms: [
 			'Opgeblazen gevoel',
@@ -162,15 +244,15 @@ export const TONGUE_TYPES: readonly TongueType[] = [
 		],
 		advice: [
 			'Drink elke ochtend warm water met een schijfje gember om je Milt-Qi te activeren.',
-			'Vermijd ijskoude dranken — deze verzwakken het spijsverteringsvuur (Maag-Yang).',
+			'Vermijd ijskoude dranken — deze verzwakken het spijsverteringsvuur (Milt-Yang).',
 		],
 		weight: 1,
 	},
 	{
 		id: 'damp-hitte',
 		name: 'Damp-Hitte',
-		nameZh: '湿热',
-		color: { label: 'rood-oranje', hex: '#E07030' },
+		nameZh: '濕熱',
+		color: { label: 'rood', hex: '#D04848' },
 		coating: 'vet geel beslag',
 		shape: 'iets vergroot, rode randen',
 		moisture: 'kleverig',
@@ -195,7 +277,7 @@ export const TONGUE_TYPES: readonly TongueType[] = [
 	{
 		id: 'qi-deficient',
 		name: 'Qi Deficiënt',
-		nameZh: '气虚',
+		nameZh: '氣虛',
 		color: { label: 'bleekroze', hex: '#F0C8C8' },
 		coating: 'dun wit beslag',
 		shape: 'iets vergroot met tandafdrukken',
@@ -210,7 +292,7 @@ export const TONGUE_TYPES: readonly TongueType[] = [
 		affectedOrgans: ['Milt', 'Long'],
 		qiPatterns: [
 			'Milt-Qi-deficiëntie — de spijsvertering is verzwakt. Warm, licht verteerbaar voedsel ondersteunt het herstel.',
-			'Long-Qi-zwakte — vatbaarheid voor verkoudheid of kortademigheid. Diepe ademhalingsoefeningen worden aanbevolen.',
+			'Long-Qi-deficiëntie — vatbaarheid voor verkoudheid of kortademigheid. Diepe ademhalingsoefeningen worden aanbevolen.',
 		],
 		advice: [
 			'Overweeg acupressuur op punt ST36 (Zusanli) — drie vingerbreedte onder de knie, voor algemene energieversterking.',
@@ -221,10 +303,10 @@ export const TONGUE_TYPES: readonly TongueType[] = [
 	{
 		id: 'qi-stagnatie',
 		name: 'Qi Stagnatie',
-		nameZh: '气滞',
-		color: { label: 'roze met rode tip', hex: '#E8A0A0' },
+		nameZh: '氣滯',
+		color: { label: 'roze met rode randen', hex: '#E8A0A0' },
 		coating: 'dun wit beslag',
-		shape: 'normaal',
+		shape: 'normaal, rode zijranden',
 		moisture: 'normaal',
 		symptoms: [
 			'Gestresst',
@@ -272,7 +354,7 @@ export const TONGUE_TYPES: readonly TongueType[] = [
 	{
 		id: 'bloed-deficient',
 		name: 'Bloed Deficiënt',
-		nameZh: '血虚',
+		nameZh: '血虛',
 		color: { label: 'bleek', hex: '#F0D0D0' },
 		coating: 'dun of weinig beslag',
 		shape: 'dun en smal',
@@ -299,8 +381,8 @@ export const TONGUE_TYPES: readonly TongueType[] = [
 	{
 		id: 'yin-deficient',
 		name: 'Yin Deficiënt',
-		nameZh: '阴虚',
-		color: { label: 'rood', hex: '#D04040' },
+		nameZh: '陰虛',
+		color: { label: 'donkerrood', hex: '#B83838' },
 		coating: 'weinig of geen beslag',
 		shape: 'kleiner, met scheurtjes',
 		moisture: 'droog',
@@ -325,7 +407,7 @@ export const TONGUE_TYPES: readonly TongueType[] = [
 	{
 		id: 'yang-deficient',
 		name: 'Yang Deficiënt',
-		nameZh: '阳虚',
+		nameZh: '陽虛',
 		color: { label: 'bleek, licht', hex: '#F0D8D8' },
 		coating: 'dik wit beslag',
 		shape: 'licht vergroot',

@@ -1,14 +1,33 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import './App.css';
-import CameraCapture from './components/CameraCapture.tsx';
-import DiagnosisResults from './components/DiagnosisResults.tsx';
-import Guide from './components/Guide.tsx';
-import LoadingSequence from './components/LoadingSequence.tsx';
-import UploadArea from './components/UploadArea.tsx';
-import type { Diagnosis } from './lib/diagnosis.ts';
-import { releaseFaceLandmarker } from './lib/face-detection.ts';
-import { type AnalysisError, type AnalysisStep, analyzeTongueFromUrl } from './lib/pipeline.ts';
+/**
+ * @module Root application component and state machine.
+ * Orchestrates the 5-phase tongue analysis flow: upload, preview, loading, results, error.
+ */
 
+import { startTransition, useCallback, useEffect, useRef, useState, ViewTransition } from 'react';
+import './App.css';
+import CameraCapture from '$components/CameraCapture.tsx';
+import DiagnosisResults from '$components/DiagnosisResults.tsx';
+import Guide from '$components/Guide.tsx';
+import LoadingSequence from '$components/LoadingSequence.tsx';
+import UploadArea from '$components/UploadArea.tsx';
+import { analysisErrorMessage } from '$lib/analysis-error-message.ts';
+import type { Diagnosis } from '$lib/diagnosis.ts';
+import { releaseFaceLandmarker } from '$lib/face-detection.ts';
+import { type AnalysisError, type AnalysisStep, analyzeTongueFromUrl } from '$lib/pipeline.ts';
+
+/**
+ * Discriminated union driving the entire UI state machine.
+ * Each variant's `kind` tag determines which section of the UI renders.
+ *
+ * - **`upload`** — initial state; shows {@link UploadArea} and {@link CameraCapture}.
+ * - **`preview`** — user selected an image; shows preview with "Analyse" button.
+ *   `imageUrl` is an object URL owned by the component (revoked on phase exit).
+ * - **`loading`** — pipeline is running. `analysisId` is a monotonic counter used
+ *   to discard stale results when the user retries before the previous run completes.
+ *   `step` tracks the current {@link AnalysisStep} for the progress UI.
+ * - **`results`** — analysis succeeded; renders {@link DiagnosisResults} and {@link Guide}.
+ * - **`error`** — analysis failed; shows the source image, error message, and retry/restart actions.
+ */
 type Phase =
 	| { readonly kind: 'upload' }
 	| { readonly kind: 'preview'; readonly imageUrl: string }
@@ -21,71 +40,16 @@ type Phase =
 	| { readonly kind: 'results'; readonly diagnosis: Diagnosis }
 	| { readonly kind: 'error'; readonly imageUrl: string; readonly error: AnalysisError };
 
+/** Sentinel value for the initial upload phase. */
 const INITIAL: Phase = { kind: 'upload' };
 
-function errorMessage(error: AnalysisError): string {
-	switch (error.kind) {
-		case 'image_load_failed':
-			return 'Kon de afbeelding niet laden. Kies een andere foto en probeer opnieuw.';
-		case 'canvas_unavailable':
-			return 'Canvas niet beschikbaar in deze browser. Gebruik een moderne browser.';
-		case 'mouth_crop_failed':
-			return 'Mondregio kon niet worden uitgesneden. Gebruik een scherpere foto van dichterbij.';
-		case 'face_detection_error':
-			switch (error.error.kind) {
-				case 'no_face_detected':
-					return 'Geen gezicht gevonden. Zorg dat je gezicht volledig zichtbaar is.';
-				case 'multiple_faces_detected':
-					return 'Meerdere gezichten gedetecteerd. Gebruik een foto met slechts één persoon.';
-				case 'mouth_not_visible':
-					return 'Mond niet duidelijk zichtbaar. Open je mond en steek je tong uit.';
-				case 'invalid_image_dimensions':
-					return 'Ongeldige afbeeldingsafmetingen gedetecteerd. Gebruik een andere foto.';
-				case 'model_load_failed':
-					return 'Model kon niet geladen worden. Controleer je internetverbinding en probeer opnieuw.';
-				case 'detection_failed':
-					return 'Gezichtsdetectie mislukte. Probeer een foto met beter licht.';
-			}
-			return 'Gezichtsdetectie gaf een onbekende fout.';
-		case 'poor_lighting':
-			switch (error.issue) {
-				case 'too_dark':
-					return 'Belichting is te donker voor betrouwbare tonganalyse. Gebruik helder frontaal licht zonder tegenlicht.';
-				case 'too_bright':
-					return 'Belichting is te fel of overbelicht. Vermijd directe flits en gebruik zacht, egaal licht.';
-				case 'high_contrast':
-					return 'Belichting heeft te harde schaduwen. Gebruik egaal licht van voren zonder sterke contrasten.';
-			}
-			return 'Belichting onvoldoende voor betrouwbare analyse.';
-		case 'tongue_segmentation_error':
-			switch (error.error.kind) {
-				case 'empty_input':
-					return 'Lege mondregio ontvangen. Probeer een andere foto.';
-				case 'allowed_mask_size_mismatch':
-					return 'Interne mondmaskerfout opgetreden. Probeer opnieuw.';
-				case 'no_tongue_pixels_detected':
-					return 'Tong niet duidelijk zichtbaar in de mondregio. Gebruik egaal licht van voren, open je mond verder en steek je tong uit.';
-				case 'multiple_regions_detected':
-					return "Meerdere losse tongregio's gevonden. Gebruik een close-up van slechts één tong.";
-				case 'insufficient_pixels':
-					return 'Te weinig bruikbare tongpixels gevonden. Ga dichterbij en zorg voor egaal frontaal licht zonder harde schaduwen.';
-			}
-			return 'Tongsegmentatie gaf een onbekende fout.';
-		case 'color_correction_error':
-			switch (error.error.kind) {
-				case 'mask_size_mismatch':
-					return 'Interne maskfout tijdens kleurcorrectie. Probeer opnieuw.';
-				case 'no_masked_pixels':
-					return 'Geen bruikbare tongpixels na kleurcorrectie. Probeer beter licht.';
-			}
-			return 'Kleurcorrectie gaf een onbekende fout.';
-		case 'inconclusive_color':
-			return 'Kleurmeting was te onzeker. Zorg voor zichtbaar uitgestoken tong in egaal licht.';
-	}
-
-	return 'Onbekende analysefout opgetreden.';
-}
-
+/**
+ * Construct a loading phase with the first pipeline step pre-selected.
+ *
+ * @param imageUrl - Object URL of the image to analyze.
+ * @param analysisId - Monotonic ID to correlate progress callbacks with the active run.
+ * @returns A `loading` {@link Phase} variant.
+ */
 function startLoadingPhase(imageUrl: string, analysisId: number): Phase {
 	return {
 		kind: 'loading',
@@ -95,6 +59,18 @@ function startLoadingPhase(imageUrl: string, analysisId: number): Phase {
 	};
 }
 
+/**
+ * Root application component.
+ * Manages the {@link Phase} state machine, object URL lifecycle, and analysis pipeline invocation.
+ * Renders the appropriate UI section for each phase and wires up all user interactions.
+ *
+ * @returns The full application UI.
+ *
+ * @example
+ * ```tsx
+ * <App />
+ * ```
+ */
 export default function App() {
 	const [phase, setPhase] = useState<Phase>(INITIAL);
 	const objectUrlRef = useRef<string | null>(null);
@@ -147,23 +123,25 @@ export default function App() {
 				},
 			});
 
-			setPhase((previous) => {
-				if (previous.kind !== 'loading' || previous.analysisId !== loadingAnalysisId) {
-					return previous;
-				}
+			startTransition(() => {
+				setPhase((previous) => {
+					if (previous.kind !== 'loading' || previous.analysisId !== loadingAnalysisId) {
+						return previous;
+					}
 
-				if (!result.ok) {
+					if (!result.ok) {
+						return {
+							kind: 'error',
+							imageUrl: loadingImageUrl,
+							error: result.error,
+						};
+					}
+
 					return {
-						kind: 'error',
-						imageUrl: loadingImageUrl,
-						error: result.error,
+						kind: 'results',
+						diagnosis: result.value.diagnosis,
 					};
-				}
-
-				return {
-					kind: 'results',
-					diagnosis: result.value.diagnosis,
-				};
+				});
 			});
 		})();
 
@@ -172,35 +150,44 @@ export default function App() {
 		};
 	}, [loadingAnalysisId, loadingImageUrl]);
 
-	const handleFileSelected = useCallback((file: File, imageUrl: string) => {
-		void file;
-		setPhase({ kind: 'preview', imageUrl });
+	const handleImageSelected = useCallback((_file: File, imageUrl: string) => {
+		startTransition(() => {
+			setPhase({ kind: 'preview', imageUrl });
+		});
 	}, []);
 
 	const handleAnalyze = useCallback(() => {
-		setPhase((previous) => {
-			if (previous.kind !== 'preview') return previous;
-			nextAnalysisIdRef.current += 1;
-			return startLoadingPhase(previous.imageUrl, nextAnalysisIdRef.current);
+		startTransition(() => {
+			setPhase((previous) => {
+				if (previous.kind !== 'preview') return previous;
+				nextAnalysisIdRef.current += 1;
+				return startLoadingPhase(previous.imageUrl, nextAnalysisIdRef.current);
+			});
 		});
 	}, []);
 
 	const handleRetry = useCallback(() => {
-		setPhase((previous) => {
-			if (previous.kind !== 'error') return previous;
-			nextAnalysisIdRef.current += 1;
-			return startLoadingPhase(previous.imageUrl, nextAnalysisIdRef.current);
+		startTransition(() => {
+			setPhase((previous) => {
+				if (previous.kind !== 'error') return previous;
+				nextAnalysisIdRef.current += 1;
+				return startLoadingPhase(previous.imageUrl, nextAnalysisIdRef.current);
+			});
 		});
 	}, []);
 
 	const handleRestart = useCallback(() => {
-		setPhase(INITIAL);
+		startTransition(() => {
+			setPhase(INITIAL);
+		});
 	}, []);
 
 	const handleUseLiveDiagnosis = useCallback((diagnosis: Diagnosis) => {
-		setPhase({
-			kind: 'results',
-			diagnosis,
+		startTransition(() => {
+			setPhase({
+				kind: 'results',
+				diagnosis,
+			});
 		});
 	}, []);
 
@@ -208,19 +195,28 @@ export default function App() {
 		<>
 			<div className='bg-pattern' />
 			<main className='container'>
-				<header className='app-header'>
-					<div className='chinese-title' lang='zh'>
-						舌診
-					</div>
-					<h1>Tongdiagnose</h1>
-					<p className='subtitle'>
-						Traditionele Chinese Geneeskunde — AI-analyse
-					</p>
-				</header>
+				{
+					/* During camera-modal transitions, header opts out ('none') so it
+				    joins the root snapshot and darkens with the backdrop cross-fade.
+				    During phase transitions it morphs independently ('auto'). */
+				}
+				<ViewTransition default={{ default: 'auto', 'camera-modal': 'none' }}>
+					<header className='app-header'>
+						<div className='chinese-title' lang='zh'>
+							舌診
+						</div>
+						<h1>Tongdiagnose</h1>
+						<p className='subtitle'>
+							Traditionele Chinese Geneeskunde — AI-analyse
+						</p>
+					</header>
+				</ViewTransition>
 
-				{phase.kind === 'upload' && <UploadArea onFileSelected={handleFileSelected} />}
 				{phase.kind === 'upload' && (
-					<CameraCapture onCapture={handleFileSelected} onLiveDiagnosis={handleUseLiveDiagnosis} />
+					<>
+						<UploadArea onFileSelected={handleImageSelected} />
+						<CameraCapture onCapture={handleImageSelected} onLiveDiagnosis={handleUseLiveDiagnosis} />
+					</>
 				)}
 
 				{phase.kind === 'preview' && (
@@ -245,9 +241,9 @@ export default function App() {
 						<div className='preview-container'>
 							<img src={phase.imageUrl} alt='Tongfoto voor foutmelding' />
 						</div>
-						<div className='analysis-error'>
+						<div className='analysis-error' role='alert'>
 							<h3>Analyse mislukt</h3>
-							<p>{errorMessage(phase.error)}</p>
+							<p>{analysisErrorMessage(phase.error)}</p>
 						</div>
 						<div className='error-actions'>
 							<button
@@ -278,6 +274,19 @@ export default function App() {
 					altijd een gekwalificeerde TCM-arts voor een professionele diagnose.
 				</div>
 			</main>
+			{import.meta.env.VITE_DEBUG_OVERLAY === 'true' && (
+				<footer className='debug-footer'>
+					debug {import.meta.env.DEV ? 'mode' : 'build'} &middot;{' '}
+					<a
+						href={`https://github.com/kjanat/tongue-analysis/commit/${import.meta.env.VITE_COMMIT_SHA ?? ''}`}
+						target='_blank'
+						rel='noopener noreferrer'
+					>
+						{(import.meta.env.VITE_COMMIT_SHA?.slice(0, 8) ?? '?') + (import.meta.env.DEV ? '+dev' : '')}
+					</a>{' '}
+					&middot; {import.meta.env.VITE_BUILD_DATE ?? '?'}
+				</footer>
+			)}
 		</>
 	);
 }

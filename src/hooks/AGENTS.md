@@ -1,0 +1,47 @@
+# src/hooks — React Hooks
+
+Bridge between React UI and the ML analysis pipeline. 4 hooks, ~1,169 lines total.
+
+## WHERE TO LOOK
+
+| File                             | Lines | Role                                                                       |
+| -------------------------------- | ----- | -------------------------------------------------------------------------- |
+| `use-media-stream.ts`            | 534   | `getUserMedia` lifecycle: acquire, enumerate, switch, mirror-detect.       |
+| `use-live-analysis.ts`           | 431   | rAF loop driving `analyzeTongueVideoFrame()` on live video. Heaviest hook. |
+| `use-live-announcements.ts`      | 123   | ARIA live-region announcements for screen readers during analysis.         |
+| `use-deferred-camera-release.ts` | 81    | Cancellable timer for delayed camera cleanup on tab switch.                |
+
+## HOOK INTERACTION
+
+```tree
+CameraCapture.tsx
+  ├─ useMediaStream()              → video stream, device list, mirror state
+  ├─ useLiveAnalysis(videoRef)     → diagnosis, errors, step progress
+  │     └─ calls analyzeTongueVideoFrame() from lib/pipeline.ts
+  │     └─ delegates debug drawing to lib/debug-overlay.ts
+  ├─ useLiveAnnouncements()        → screen reader output
+  └─ useDeferredCameraRelease()    → tab-switch cleanup scheduling
+```
+
+## CONVENTIONS (beyond root)
+
+- **Session-ID counters**: Both `useLiveAnalysis` and `useMediaStream` use monotonic counters to discard stale callbacks after stop/restart.
+- **Frame deduplication**: `useLiveAnalysis` compares `video.currentTime` to skip duplicate frames at rAF rate.
+- **Throttled state updates**: Live diagnosis updates throttled to 1s while rAF runs at display refresh rate.
+- **Runtime type guards**: `isAnalysisError()` in `use-live-analysis.ts` mirrors the `AnalysisError` ADT with `as const satisfies` arrays + derived type aliases for compile-time exhaustiveness.
+- **Exhaustive switches**: Error message mapping uses compiler-enforced exhaustive `switch` with `never` guards on all variants.
+- **`useLayoutEffect` for ref sync**: `use-deferred-camera-release.ts` syncs callback ref via `useLayoutEffect` to satisfy React Compiler lint rules (no ref writes during render).
+- **Shared time formatting**: Both `CameraCapture` and `useLiveAnnouncements` import `formatUpdateTime` from `lib/format-time.ts` (deduplicated).
+- **`modeRef` synchronous guard**: `useMediaStream` uses a synchronous ref (`modeRef`) alongside React state to prevent overlapping `getUserMedia` calls from rapid taps.
+- **`OverconstrainedError` fallback**: `useMediaStream` retries with `facingMode: 'environment'` when exact `deviceId` constraint fails.
+- **Camera HAL release delay**: 300ms grace period (`CAMERA_RELEASE_DELAY_MS`) between stop and start to accommodate mobile camera hardware.
+- **`resetRef` pattern**: `useLiveAnalysis` cleanup uses a ref-based reset to avoid re-running the effect when the reset function identity changes.
+
+## NOTES
+
+- `useLiveAnalysis` is the sole caller of `analyzeTongueVideoFrame()` — the only bridge from React to the video-mode pipeline.
+- `useLiveAnalysis` delegates debug drawing to `src/lib/debug-overlay.ts` (only when `VITE_DEBUG_OVERLAY=true`).
+- `useMediaStream` exposes `setError` for external error injection by `CameraCapture`.
+- `useDeferredCameraRelease` uses cleanup-only `useEffect` (`() => clear`) for auto-teardown on unmount.
+- `isFrontFacingTrack()` in `useMediaStream` uses `facingMode` then heuristic label matching (rear/back/environment) to decide mirroring.
+- `MAX_IDEAL_DIMENSION` (4096) used as soft resolution constraint in `getUserMedia` to avoid overly large video frames on high-res cameras.

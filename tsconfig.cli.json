@@ -4,7 +4,7 @@
 		"target": "ESNext",
 		"lib": ["ESNext", "DOM"],
 		"module": "ESNext",
-		"types": ["node"],
+		"types": ["node", "bun"],
 		"skipLibCheck": true,
 
 		/* Bundler mode */
@@ -21,7 +21,18 @@
 		"erasableSyntaxOnly": true,
 		"noFallthroughCasesInSwitch": true,
 		"noUncheckedIndexedAccess": true,
-		"noUncheckedSideEffectImports": true
+		"noUncheckedSideEffectImports": true,
+
+		/* Path aliases */
+		"paths": {
+			"$/*": ["./src/*"],
+			"$lib/*": ["./src/lib/*"],
+			"$types/*": ["./src/types/*"],
+			"$hooks/*": ["./src/hooks/*"],
+			"$data/*": ["./src/data/*"],
+			"$components/*": ["./src/components/*"],
+			"$assets/*": ["./src/assets/*"]
+		}
 	},
-	"include": ["cli"]
+	"include": ["cli", "scripts"]
 }
