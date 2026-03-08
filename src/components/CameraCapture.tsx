@@ -712,6 +712,9 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 				setModalClosing(false);
 				setLivePanelClosing(false);
 
+				// Exclude header from this transition so the backdrop cross-fade darkens it.
+				// Phase transitions keep app-header via the CSS custom property fallback.
+				document.documentElement.style.setProperty('--header-vt-name', 'none');
 				try {
 					await withViewTransitionAndWait(() => {
 						setHeroOwner('dialog');
@@ -727,6 +730,8 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 					setPreviewPrimed(true);
 					setVideoReady(false);
 					setHeroOwner('dialog');
+				} finally {
+					document.documentElement.style.removeProperty('--header-vt-name');
 				}
 			} finally {
 				modalTransitioningRef.current = false;

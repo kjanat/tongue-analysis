@@ -118,6 +118,7 @@ body {
 .app-header {
 	text-align: center;
 	margin-bottom: 2.5rem;
+	view-transition-name: var(--header-vt-name, app-header);
 }
 
 .chinese-title {
