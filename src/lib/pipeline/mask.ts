@@ -8,7 +8,7 @@
  * @module
  */
 
-import type { MouthRegion } from '../face-detection.ts';
+import type { MouthRegion } from '$lib/face-detection.ts';
 import type { MouthCrop, Point2D } from './types.ts';
 
 /**

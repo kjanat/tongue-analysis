@@ -5,15 +5,15 @@
 
 import { startTransition, useCallback, useEffect, useRef, useState, ViewTransition } from 'react';
 import './App.css';
-import CameraCapture from './components/CameraCapture.tsx';
-import DiagnosisResults from './components/DiagnosisResults.tsx';
-import Guide from './components/Guide.tsx';
-import LoadingSequence from './components/LoadingSequence.tsx';
-import UploadArea from './components/UploadArea.tsx';
-import { analysisErrorMessage } from './lib/analysis-error-message.ts';
-import type { Diagnosis } from './lib/diagnosis.ts';
-import { releaseFaceLandmarker } from './lib/face-detection.ts';
-import { type AnalysisError, type AnalysisStep, analyzeTongueFromUrl } from './lib/pipeline.ts';
+import CameraCapture from '$components/CameraCapture.tsx';
+import DiagnosisResults from '$components/DiagnosisResults.tsx';
+import Guide from '$components/Guide.tsx';
+import LoadingSequence from '$components/LoadingSequence.tsx';
+import UploadArea from '$components/UploadArea.tsx';
+import { analysisErrorMessage } from '$lib/analysis-error-message.ts';
+import type { Diagnosis } from '$lib/diagnosis.ts';
+import { releaseFaceLandmarker } from '$lib/face-detection.ts';
+import { type AnalysisError, type AnalysisStep, analyzeTongueFromUrl } from '$lib/pipeline.ts';
 
 /**
  * Discriminated union driving the entire UI state machine.

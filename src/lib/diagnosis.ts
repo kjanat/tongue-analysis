@@ -15,7 +15,7 @@ import {
 	type OrganName,
 	type TongueType,
 	ZONE_LABEL,
-} from '../data/tongue-types.ts';
+} from '$data/tongue-types.ts';
 import { computeDisplayConfidence, type TongueColorClassification } from './color-classification.ts';
 import type { RgbColor } from './color-correction.ts';
 import { clamp } from './math-utils.ts';

@@ -8,8 +8,8 @@
  * @module
  */
 
+import type { TongueType } from '$data/tongue-types.ts';
 import { hexToOklch, type Oklch, rgbToOklch } from 'hex-to-oklch';
-import type { TongueType } from '../data/tongue-types.ts';
 import type { ColorProfile } from './color-analysis.ts';
 import type { RgbColor } from './color-correction.ts';
 import { clamp } from './math-utils.ts';

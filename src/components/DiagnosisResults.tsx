@@ -4,9 +4,9 @@
  * organ zones, pattern recognition, and lifestyle recommendations.
  */
 
-import { clampChannel } from '../lib/color-correction.ts';
-import type { RgbColor } from '../lib/color-correction.ts';
-import type { Diagnosis } from '../lib/diagnosis.ts';
+import { clampChannel } from '$lib/color-correction.ts';
+import type { RgbColor } from '$lib/color-correction.ts';
+import type { Diagnosis } from '$lib/diagnosis.ts';
 
 /**
  * Props for {@link DiagnosisResults}.

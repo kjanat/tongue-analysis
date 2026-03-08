@@ -3,8 +3,8 @@
  * Maps the current {@link AnalysisStep} to a visual checklist with a progress bar.
  */
 
-import { ANALYSIS_STEPS } from '../lib/pipeline.ts';
-import type { AnalysisStep } from '../lib/pipeline.ts';
+import { ANALYSIS_STEPS } from '$lib/pipeline.ts';
+import type { AnalysisStep } from '$lib/pipeline.ts';
 
 /**
  * Visual state of a single step in the loading checklist.

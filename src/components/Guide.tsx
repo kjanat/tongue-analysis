@@ -4,8 +4,8 @@
  * and the 4 diagnostic axes (color, coating, shape, moisture).
  */
 
+import { TONGUE_TYPES } from '$data/tongue-types.ts';
 import { useId } from 'react';
-import { TONGUE_TYPES } from '../data/tongue-types.ts';
 import TongueMap from './TongueMap.tsx';
 
 /**

@@ -6,11 +6,11 @@
  * detected mouth regions.
  */
 
+import { clearOverlayCanvas, drawMouthRegionOverlay } from '$lib/debug-overlay.ts';
+import type { Diagnosis } from '$lib/diagnosis.ts';
+import { type AnalysisError, type AnalysisStep, analyzeTongueVideoFrame } from '$lib/pipeline.ts';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { RefObject } from 'react';
-import { clearOverlayCanvas, drawMouthRegionOverlay } from '../lib/debug-overlay.ts';
-import type { Diagnosis } from '../lib/diagnosis.ts';
-import { type AnalysisError, type AnalysisStep, analyzeTongueVideoFrame } from '../lib/pipeline.ts';
 
 /**
  * Minimum interval (ms) between React state updates during live analysis.

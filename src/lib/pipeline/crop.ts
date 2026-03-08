@@ -9,10 +9,10 @@
  * @module
  */
 
-import type { MouthRegion } from '../face-detection.ts';
-import { clamp } from '../math-utils.ts';
-import type { AnalysisError } from '../pipeline.ts';
-import { err, ok, type Result } from '../result.ts';
+import type { MouthRegion } from '$lib/face-detection.ts';
+import { clamp } from '$lib/math-utils.ts';
+import type { AnalysisError } from '$lib/pipeline.ts';
+import { err, ok, type Result } from '$lib/result.ts';
 import { getFrameDimensions } from './frame-source.ts';
 import type { FrameSource, MouthCrop } from './types.ts';
 

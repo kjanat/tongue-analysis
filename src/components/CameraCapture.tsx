@@ -4,6 +4,16 @@
  * and optional continuous live analysis via {@link useLiveAnalysis}.
  */
 
+import { useDeferredCameraRelease } from '$hooks/use-deferred-camera-release.ts';
+import type { LiveMode } from '$hooks/use-live-analysis.ts';
+import { useLiveAnalysis } from '$hooks/use-live-analysis.ts';
+import { useLiveAnnouncements } from '$hooks/use-live-announcements.ts';
+import { useMediaStream } from '$hooks/use-media-stream.ts';
+import { captureErrorMessage, captureVideoFrame } from '$lib/capture-video-frame.ts';
+import type { Diagnosis } from '$lib/diagnosis.ts';
+import { formatUpdateTime } from '$lib/format-time.ts';
+import type { AnalysisStep } from '$lib/pipeline.ts';
+import { ANALYSIS_STEP_LABELS } from '$lib/pipeline.ts';
 import type { MouseEvent, RefObject, SyntheticEvent } from 'react';
 import {
 	addTransitionType,
@@ -16,16 +26,6 @@ import {
 	useState,
 	ViewTransition,
 } from 'react';
-import { useDeferredCameraRelease } from '../hooks/use-deferred-camera-release.ts';
-import type { LiveMode } from '../hooks/use-live-analysis.ts';
-import { useLiveAnalysis } from '../hooks/use-live-analysis.ts';
-import { useLiveAnnouncements } from '../hooks/use-live-announcements.ts';
-import { useMediaStream } from '../hooks/use-media-stream.ts';
-import { captureErrorMessage, captureVideoFrame } from '../lib/capture-video-frame.ts';
-import type { Diagnosis } from '../lib/diagnosis.ts';
-import { formatUpdateTime } from '../lib/format-time.ts';
-import type { AnalysisStep } from '../lib/pipeline.ts';
-import { ANALYSIS_STEP_LABELS } from '../lib/pipeline.ts';
 
 /**
  * Delay (ms) before the camera stream is automatically released after a tab switch.

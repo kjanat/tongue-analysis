@@ -8,11 +8,11 @@
  * @module
  */
 
+import type { Diagnosis } from '$lib/diagnosis.ts';
+import { formatUpdateTime } from '$lib/format-time.ts';
+import type { AnalysisStep } from '$lib/pipeline.ts';
 import { useCallback, useEffect, useRef } from 'react';
 import type { RefObject } from 'react';
-import type { Diagnosis } from '../lib/diagnosis.ts';
-import { formatUpdateTime } from '../lib/format-time.ts';
-import type { AnalysisStep } from '../lib/pipeline.ts';
 import type { LiveMode } from './use-live-analysis.ts';
 
 /** Input configuration for {@link useLiveAnnouncements}. */

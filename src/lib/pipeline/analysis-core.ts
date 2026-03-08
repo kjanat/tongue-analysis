@@ -10,14 +10,14 @@
  * @module
  */
 
-import { classifyTongueColor } from '../color-classification.ts';
-import { applyGrayWorldCorrection } from '../color-correction.ts';
-import { generateDiagnosis } from '../diagnosis.ts';
-import type { MouthDetectionError, MouthRegion } from '../face-detection.ts';
-import { err, ok, type Result } from '../result.ts';
-import { segmentTongue } from '../tongue-segmentation.ts';
+import { classifyTongueColor } from '$lib/color-classification.ts';
+import { applyGrayWorldCorrection } from '$lib/color-correction.ts';
+import { generateDiagnosis } from '$lib/diagnosis.ts';
+import type { MouthDetectionError, MouthRegion } from '$lib/face-detection.ts';
+import { err, ok, type Result } from '$lib/result.ts';
+import { segmentTongue } from '$lib/tongue-segmentation.ts';
 
-import type { AnalysisError, AnalysisStep, AnalysisSuccess, AnalyzeTongueOptions } from '../pipeline.ts';
+import type { AnalysisError, AnalysisStep, AnalysisSuccess, AnalyzeTongueOptions } from '$lib/pipeline.ts';
 import { cropFullImage, cropMouth } from './crop.ts';
 import { detectLightingIssue } from './lighting.ts';
 import { fallbackMinimumPixels, makeFallbackAllowedMask, makeMouthOpeningMask } from './mask.ts';
