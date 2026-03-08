@@ -778,10 +778,7 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 
 			const detectedAspectRatio = video.videoWidth / video.videoHeight;
 			setPreviewAspectRatio(detectedAspectRatio);
-
-			if (!videoReady) {
-				setVideoReady(true);
-			}
+			setVideoReady(true);
 		};
 
 		updateVideoGeometry();
@@ -792,7 +789,7 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 			video.removeEventListener('loadedmetadata', updateVideoGeometry);
 			video.removeEventListener('resize', updateVideoGeometry);
 		};
-	}, [cameraActive, videoReady, videoRef]);
+	}, [cameraActive, videoRef]);
 
 	useEffect(() => {
 		if (cameraActive || videoReady) {
