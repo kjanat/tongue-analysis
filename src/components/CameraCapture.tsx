@@ -935,8 +935,14 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 					name={heroOwner === 'button' ? 'camera-hero' : undefined}
 					share='camera-hero-morph'
 					default='none'
+					update={{ default: 'none', 'camera-modal': 'camera-hero-morph' }}
 				>
-					<button type='button' className='camera-btn camera-btn--primary' onClick={handleOpenModal}>
+					<button
+						type='button'
+						className='camera-btn camera-btn--primary'
+						data-hero-owner={heroOwner}
+						onClick={handleOpenModal}
+					>
 						Gebruik live camera
 					</button>
 				</ViewTransition>
@@ -946,10 +952,12 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 				name={heroOwner === 'dialog' ? 'camera-hero' : undefined}
 				share='camera-hero-morph'
 				default='none'
+				update={{ default: 'none', 'camera-modal': 'camera-hero-morph' }}
 			>
 				<dialog
 					ref={dialogRef}
 					className='camera-modal'
+					data-hero-owner={heroOwner}
 					data-closing={modalClosing}
 					aria-label='Live camera analyse'
 					aria-describedby={modalDescId}
