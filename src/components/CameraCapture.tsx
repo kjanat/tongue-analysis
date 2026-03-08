@@ -14,8 +14,8 @@ import { useMediaStream } from '../hooks/use-media-stream.ts';
 import { captureErrorMessage, captureVideoFrame } from '../lib/capture-video-frame.ts';
 import type { Diagnosis } from '../lib/diagnosis.ts';
 import { formatUpdateTime } from '../lib/format-time.ts';
-import { ANALYSIS_STEP_LABELS } from '../lib/pipeline.ts';
 import type { AnalysisStep } from '../lib/pipeline.ts';
+import { ANALYSIS_STEP_LABELS } from '../lib/pipeline.ts';
 import { skipActiveViewTransition, withViewTransitionAndWait } from '../lib/view-transition.ts';
 
 /**
@@ -64,7 +64,10 @@ function getLivePanelCloseCollapseMs(dialog: HTMLDialogElement | null): number {
 	}
 
 	const host = dialog ?? document.documentElement;
-	const rawDuration = window.getComputedStyle(host).getPropertyValue('--camera-live-collapse-ms').trim();
+	const rawDuration = window
+		.getComputedStyle(host)
+		.getPropertyValue('--camera-live-collapse-ms')
+		.trim();
 	const parsedDuration = parseDurationMs(rawDuration);
 
 	return parsedDuration ?? LIVE_PANEL_CLOSE_COLLAPSE_FALLBACK_MS;
@@ -80,7 +83,10 @@ function getModalCloseMs(dialog: HTMLDialogElement | null): number {
 	}
 
 	const host = dialog ?? document.documentElement;
-	const rawDuration = window.getComputedStyle(host).getPropertyValue('--camera-modal-close-ms').trim();
+	const rawDuration = window
+		.getComputedStyle(host)
+		.getPropertyValue('--camera-modal-close-ms')
+		.trim();
 	const parsedDuration = parseDurationMs(rawDuration);
 
 	return parsedDuration ?? MODAL_CLOSE_FALLBACK_MS;
@@ -130,7 +136,11 @@ function CameraIdleActions({ cameraAutoPaused, error, onStart }: CameraIdleActio
 			<button type='button' className='camera-btn' onClick={onStart}>
 				{cameraAutoPaused ? 'Hervat camera' : 'Start camera'}
 			</button>
-			{error !== null && <div className='camera-status camera-error' role='alert'>{error}</div>}
+			{error !== null && (
+				<div className='camera-status camera-error' role='alert'>
+					{error}
+				</div>
+			)}
 		</div>
 	);
 }
@@ -260,20 +270,14 @@ function CameraStage({
 				</div>
 			)}
 			{import.meta.env.VITE_DEBUG_OVERLAY === 'true' && (
-				<canvas
-					ref={overlayCanvasRef}
-					className='camera-overlay'
-					data-mirror={mirrorValue}
-				/>
+				<canvas ref={overlayCanvasRef} className='camera-overlay' data-mirror={mirrorValue} />
 			)}
-			{liveHasStarted && (
-				<span
-					className='camera-live-dot'
-					data-status={liveStatus}
-					aria-hidden='true'
-				/>
+			{liveHasStarted && <span className='camera-live-dot' data-status={liveStatus} aria-hidden='true' />}
+			{activeError !== null && (
+				<div className='camera-video-error' role='alert'>
+					{activeError}
+				</div>
 			)}
-			{activeError !== null && <div className='camera-video-error' role='alert'>{activeError}</div>}
 		</div>
 	);
 }
@@ -320,7 +324,11 @@ function LiveDiagnosisPanel({
 	const revealPhase = liveUpdatedAt !== null && liveUpdatedAt % 2 === 0 ? 'a' : 'b';
 
 	return (
-		<div className='camera-live' data-closing={closingForModalClose} aria-hidden={closingForModalClose}>
+		<div
+			className='camera-live'
+			data-closing={closingForModalClose}
+			aria-hidden={closingForModalClose}
+		>
 			<div className='camera-live-header'>
 				<span>Live</span>
 				{isLiveRunning && liveStep !== null && (
@@ -448,15 +456,18 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 		enabled: mode === 'ready',
 	});
 
-	const { outputRef: liveAnnouncementRef, announce: announceLiveStatus, reset: resetLiveAnnouncement } =
-		useLiveAnnouncements({
-			liveHasStarted,
-			liveMode,
-			liveStep,
-			liveDiagnosis,
-			liveUpdatedAt,
-			stepLabels: ANALYSIS_STEP_LABELS,
-		});
+	const {
+		outputRef: liveAnnouncementRef,
+		announce: announceLiveStatus,
+		reset: resetLiveAnnouncement,
+	} = useLiveAnnouncements({
+		liveHasStarted,
+		liveMode,
+		liveStep,
+		liveDiagnosis,
+		liveUpdatedAt,
+		stepLabels: ANALYSIS_STEP_LABELS,
+	});
 
 	// ── Derived state ──────────────────────────
 
@@ -470,7 +481,9 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 	const cameraActive = !isIdle;
 	const activeError = liveError ?? error;
 	const liveStatus = liveError !== null ? 'error' : isLiveRunning ? 'active' : 'idle';
-	const activeCameraLabel = availableCameras.find((device) => device.deviceId === activeCameraId)?.label;
+	const activeCameraLabel = availableCameras.find(
+		(device) => device.deviceId === activeCameraId,
+	)?.label;
 
 	// ── Domain-level helpers ───────────────────
 
@@ -540,20 +553,23 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 		activeCloseRequestSequenceRef.current = null;
 	}, []);
 
-	const finalizeModalClose = useCallback((sequence: number | null) => {
-		clearReleaseTimer();
-		pendingCloseRef.current = false;
-		setModalClosing(false);
-		setLivePanelClosing(false);
-		setPreviewPrimed(false);
-		setHeroOwner('button');
-		setCameraAutoPaused(false);
-		endSession();
+	const finalizeModalClose = useCallback(
+		(sequence: number | null) => {
+			clearReleaseTimer();
+			pendingCloseRef.current = false;
+			setModalClosing(false);
+			setLivePanelClosing(false);
+			setPreviewPrimed(false);
+			setHeroOwner('button');
+			setCameraAutoPaused(false);
+			endSession();
 
-		if (sequence !== null) {
-			settleCloseRequest(sequence);
-		}
-	}, [clearReleaseTimer, endSession, settleCloseRequest]);
+			if (sequence !== null) {
+				settleCloseRequest(sequence);
+			}
+		},
+		[clearReleaseTimer, endSession, settleCloseRequest],
+	);
 
 	// ── Handlers ───────────────────────────────
 
@@ -761,15 +777,10 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 			}
 
 			const detectedAspectRatio = video.videoWidth / video.videoHeight;
+			setPreviewAspectRatio(detectedAspectRatio);
 
 			if (!videoReady) {
-				setPreviewAspectRatio(detectedAspectRatio);
 				setVideoReady(true);
-				return;
-			}
-
-			if (detectedAspectRatio !== previewAspectRatio) {
-				setPreviewAspectRatio(detectedAspectRatio);
 			}
 		};
 
@@ -791,7 +802,9 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 		const mediaQuery = window.matchMedia(MOBILE_PREVIEW_MEDIA_QUERY);
 
 		const syncFallbackAspectRatio = (): void => {
-			setPreviewAspectRatio(mediaQuery.matches ? MOBILE_PREVIEW_ASPECT_RATIO : DESKTOP_PREVIEW_ASPECT_RATIO);
+			setPreviewAspectRatio(
+				mediaQuery.matches ? MOBILE_PREVIEW_ASPECT_RATIO : DESKTOP_PREVIEW_ASPECT_RATIO,
+			);
 		};
 
 		syncFallbackAspectRatio();
@@ -870,28 +883,40 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 		announceLiveStatus(`Live-resultaat geselecteerd: ${liveDiagnosis.type.name}.`);
 		closeModalImmediately();
 		onLiveDiagnosis(liveDiagnosis);
-	}, [announceLiveStatus, clearReleaseTimer, closeModalImmediately, liveDiagnosis, onLiveDiagnosis]);
+	}, [
+		announceLiveStatus,
+		clearReleaseTimer,
+		closeModalImmediately,
+		liveDiagnosis,
+		onLiveDiagnosis,
+	]);
 
-	const handleDialogMouseDown = useCallback((event: MouseEvent<HTMLDialogElement>) => {
-		const dialog = event.currentTarget;
-		const rect = dialog.getBoundingClientRect();
-		const clickedOutside = event.clientX < rect.left
-			|| event.clientX > rect.right
-			|| event.clientY < rect.top
-			|| event.clientY > rect.bottom;
-		if (clickedOutside) {
+	const handleDialogMouseDown = useCallback(
+		(event: MouseEvent<HTMLDialogElement>) => {
+			const dialog = event.currentTarget;
+			const rect = dialog.getBoundingClientRect();
+			const clickedOutside = event.clientX < rect.left
+				|| event.clientX > rect.right
+				|| event.clientY < rect.top
+				|| event.clientY > rect.bottom;
+			if (clickedOutside) {
+				void closeModalWithTransition();
+			}
+		},
+		[closeModalWithTransition],
+	);
+
+	const handleDialogCancel = useCallback(
+		(event: SyntheticEvent<HTMLDialogElement>) => {
+			if (dialogRef.current?.open !== true) {
+				return;
+			}
+
+			event.preventDefault();
 			void closeModalWithTransition();
-		}
-	}, [closeModalWithTransition]);
-
-	const handleDialogCancel = useCallback((event: SyntheticEvent<HTMLDialogElement>) => {
-		if (dialogRef.current?.open !== true) {
-			return;
-		}
-
-		event.preventDefault();
-		void closeModalWithTransition();
-	}, [closeModalWithTransition]);
+		},
+		[closeModalWithTransition],
+	);
 
 	// ── Render ─────────────────────────────────
 
@@ -967,7 +992,12 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 					/>
 				</div>
 
-				<output ref={liveAnnouncementRef} className='visually-hidden' aria-live='polite' aria-atomic='true' />
+				<output
+					ref={liveAnnouncementRef}
+					className='visually-hidden'
+					aria-live='polite'
+					aria-atomic='true'
+				/>
 
 				{liveHasStarted && (
 					<LiveDiagnosisPanel

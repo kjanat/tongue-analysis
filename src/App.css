@@ -1244,7 +1244,7 @@ dialog.camera-modal[data-closing="true"]::backdrop {
 	::view-transition-group(*),
 	::view-transition-old(*),
 	::view-transition-new(*) {
-		animation: none !important;
+		animation: none;
 	}
 
 	.upload-area,

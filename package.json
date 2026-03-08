@@ -14,6 +14,7 @@
 		"bd": "bun --bun scripts/build.ts",
 		"cf-build": "bun bd --target=cloudflare",
 		"lint": "eslint .",
+		"lint:biome": "bunx @biomejs/biome lint",
 		"preview": "bun run build && vite preview",
 		"fmt": "dprint fmt",
 		"typecheck": "tsgo --noEmit"
