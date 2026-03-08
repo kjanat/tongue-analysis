@@ -768,7 +768,9 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 				return;
 			}
 
-			setPreviewAspectRatio(detectedAspectRatio);
+			if (detectedAspectRatio !== previewAspectRatio) {
+				setPreviewAspectRatio(detectedAspectRatio);
+			}
 		};
 
 		updateVideoGeometry();
