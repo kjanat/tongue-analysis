@@ -8,46 +8,11 @@
  * @module
  */
 
+import { TONGUE_TYPES, type TongueType } from '$data/tongue-types.ts';
 import { hexToOklch, type Oklch, rgbToOklch } from 'hex-to-oklch';
-import { TONGUE_TYPES, type TongueType } from '../data/tongue-types.ts';
 import type { RgbColor } from './color-correction.ts';
 import { clamp } from './math-utils.ts';
 import { MAX_DISTANCE, oklchDistance } from './oklch-distance.ts';
-
-// ── Palette geometry ─────────────────────────────
-
-/**
- * Median pairwise OKLCH distance between all reference tongue types.
- *
- * Computed once at module load from {@link TONGUE_TYPES}. Represents the
- * "typical separation" in the palette — robust to outliers (e.g. Bloed
- * Stagnatie's purple) unlike mean or max. Used by {@link computeConfidence}
- * as the absolute-fit normalization scale.
- *
- * Falls back to {@link MAX_DISTANCE} when fewer than 2 types exist
- * (no pairwise distances to compute), keeping all downstream division safe.
- */
-export const ABS_SCALE: number = (() => {
-	const refs = TONGUE_TYPES.map(t => hexToOklch(t.color.hex));
-	const distances: number[] = [];
-	for (let i = 0; i < refs.length; i++) {
-		const a = refs[i];
-		if (a === undefined) continue;
-		for (let j = i + 1; j < refs.length; j++) {
-			const b = refs[j];
-			if (b === undefined) continue;
-			distances.push(oklchDistance(a, b));
-		}
-	}
-	distances.sort((a, b) => a - b);
-	const mid = Math.floor(distances.length / 2);
-	const lo = distances[mid - 1];
-	const hi = distances[mid];
-	if (hi === undefined) return MAX_DISTANCE;
-	return distances.length % 2 === 0 && lo !== undefined
-		? (lo + hi) / 2
-		: hi;
-})();
 
 /**
  * A single candidate match between the sample color and a tongue type.
@@ -101,15 +66,18 @@ const SEPARATION_WEIGHT = 0.65;
 /**
  * Compute classification confidence from ranked matches.
  *
+ * Self-calibrating: derives its normalization scale from the rankings
+ * themselves rather than a precomputed palette constant. This makes
+ * confidence correct for any subset of tongue types, not just the full
+ * {@link TONGUE_TYPES} palette.
+ *
  * Two components:
- * - **Absolute fit** (35%) — how close the best match is relative to the
- *   palette's typical inter-class distance ({@link ABS_SCALE}).
+ * - **Absolute fit** (35%) — how close the best match is relative to
+ *   the median ranking distance (the "typical" match distance for this
+ *   sample). A best match much closer than the median reads as high fit.
  * - **Relative separation** (65%) — ratio of the gap between 1st and 2nd
  *   place to the runner-up distance. Dominates because "how unambiguous
  *   is this?" is what humans expect from "confidence."
- *
- * Neither component depends on {@link MAX_DISTANCE} (theoretical OKLCH max),
- * so the output spans the full [0, 1] range for real-world inputs.
  *
  * @param rankings - Type matches sorted by distance ascending.
  * @returns Confidence in [0, 1], rounded to 3 decimal places.
@@ -118,7 +86,9 @@ function computeConfidence(rankings: readonly TypeMatch[]): number {
 	const primary = rankings[0];
 	if (primary === undefined) return 0;
 
-	const absoluteFit = clamp(1 - primary.distance / ABS_SCALE, 0, 1);
+	const mid = Math.floor(rankings.length / 2);
+	const scale = rankings[mid]?.distance ?? MAX_DISTANCE;
+	const absoluteFit = clamp(1 - primary.distance / scale, 0, 1);
 
 	const secondary = rankings[1];
 	if (secondary === undefined) {
