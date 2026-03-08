@@ -182,6 +182,8 @@ function getTrackGroupId(track: MediaStreamTrack): string | null {
 	return null;
 }
 
+// ── Camera Helpers ──────────────────
+
 /**
  * Heuristically detect touch-first/mobile environments.
  * Used only to pick the more natural front/back switch behavior in the UI.
@@ -193,14 +195,11 @@ function isLikelyMobileDevice(): boolean {
 		return false;
 	}
 
-	const userAgentData = (
-		navigator as Navigator & {
-			readonly userAgentData?: {
-				readonly mobile?: boolean;
-			};
-		}
-	).userAgentData;
-	if (userAgentData?.mobile === true) {
+	if (
+		'userAgentData' in navigator
+		&& navigator.userAgentData !== undefined
+		&& navigator.userAgentData.mobile === true
+	) {
 		return true;
 	}
 
@@ -605,6 +604,7 @@ export function useMediaStream(): UseMediaStreamResult {
 			setActiveCameraId(effectiveCameraId);
 			preferredCameraIdRef.current = effectiveCameraId;
 			rememberCameraFacing(effectiveCameraId, trackFacing);
+			streamRef.current = stream;
 			// Normalise the active camera against enumerateDevices() before the
 			// UI becomes ready again. Otherwise the switch button can read a
 			// transient track ID and spend one tap re-opening the current camera.
@@ -620,11 +620,12 @@ export function useMediaStream(): UseMediaStreamResult {
 				bindTrackLifecycle(videoTrack, isCurrentRequest);
 			}
 
-			streamRef.current = stream;
-
 			const video = videoRef.current;
 			if (video !== null) {
 				if (!isCurrentRequest()) {
+					if (streamRef.current === stream) {
+						streamRef.current = null;
+					}
 					stopStream(stream);
 					return;
 				}
@@ -704,6 +705,7 @@ export function useMediaStream(): UseMediaStreamResult {
 					setActiveCameraId(fallbackDeviceId);
 					preferredCameraIdRef.current = fallbackDeviceId;
 					rememberCameraFacing(fallbackDeviceId, fallbackTrackFacing);
+					streamRef.current = fallbackStream;
 					await refreshAvailableCameras(
 						isCurrentRequest,
 						fallbackDeviceId,
@@ -715,8 +717,6 @@ export function useMediaStream(): UseMediaStreamResult {
 					if (fallbackTrack !== undefined) {
 						bindTrackLifecycle(fallbackTrack, isCurrentRequest);
 					}
-
-					streamRef.current = fallbackStream;
 					const video = videoRef.current;
 					if (video !== null) {
 						video.srcObject = fallbackStream;
@@ -737,6 +737,9 @@ export function useMediaStream(): UseMediaStreamResult {
 						}
 					}
 					if (!isCurrentRequest()) {
+						if (streamRef.current === fallbackStream) {
+							streamRef.current = null;
+						}
 						stopStream(fallbackStream);
 						return;
 					}
