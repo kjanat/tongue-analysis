@@ -1,24 +1,67 @@
-import { hexToOklch, isAchromatic, type Oklch, rgbToOklch } from 'hex-to-oklch';
-import type { TongueType } from '../data/tongue-types.ts';
+/**
+ * Color-based weight boosting for tongue type selection.
+ *
+ * Converts the image's {@link ColorProfile} to OKLCH, measures perceptual
+ * distance to each {@link TongueType}'s reference color, and returns
+ * Gaussian-falloff multipliers that bias the PRNG toward plausible matches.
+ *
+ * @module
+ */
+
+import type { TongueType } from '$data/tongue-types.ts';
+import { hexToOklch, type Oklch, rgbToOklch } from 'hex-to-oklch';
 import type { ColorProfile } from './color-analysis.ts';
+import type { RgbColor } from './color-correction.ts';
+import { clamp } from './math-utils.ts';
+import { oklchDistance } from './oklch-distance.ts';
+
+// ── Hex → OKLCH cache ──────────────────────────────────────────
+
+/**
+ * Memoizes {@link hexToOklch} results to avoid redundant conversion of
+ * constant tongue-type reference colors across repeated calls.
+ */
+const referenceColorCache = new Map<string, Oklch>();
+
+/**
+ * Cached wrapper around {@link hexToOklch}. Returns the same OKLCH
+ * object for a given hex string on every subsequent call.
+ *
+ * @param hex - CSS hex color string (e.g. `"#ff0000"`).
+ * @returns Cached OKLCH representation.
+ */
+function cachedHexToOklch(hex: string): Oklch {
+	const cached = referenceColorCache.get(hex);
+	if (cached !== undefined) return cached;
+	const oklch = hexToOklch(hex);
+	referenceColorCache.set(hex, oklch);
+	return oklch;
+}
 
 // ── HSL profile → OKLCH conversion ─────────────────────────────
 
-interface Rgb {
-	readonly r: number;
-	readonly g: number;
-	readonly b: number;
-}
-
-function clamp(value: number, min: number, max: number): number {
-	return Math.min(max, Math.max(min, value));
-}
-
+/**
+ * Normalize a hue angle into the 0–360° range.
+ *
+ * @param hue - Hue in degrees (may be negative or >360).
+ * @returns Equivalent hue in [0, 360).
+ */
 function normalizeHueDegrees(hue: number): number {
 	return ((hue % 360) + 360) % 360;
 }
 
-function hslToRgb(h: number, s: number, l: number): Rgb {
+/**
+ * Convert HSL to sRGB.
+ *
+ * Intermediate step for {@link profileToOklch}: the `hex-to-oklch` library
+ * accepts RGB, not HSL directly.
+ *
+ * @param h - Hue in degrees (0–360).
+ * @param s - Saturation as percentage (0–100).
+ * @param l - Lightness as percentage (0–100).
+ * @returns RGB color with channels in 0–255.
+ */
+function hslToRgb(h: number, s: number, l: number): RgbColor {
 	const hue = normalizeHueDegrees(h) / 360;
 	const sat = clamp(s, 0, 100) / 100;
 	const lit = clamp(l, 0, 100) / 100;
@@ -46,59 +89,39 @@ function hslToRgb(h: number, s: number, l: number): Rgb {
 	};
 }
 
+/**
+ * Convert a {@link ColorProfile} (HSL) into OKLCH for perceptual distance comparison.
+ *
+ * @param profile - HSL color profile extracted from the tongue image.
+ * @returns OKLCH representation of the profile's dominant color.
+ */
 function profileToOklch(profile: ColorProfile): Oklch {
 	const rgb = hslToRgb(profile.hue, profile.saturation, profile.lightness);
 	return rgbToOklch(rgb);
 }
 
-// ── OKLCH distance ──────────────────────────────────────────────
-
-const LIGHTNESS_WEIGHT = 1;
-const CHROMA_WEIGHT = 1;
-const HUE_WEIGHT = 1;
-
-/**
- * Typical upper bound of sRGB chroma in OKLCH.
- *
- * Normalizing by this keeps ΔC on a comparable 0–1-ish scale with
- * normalized ΔL and circular Δh.
- */
-const CHROMA_SCALE = 0.4;
-
-/**
- * Compute weighted OKLCH distance between two colors.
- *
- * Hue is circular (0° and 360° are identical). For achromatic
- * colors, hue is ignored because it is perceptually meaningless.
- */
-function oklchDistance(a: Oklch, b: Oklch): number {
-	const lightnessDiff = Math.abs(a.l - b.l);
-	const chromaDiff = Math.abs(a.c - b.c) / CHROMA_SCALE;
-
-	const rawHueDiff = Math.abs(a.h - b.h);
-	const hueDiff = isAchromatic(a) || isAchromatic(b)
-		? 0
-		: Math.min(rawHueDiff, 360 - rawHueDiff) / 180;
-
-	return Math.sqrt(
-		lightnessDiff * lightnessDiff * LIGHTNESS_WEIGHT
-			+ chromaDiff * chromaDiff * CHROMA_WEIGHT
-			+ hueDiff * hueDiff * HUE_WEIGHT,
-	);
-}
-
 // ── Weight boosting ────────────────────────────────────────────
 
-/** Minimum boost — distant colors still selectable. */
+/**
+ * Minimum boost — distant colors still selectable.
+ *
+ * Ensures every tongue type retains a non-zero selection probability
+ * even when chromatically distant from the sample.
+ */
 const MIN_BOOST = 0.3;
 
-/** Maximum boost — close matches strongly favoured. */
+/**
+ * Maximum boost — close matches strongly favoured.
+ *
+ * A near-exact color match gets a 3× weight multiplier over base.
+ */
 const MAX_BOOST = 3.0;
 
 /**
  * Sharpness of the exponential falloff.
  *
- * Higher = narrower "cone" around each type color.
+ * Controls the width of the Gaussian bell curve. Higher values create
+ * a narrower "cone" around each type color.
  *
  * At k=5: d=0 → 1.0, d=0.2 → 0.82, d=0.5 → 0.29, d=0.8 → 0.04.
  */
@@ -107,10 +130,23 @@ const FALLOFF_K = 5;
 /**
  * Compute per-type weight multipliers from image color vs tongue type colors.
  *
- * Uses absolute Gaussian-style falloff: `exp(-k * d²)`.
+ * Uses absolute Gaussian-style falloff: `exp(-k * d²)` via
+ * {@link oklchDistance}. When image color is far from ALL types, all
+ * boosts ≈ {@link MIN_BOOST}, so the PRNG dominates. Only genuinely
+ * close matches get meaningful lift up to {@link MAX_BOOST}.
  *
- * When image color is far from ALL types, all boosts ≈ `MIN_BOOST`,
- * so the `PRNG` dominates. Only genuinely close matches get meaningful lift.
+ * @param profile - HSL color profile from {@link extractColor} or the live analysis hook.
+ * @param types - Tongue type definitions to compare against.
+ * @returns One boost multiplier per type, in the same order as `types`.
+ *
+ * @example
+ * ```ts
+ * const boosts = colorBoosts(
+ *   { hue: 0, saturation: 60, lightness: 50 },
+ *   TONGUE_TYPES,
+ * );
+ * // boosts[i] ∈ [0.3, 3.0] — higher means closer color match
+ * ```
  */
 export function colorBoosts(
 	profile: ColorProfile,
@@ -119,7 +155,7 @@ export function colorBoosts(
 	const imageOklch = profileToOklch(profile);
 
 	return types.map((t) => {
-		const d = oklchDistance(imageOklch, hexToOklch(t.color.hex));
+		const d = oklchDistance(imageOklch, cachedHexToOklch(t.color.hex));
 		const similarity = Math.exp(-FALLOFF_K * d * d); // 0–1, absolute
 		return MIN_BOOST + similarity * (MAX_BOOST - MIN_BOOST);
 	});

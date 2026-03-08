@@ -1,11 +1,39 @@
+/**
+ * @module File upload drop zone for tongue images.
+ * Supports click-to-browse and drag-and-drop with MIME/size validation.
+ */
+
 import { useCallback, useRef, useState } from 'react';
 
+/** Maximum accepted file size in bytes (10 MB). */
 const MAX_FILE_SIZE = 10_000_000;
 
+/**
+ * Props for {@link UploadArea}.
+ */
 interface UploadAreaProps {
+	/**
+	 * Callback fired after a valid image is selected. Receives the raw `File` and a freshly created object URL.
+	 *
+	 * **Ownership:** The caller is responsible for revoking the object URL via
+	 * {@link URL.revokeObjectURL} when it is no longer needed to avoid memory leaks.
+	 */
 	readonly onFileSelected: (file: File, objectUrl: string) => void;
 }
 
+/**
+ * Drag-and-drop / click-to-browse upload zone.
+ * Validates MIME type (image/*) and enforces a {@link MAX_FILE_SIZE} limit before
+ * creating an object URL and forwarding to the parent via `onFileSelected`.
+ *
+ * @param props - {@link UploadAreaProps}
+ * @returns Upload area UI with inline error display.
+ *
+ * @example
+ * ```tsx
+ * <UploadArea onFileSelected={(file, url) => console.log(file.name, url)} />
+ * ```
+ */
 export default function UploadArea({ onFileSelected }: UploadAreaProps) {
 	const [dragover, setDragover] = useState(false);
 	const [error, setError] = useState<string | null>(null);
@@ -55,6 +83,7 @@ export default function UploadArea({ onFileSelected }: UploadAreaProps) {
 		(e: React.ChangeEvent<HTMLInputElement>) => {
 			const file = e.target.files?.[0];
 			if (file) handleFile(file);
+			e.target.value = '';
 		},
 		[handleFile],
 	);

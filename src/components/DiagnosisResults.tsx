@@ -1,102 +1,63 @@
-import type { Diagnosis } from '../lib/diagnosis.ts';
+/**
+ * @module Renders a complete TCM tongue diagnosis report.
+ * Displays observed color, tongue type, five-element balance, meridian activity,
+ * organ zones, pattern recognition, and lifestyle recommendations.
+ */
 
+import { clampChannel } from '$lib/color-correction.ts';
+import type { RgbColor } from '$lib/color-correction.ts';
+import type { Diagnosis } from '$lib/diagnosis.ts';
+
+/**
+ * Props for {@link DiagnosisResults}.
+ */
 interface DiagnosisResultsProps {
+	/** The full diagnosis produced by the analysis pipeline. */
 	readonly diagnosis: Diagnosis;
+	/** Callback to reset the app back to the upload phase. */
 	readonly onRestart: () => void;
 }
 
-interface RgbColor {
-	readonly r: number;
-	readonly g: number;
-	readonly b: number;
-}
-
-function clampChannel(value: number): number {
-	return Math.min(255, Math.max(0, Math.round(value)));
-}
-
-function clampUnit(value: number): number {
-	return Math.min(1, Math.max(0, value));
-}
-
-function fallbackColorFromHex(hex: string): RgbColor {
-	const sanitized = hex.startsWith('#') ? hex.slice(1) : hex;
-	if (sanitized.length !== 6) {
-		return { r: 128, g: 128, b: 128 };
-	}
-
-	const r = Number.parseInt(sanitized.slice(0, 2), 16);
-	const g = Number.parseInt(sanitized.slice(2, 4), 16);
-	const b = Number.parseInt(sanitized.slice(4, 6), 16);
-
-	if (!Number.isFinite(r) || !Number.isFinite(g) || !Number.isFinite(b)) {
-		return { r: 128, g: 128, b: 128 };
-	}
-
+/**
+ * Clamp all three channels of an {@link RgbColor} to the 0-255 integer range.
+ * Prevents invalid CSS `rgb()` values from pipeline rounding artifacts.
+ *
+ * @param color - Potentially out-of-range RGB color from the pipeline.
+ * @returns Clamped copy safe for CSS rendering.
+ */
+function clampColor(color: RgbColor): RgbColor {
 	return {
-		r: clampChannel(r),
-		g: clampChannel(g),
-		b: clampChannel(b),
+		r: clampChannel(color.r),
+		g: clampChannel(color.g),
+		b: clampChannel(color.b),
 	};
 }
 
-function readObservedColor(diagnosis: unknown, fallbackHex: string): RgbColor {
-	if (typeof diagnosis !== 'object' || diagnosis === null || !('observedColor' in diagnosis)) {
-		return fallbackColorFromHex(fallbackHex);
-	}
-
-	const observedColor = diagnosis.observedColor;
-	if (typeof observedColor !== 'object' || observedColor === null) {
-		return fallbackColorFromHex(fallbackHex);
-	}
-
-	if (!('r' in observedColor) || !('g' in observedColor) || !('b' in observedColor)) {
-		return fallbackColorFromHex(fallbackHex);
-	}
-
-	const r = observedColor.r;
-	const g = observedColor.g;
-	const b = observedColor.b;
-	if (typeof r !== 'number' || typeof g !== 'number' || typeof b !== 'number') {
-		return fallbackColorFromHex(fallbackHex);
-	}
-
-	if (!Number.isFinite(r) || !Number.isFinite(g) || !Number.isFinite(b)) {
-		return fallbackColorFromHex(fallbackHex);
-	}
-
-	return {
-		r: clampChannel(r),
-		g: clampChannel(g),
-		b: clampChannel(b),
-	};
-}
-
-function readConfidence(diagnosis: unknown): number {
-	if (typeof diagnosis !== 'object' || diagnosis === null || !('confidence' in diagnosis)) {
-		return 0.5;
-	}
-
-	const confidence = diagnosis.confidence;
-	if (typeof confidence !== 'number' || !Number.isFinite(confidence)) {
-		return 0.5;
-	}
-
-	return clampUnit(confidence);
-}
-
+/**
+ * Full diagnosis results panel.
+ * Sections: header (tongue type), summary, visual observation (color swatch + attributes),
+ * five-element badges, meridian bar chart, organ zones, TCM patterns, and recommendations.
+ *
+ * @param props - {@link DiagnosisResultsProps}
+ * @returns Results UI with a "new analysis" restart button.
+ *
+ * @example
+ * ```tsx
+ * <DiagnosisResults diagnosis={diagnosis} onRestart={() => setPhase({ kind: 'upload' })} />
+ * ```
+ */
 export default function DiagnosisResults(
 	{ diagnosis, onRestart }: DiagnosisResultsProps,
 ) {
 	const { type, elements, meridians, organZones, patterns, tips, date } = diagnosis;
-	const confidence = readConfidence(diagnosis);
-	const observedColor = readObservedColor(diagnosis, type.color.hex);
+	const confidence = Math.min(1, Math.max(0, diagnosis.confidence));
+	const observedColor = clampColor(diagnosis.observedColor);
 
 	return (
 		<>
-			<div className='results' aria-live='polite' aria-atomic='true'>
+			<div className='results' aria-live='polite'>
 				{/* Header with type name */}
-				<div className='results-header fade-in'>
+				<div className='results-header'>
 					<h2 lang='zh'>診斷結果</h2>
 					<div className='diagnosis-name'>
 						<span lang='zh'>{type.nameZh}</span> — {type.name}
@@ -105,21 +66,22 @@ export default function DiagnosisResults(
 				</div>
 
 				{/* Summary */}
-				<div className='result-card fade-in'>
+				<div className='result-card'>
 					<p className='summary'>{type.summary}</p>
-					{import.meta.env.DEV && (
-						<p style={{ marginTop: '0.6rem' }}>
+					{import.meta.env.VITE_DEBUG_OVERLAY === 'true' && (
+						<p className='result-card-debug'>
 							<strong>Detectiebetrouwbaarheid:</strong> {Math.round(confidence * 100)}%
 						</p>
 					)}
 				</div>
 
 				{/* Visual observation */}
-				<div className='result-card fade-in'>
+				<div className='result-card'>
 					<h3>Visuele Observatie</h3>
 					<div className='detected-color'>
 						<span
 							className='detected-color-swatch'
+							aria-hidden='true'
 							style={{
 								backgroundColor: `rgb(${String(observedColor.r)} ${String(observedColor.g)} ${
 									String(observedColor.b)
@@ -140,14 +102,14 @@ export default function DiagnosisResults(
 						<strong>Vochtigheid:</strong> {type.moisture}
 					</p>
 					{type.symptoms.length > 0 && (
-						<p style={{ marginTop: '0.5rem' }}>
+						<p className='result-card-spaced'>
 							<strong>Symptomen:</strong> {type.symptoms.join(', ')}
 						</p>
 					)}
 				</div>
 
 				{/* Five-element balance */}
-				<div className='result-card fade-in'>
+				<div className='result-card'>
 					<h3>Vijf-Elementenbalans</h3>
 					<div className='element-badges'>
 						{elements.map((e) => (
@@ -159,7 +121,7 @@ export default function DiagnosisResults(
 				</div>
 
 				{/* Meridian activity */}
-				<div className='result-card fade-in'>
+				<div className='result-card'>
 					<h3>Meridiaan-Activiteit</h3>
 					<div className='meridian-chart'>
 						{meridians.map((m) => (
@@ -167,10 +129,13 @@ export default function DiagnosisResults(
 								<div className='meridian-bar'>
 									<div
 										className='meridian-fill'
-										style={{ height: `${String(m.val)}%` }}
+										style={{ transform: `scaleY(${String(m.val / 100)})` }}
 									/>
 								</div>
-								<div className='meridian-label'>{m.name}</div>
+								<div className='meridian-label'>
+									{m.name}
+									<span className='visually-hidden'>{String(m.val)}%</span>
+								</div>
 							</div>
 						))}
 					</div>
@@ -178,13 +143,13 @@ export default function DiagnosisResults(
 
 				{/* Organ zones */}
 				{organZones.length > 0 && (
-					<div className='result-card fade-in'>
+					<div className='result-card'>
 						<h3>Orgaanzones</h3>
 						<p>
 							{organZones.map((o, i) => (
 								<span key={o.organ}>
 									{i > 0 && <br />}
-									De <strong>{o.zone}</strong> toont activiteit gerelateerd aan de <strong>{o.organ}</strong>.
+									De <strong>{o.zone}</strong> toont activiteit gerelateerd aan <strong>{o.organ}</strong>.
 								</span>
 							))}
 						</p>
@@ -192,24 +157,24 @@ export default function DiagnosisResults(
 				)}
 
 				{/* TCM patterns */}
-				<div className='result-card fade-in'>
+				<div className='result-card'>
 					<h3>TCM-Patroonherkenning</h3>
-					{patterns.map((p) => (
-						<p key={p} style={{ marginTop: '0.4rem' }}>
-							{p}
-						</p>
-					))}
+					<ul>
+						{patterns.map((p, i) => <li key={`${String(i)}-${p}`}>{p}</li>)}
+					</ul>
 				</div>
 
 				{/* Recommendations */}
-				<div className='result-card fade-in'>
+				<div className='result-card'>
 					<h3>Aanbevelingen</h3>
-					{tips.map((t) => <p key={t}>&bull; {t}</p>)}
+					<ul>
+						{tips.map((t, i) => <li key={`${String(i)}-${t}`}>{t}</li>)}
+					</ul>
 				</div>
 			</div>
 
 			<button type='button' className='restart-btn' onClick={onRestart}>
-				&#8635; Nieuwe analyse
+				<span aria-hidden='true'>&#8635;</span>Nieuwe analyse
 			</button>
 		</>
 	);
