@@ -6,6 +6,7 @@
  * that {@link useLiveAnalysis} reads frames from.
  */
 
+import { isLikelyMobileDevice } from '$lib/device-detection.ts';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { RefObject } from 'react';
 
@@ -139,6 +140,10 @@ function getTrackFacing(track: MediaStreamTrack): CameraFacing | null {
 	}
 
 	const capabilityFacingModes = capabilities.facingMode;
+	if (capabilityFacingModes === undefined) {
+		return null;
+	}
+
 	if (capabilityFacingModes.includes('user')) {
 		return 'front';
 	}
@@ -183,33 +188,6 @@ function getTrackGroupId(track: MediaStreamTrack): string | null {
 }
 
 // ── Camera Helpers ──────────────────
-
-/**
- * Heuristically detect touch-first/mobile environments.
- * Used only to pick the more natural front/back switch behavior in the UI.
- *
- * @returns `true` when the device is likely mobile-like.
- */
-function isLikelyMobileDevice(): boolean {
-	if (typeof navigator === 'undefined' || typeof window === 'undefined') {
-		return false;
-	}
-
-	if (
-		'userAgentData' in navigator
-		&& navigator.userAgentData !== undefined
-		&& navigator.userAgentData.mobile === true
-	) {
-		return true;
-	}
-
-	const userAgent = navigator.userAgent.toLowerCase();
-	if (/android|iphone|ipad|ipod|mobile/.test(userAgent)) {
-		return true;
-	}
-
-	return window.matchMedia('(pointer: coarse)').matches;
-}
 
 /**
  * Reconcile the current stream with the latest enumerated camera list.

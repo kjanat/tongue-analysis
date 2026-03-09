@@ -10,6 +10,7 @@ import { useLiveAnalysis } from '$hooks/use-live-analysis.ts';
 import { useLiveAnnouncements } from '$hooks/use-live-announcements.ts';
 import { useMediaStream } from '$hooks/use-media-stream.ts';
 import { captureErrorMessage, captureVideoFrame } from '$lib/capture-video-frame.ts';
+import { COARSE_POINTER_QUERY, isLikelyMobileDevice } from '$lib/device-detection.ts';
 import type { Diagnosis } from '$lib/diagnosis.ts';
 import { formatUpdateTime } from '$lib/format-time.ts';
 import type { AnalysisStep } from '$lib/pipeline.ts';
@@ -38,8 +39,6 @@ const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
 const DESKTOP_PREVIEW_ASPECT_RATIO = 16 / 9;
 const MOBILE_PREVIEW_ASPECT_RATIO = 3 / 4;
 const MOBILE_PREVIEW_MEDIA_QUERY = '(max-width: 700px) and (orientation: portrait)';
-const MOBILE_CAMERA_SWITCH_MEDIA_QUERY = '(pointer: coarse)';
-
 function getFallbackPreviewAspectRatio(): number {
 	if (typeof window === 'undefined') {
 		return DESKTOP_PREVIEW_ASPECT_RATIO;
@@ -106,19 +105,6 @@ function delay(ms: number): Promise<void> {
 	return new Promise((resolve) => {
 		setTimeout(resolve, ms);
 	});
-}
-
-function isLikelyMobileCameraUi(): boolean {
-	if (typeof window === 'undefined' || typeof navigator === 'undefined') {
-		return false;
-	}
-
-	const userAgent = navigator.userAgent.toLowerCase();
-	if (/android|iphone|ipad|ipod|mobile/.test(userAgent)) {
-		return true;
-	}
-
-	return window.matchMedia(MOBILE_CAMERA_SWITCH_MEDIA_QUERY).matches;
 }
 
 type HeroOwner = 'button' | 'dialog';
@@ -482,7 +468,7 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 	const [heroOwner, setHeroOwner] = useState<HeroOwner>('button');
 	const [previewPrimed, setPreviewPrimed] = useState(false);
 	const [previewAspectRatio, setPreviewAspectRatio] = useState(getFallbackPreviewAspectRatio);
-	const [useMobileCameraSwitch, setUseMobileCameraSwitch] = useState(isLikelyMobileCameraUi);
+	const [useMobileCameraSwitch, setUseMobileCameraSwitch] = useState(isLikelyMobileDevice);
 	const [videoReady, setVideoReady] = useState(false);
 	const [livePanelClosing, setLivePanelClosing] = useState(false);
 	const [modalClosing, setModalClosing] = useState(false);
@@ -898,10 +884,10 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 			return;
 		}
 
-		const mediaQuery = window.matchMedia(MOBILE_CAMERA_SWITCH_MEDIA_QUERY);
+		const mediaQuery = window.matchMedia(COARSE_POINTER_QUERY);
 
 		const syncCameraUiMode = (): void => {
-			setUseMobileCameraSwitch(isLikelyMobileCameraUi());
+			setUseMobileCameraSwitch(isLikelyMobileDevice());
 		};
 
 		syncCameraUiMode();
