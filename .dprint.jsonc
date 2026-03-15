@@ -1,4 +1,96 @@
 {
 	"$schema": "https://dprint.dev/schemas/v0.json",
-	"extends": "https://github.com/kjanat/kjanat/raw/refs/heads/master/configs/dprint.remote.json",
+	"useTabs": true,
+	"indentWidth": 2,
+	"newLineKind": "lf",
+	"typescript": {
+		"quoteStyle": "preferSingle",
+	},
+	"json": {
+		"jsonTrailingCommaFiles": [
+			"!**/biome.jsonc",
+			"**/.vscode/*.json",
+			"**/.zed/*.json",
+			"**/tsconfig*.json",
+		],
+		"associations": [
+			"!**/.openclaw/*.json*",
+			"*.json",
+			"*.jsonc",
+		],
+	},
+	"markdown": {
+		"textWrap": "maintain",
+		"emphasisKind": "asterisks",
+		"lineWidth": 8000,
+		"associations": [
+			".rules",
+			"*.md",
+			"*.markdown",
+		],
+	},
+	"dockerfile": {
+		"associations": [
+			"Dockerfile",
+			"Dockerfile.*",
+		],
+	},
+	"ruff": {
+		"preview": true,
+		"lineLength": 88,
+		"indentWidth": 4,
+		"indentStyle": "space",
+	},
+	"jupyter": {},
+	"malva": {},
+	"markup": {
+		"useTabs": true,
+		"html.void.selfClosing": false,
+		"formatComments": true,
+		"scriptIndent": true,
+		"styleIndent": true,
+		"doctypeKeywordCase": "upper",
+		"strictSvelteAttr": false,
+		"svelteAttrShorthand": true,
+		"svelteDirectiveShorthand": true,
+		"ignoreCommentDirective": "dprint-ignore",
+		"ignoreFileCommentDirective": "dprint-ignore-file",
+		"associations": [
+			"!**/*.svg",
+		],
+	},
+	"yaml": {
+		"printWidth": 160,
+	},
+	"graphql": {},
+	"excludes": [
+		"**/.venv",
+		"**/*-lock.json",
+		"**/bun.lock*",
+		"**/node_modules",
+		"**/worker-configuration.d.ts",
+	],
+	"plugins": [
+		"https://plugins.dprint.dev/dockerfile-0.3.3.wasm",
+		"https://plugins.dprint.dev/g-plane/malva-v0.15.2.wasm",
+		"https://plugins.dprint.dev/g-plane/markup_fmt-v0.26.0.wasm",
+		"https://plugins.dprint.dev/g-plane/pretty_graphql-v0.2.3.wasm",
+		"https://plugins.dprint.dev/g-plane/pretty_yaml-v0.6.0.wasm",
+		"https://plugins.dprint.dev/json-0.21.1.wasm",
+		"https://plugins.dprint.dev/jupyter-0.2.1.wasm",
+		"https://plugins.dprint.dev/markdown-0.21.1.wasm",
+		"https://plugins.dprint.dev/ruff-0.7.5.wasm",
+		"https://plugins.dprint.dev/typescript-0.95.15.wasm",
+		"https://plugins.dprint.dev/exec-0.6.0.json@a054130d458f124f9b5c91484833828950723a5af3f8ff2bd1523bd47b83b364",
+	],
+	"exec": {
+		"commands": [
+			{
+				"command": "npx -y sort-package-json --stdin",
+				"fileNames": [
+					"package.json",
+				],
+			},
+		],
+	},
 }
