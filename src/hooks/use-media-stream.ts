@@ -6,6 +6,7 @@
  * that {@link useLiveAnalysis} reads frames from.
  */
 
+import { isLikelyMobileDevice } from '$lib/device-detection.ts';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { RefObject } from 'react';
 
@@ -16,6 +17,15 @@ import type { RefObject } from 'react';
  * - `'ready'` — stream acquired and `<video>` playing.
  */
 export type CameraMode = 'idle' | 'requesting' | 'ready';
+
+/** Coarse front/back bucket used for UI mirroring and mobile camera switching. */
+type CameraFacing = 'front' | 'back';
+
+/** Error shown when the active camera track ends unexpectedly. */
+const TRACK_ENDED_ERROR = 'Camera is gestopt of losgekoppeld. Start opnieuw.';
+
+/** Error shown when the active camera track temporarily stops delivering frames. */
+const TRACK_MUTED_ERROR = 'Camera levert tijdelijk geen beeld. Controleer het apparaat en probeer opnieuw.';
 
 /**
  * Return value of {@link useMediaStream}.
@@ -39,6 +49,8 @@ interface UseMediaStreamResult {
 	readonly start: () => Promise<void>;
 	/** Cycle to the next camera in {@link UseMediaStreamResult.availableCameras}. No-op if fewer than 2 cameras. */
 	readonly switchToNextCamera: () => Promise<void>;
+	/** Start a specific camera by device ID. No-op when already active. */
+	readonly selectCamera: (cameraId: string) => Promise<void>;
 	/** Stop the stream, detach from the video element, and return to `'idle'`. */
 	readonly stop: () => void;
 	/** {@link UseMediaStreamResult.stop} + clear any lingering error. */
@@ -98,40 +110,49 @@ function cameraErrorMessage(error: unknown): string {
 }
 
 /**
- * Determine whether a video track is front-facing (selfie camera).
- * Checks `facingMode` first; falls back to heuristic label matching
- * for devices that don't report a facing mode (desktop webcams).
- * Defaults to `true` (mirror) when indeterminate, because most
- * single-camera devices are front-facing.
+ * Convert a track-reported `facingMode` into the hook's simplified facing model.
  *
- * @param track - Active video track to inspect.
- * @returns `true` if the track should be mirrored in the preview.
+ * @param facingMode - Raw facing mode string from track settings/capabilities.
+ * @returns `'front'`, `'back'`, or `null` when the mode is missing/unsupported.
  */
-function isFrontFacingTrack(track: MediaStreamTrack): boolean {
-	const facingMode = track.getSettings().facingMode;
-	if (facingMode === 'user') return true;
-	if (facingMode === 'environment') return false;
-
-	const label = track.label.toLowerCase();
-	if (label.includes('rear') || label.includes('back') || label.includes('environment')) {
-		return false;
-	}
-
-	return true;
+function facingFromMode(facingMode: string | undefined): CameraFacing | null {
+	if (facingMode === 'user') return 'front';
+	if (facingMode === 'environment') return 'back';
+	return null;
 }
 
 /**
- * Check the first video track of a stream to decide whether the
- * preview should be horizontally mirrored.
+ * Determine a video track's facing direction.
+ * Uses track settings first, then capabilities when available.
  *
- * @param stream - Newly acquired `MediaStream`.
- * @returns `true` when the stream's video track is front-facing.
- * @see {@link isFrontFacingTrack}
+ * @param track - Active video track to inspect.
+ * @returns Facing direction, or `null` when the browser provides no signal.
  */
-function shouldMirrorPreview(stream: MediaStream): boolean {
-	const videoTrack = stream.getVideoTracks()[0];
-	if (videoTrack === undefined) return false;
-	return isFrontFacingTrack(videoTrack);
+function getTrackFacing(track: MediaStreamTrack): CameraFacing | null {
+	const settingFacing = facingFromMode(track.getSettings().facingMode);
+	if (settingFacing !== null) {
+		return settingFacing;
+	}
+
+	const capabilities = track.getCapabilities();
+	if (!('facingMode' in capabilities)) {
+		return null;
+	}
+
+	const capabilityFacingModes = capabilities.facingMode;
+	if (capabilityFacingModes === undefined) {
+		return null;
+	}
+
+	if (capabilityFacingModes.includes('user')) {
+		return 'front';
+	}
+
+	if (capabilityFacingModes.includes('environment')) {
+		return 'back';
+	}
+
+	return null;
 }
 
 /**
@@ -151,38 +172,122 @@ function getTrackDeviceId(track: MediaStreamTrack): string | null {
 }
 
 /**
- * Build `MediaTrackConstraints` for `getUserMedia`.
- * When a preferred camera is known, pins to that device via `exact`;
- * otherwise requests the front-facing camera as a soft preference.
+ * Extract the `groupId` from a track's settings.
+ * Useful when a browser reports a transient `deviceId` but keeps a stable group.
  *
- * @param preferredCameraId - Device ID to target, or `null` for default.
- * @returns Constraints object for the `video` track.
+ * @param track - Video track to query.
+ * @returns Group ID string, or `null`.
  */
+function getTrackGroupId(track: MediaStreamTrack): string | null {
+	const groupId = track.getSettings().groupId;
+	if (typeof groupId === 'string' && groupId !== '') {
+		return groupId;
+	}
+
+	return null;
+}
+
+// ── Camera Helpers ──────────────────
+
+/**
+ * Reconcile the current stream with the latest enumerated camera list.
+ * Prefers exact IDs, then stable `groupId`, then previously learned facing data.
+ *
+ * @param videoDevices - Enumerated `videoinput` devices.
+ * @param fallbackActiveCameraId - Last known camera ID to preserve when possible.
+ * @param activeTrackDeviceId - `deviceId` read from the active track, if available.
+ * @param activeTrackGroupId - `groupId` read from the active track, if available.
+ * @param activeTrackFacing - Facing derived from the active track, if available.
+ * @param cameraFacingById - Previously observed facing per stable device ID.
+ * @returns Best matching camera ID from the latest enumeration result.
+ */
+function findMatchingCameraId(
+	videoDevices: readonly MediaDeviceInfo[],
+	fallbackActiveCameraId: string | null,
+	activeTrackDeviceId: string | null,
+	activeTrackGroupId: string | null,
+	activeTrackFacing: CameraFacing | null,
+	cameraFacingById: ReadonlyMap<string, CameraFacing>,
+): string | null {
+	if (fallbackActiveCameraId !== null) {
+		const exactMatch = videoDevices.find((device) => device.deviceId === fallbackActiveCameraId);
+		if (exactMatch !== undefined) {
+			return exactMatch.deviceId;
+		}
+	}
+
+	if (activeTrackDeviceId !== null) {
+		const trackDeviceMatch = videoDevices.find((device) => device.deviceId === activeTrackDeviceId);
+		if (trackDeviceMatch !== undefined) {
+			return trackDeviceMatch.deviceId;
+		}
+	}
+
+	if (activeTrackGroupId !== null) {
+		const groupMatches = videoDevices.filter((device) => device.groupId === activeTrackGroupId);
+		if (groupMatches.length === 1) {
+			return groupMatches[0]?.deviceId ?? null;
+		}
+
+		if (activeTrackFacing !== null) {
+			const groupFacingMatch = groupMatches.find(
+				(device) => cameraFacingById.get(device.deviceId) === activeTrackFacing,
+			);
+			if (groupFacingMatch !== undefined) {
+				return groupFacingMatch.deviceId;
+			}
+		}
+	}
+
+	if (activeTrackFacing !== null) {
+		const knownFacingMatch = videoDevices.find(
+			(device) => cameraFacingById.get(device.deviceId) === activeTrackFacing,
+		);
+		if (knownFacingMatch !== undefined) {
+			return knownFacingMatch.deviceId;
+		}
+	}
+
+	return videoDevices[0]?.deviceId ?? null;
+}
+
 /**
  * Soft resolution target passed as `ideal` so the browser picks the
  * highest resolution the camera supports without ever over-constraining.
  */
 const MAX_IDEAL_DIMENSION = 4096;
 
+/**
+ * Build `MediaTrackConstraints` for `getUserMedia`.
+ * Uses `getSupportedConstraints()` so unsupported keys are omitted entirely.
+ *
+ * @param preferredCameraId - Device ID to target, or `null` for default selection.
+ * @returns Constraints object for the `video` track.
+ */
 function buildVideoConstraints(preferredCameraId: string | null): MediaTrackConstraints {
-	const resolution = {
-		width: { ideal: MAX_IDEAL_DIMENSION },
-		height: { ideal: MAX_IDEAL_DIMENSION },
-	};
+	const supportedConstraints = navigator.mediaDevices.getSupportedConstraints();
+	const constraints: MediaTrackConstraints = {};
 
-	if (preferredCameraId !== null) {
-		return {
-			deviceId: {
-				exact: preferredCameraId,
-			},
-			...resolution,
-		};
+	if (supportedConstraints.width === true) {
+		constraints.width = { ideal: MAX_IDEAL_DIMENSION };
 	}
 
-	return {
-		facingMode: 'user',
-		...resolution,
-	};
+	if (supportedConstraints.height === true) {
+		constraints.height = { ideal: MAX_IDEAL_DIMENSION };
+	}
+
+	if (preferredCameraId !== null && supportedConstraints.deviceId === true) {
+		constraints.deviceId = {
+			exact: preferredCameraId,
+		};
+		return constraints;
+	}
+
+	if (supportedConstraints.facingMode === true) {
+		constraints.facingMode = 'user';
+	}
+
+	return constraints;
 }
 
 /**
@@ -236,6 +341,9 @@ export function useMediaStream(): UseMediaStreamResult {
 	const streamRef = useRef<MediaStream | null>(null);
 	const videoRef = useRef<HTMLVideoElement>(null);
 	const preferredCameraIdRef = useRef<string | null>(null);
+	const cameraFacingByIdRef = useRef(new Map<string, CameraFacing>());
+	const activeCameraFacingRef = useRef<CameraFacing | null>(null);
+	const activeTrackCleanupRef = useRef<(() => void) | null>(null);
 	const requestIdRef = useRef(0);
 	/**
 	 * Synchronous mirror of {@link mode} that is always current,
@@ -250,41 +358,67 @@ export function useMediaStream(): UseMediaStreamResult {
 		setMode(next);
 	}, []);
 
+	/**
+	 * Re-enumerate cameras and reconcile the active selection with the current stream.
+	 *
+	 * @param isCurrentRequest - Guard that rejects stale async completions.
+	 * @param fallbackActiveCameraId - Camera ID to preserve if reconciliation is ambiguous.
+	 * @param activeTrackDeviceId - `deviceId` from the active track, if available.
+	 * @param activeTrackGroupId - `groupId` from the active track, if available.
+	 * @param activeTrackFacing - Facing derived from the active track, if available.
+	 * @returns The reconciled active camera ID.
+	 */
 	const refreshAvailableCameras = useCallback(
-		async (isCurrentRequest: () => boolean, fallbackActiveCameraId: string | null): Promise<void> => {
+		async (
+			isCurrentRequest: () => boolean,
+			fallbackActiveCameraId: string | null,
+			activeTrackDeviceId: string | null,
+			activeTrackGroupId: string | null,
+			activeTrackFacing: CameraFacing | null,
+		): Promise<string | null> => {
 			try {
 				const devices = await navigator.mediaDevices.enumerateDevices();
-				if (!isCurrentRequest()) return;
+				if (!isCurrentRequest()) return fallbackActiveCameraId;
 
 				const videoDevices = toVideoInputDevices(devices);
 				setAvailableCameras(videoDevices);
 
-				const firstCameraId = videoDevices[0]?.deviceId ?? null;
-				const requestedCameraId = fallbackActiveCameraId ?? firstCameraId;
-				const hasRequestedCamera = requestedCameraId !== null
-					? videoDevices.some((device) => device.deviceId === requestedCameraId)
-					: false;
-				const nextActiveCameraId = hasRequestedCamera
-					? requestedCameraId
-					: firstCameraId;
+				const nextActiveCameraId = findMatchingCameraId(
+					videoDevices,
+					fallbackActiveCameraId,
+					activeTrackDeviceId,
+					activeTrackGroupId,
+					activeTrackFacing,
+					cameraFacingByIdRef.current,
+				);
 
 				setActiveCameraId(nextActiveCameraId);
 				preferredCameraIdRef.current = nextActiveCameraId;
+				return nextActiveCameraId;
 			} catch (enumerateError: unknown) {
 				if (import.meta.env.DEV) {
 					console.warn('enumerateDevices() failed:', enumerateError);
 				}
 
-				if (!isCurrentRequest()) return;
+				if (!isCurrentRequest()) return fallbackActiveCameraId;
 				setAvailableCameras([]);
 				setActiveCameraId(fallbackActiveCameraId);
 				preferredCameraIdRef.current = fallbackActiveCameraId;
+				return fallbackActiveCameraId;
 			}
 		},
 		[],
 	);
 
+	/**
+	 * Detach lifecycle listeners, stop the current stream, and clear the bound `<video>`.
+	 * Safe to call repeatedly.
+	 */
 	const stopCurrentStream = useCallback(() => {
+		activeTrackCleanupRef.current?.();
+		activeTrackCleanupRef.current = null;
+		activeCameraFacingRef.current = null;
+
 		const stream = streamRef.current;
 		if (stream !== null) {
 			stopStream(stream);
@@ -297,6 +431,7 @@ export function useMediaStream(): UseMediaStreamResult {
 		}
 	}, []);
 
+	/** Cancel any in-flight request and return the hook to the idle state. */
 	const stop = useCallback(() => {
 		requestIdRef.current += 1;
 		stopCurrentStream();
@@ -304,19 +439,92 @@ export function useMediaStream(): UseMediaStreamResult {
 		updateMode('idle');
 	}, [stopCurrentStream, updateMode]);
 
+	/** Fully reset the camera state, including any surfaced user-facing error. */
 	const reset = useCallback(() => {
 		stop();
 		setError(null);
 	}, [stop]);
 
+	/** Clear the current user-facing camera error without touching the stream. */
 	const clearError = useCallback(() => {
 		setError(null);
 	}, []);
 
+	/**
+	 * Expose a setter for non-camera layers to surface a camera-related error in the shared UI.
+	 *
+	 * @param message - Error text to display to the user.
+	 */
 	const setErrorMessage = useCallback((message: string) => {
 		setError(message);
 	}, []);
 
+	/**
+	 * Cache the observed facing for a stable device ID so future switches can avoid label parsing.
+	 *
+	 * @param cameraId - Stable device ID from enumeration.
+	 * @param facing - Facing observed from a live track.
+	 */
+	const rememberCameraFacing = useCallback((cameraId: string | null, facing: CameraFacing | null) => {
+		activeCameraFacingRef.current = facing;
+		if (cameraId !== null && facing !== null) {
+			cameraFacingByIdRef.current.set(cameraId, facing);
+		}
+	}, []);
+
+	/**
+	 * Subscribe to lifecycle events on the active track so revocation/ejection is reflected in UI state.
+	 *
+	 * @param track - Active video track to observe.
+	 * @param isCurrentRequest - Guard that rejects events from superseded requests.
+	 */
+	const bindTrackLifecycle = useCallback((track: MediaStreamTrack, isCurrentRequest: () => boolean) => {
+		activeTrackCleanupRef.current?.();
+
+		const handleEnded = (): void => {
+			if (!isCurrentRequest()) return;
+
+			stopCurrentStream();
+			setMirrorPreview(false);
+			setError(TRACK_ENDED_ERROR);
+			updateMode('idle');
+			void refreshAvailableCameras(
+				isCurrentRequest,
+				preferredCameraIdRef.current,
+				getTrackDeviceId(track),
+				getTrackGroupId(track),
+				getTrackFacing(track),
+			);
+		};
+
+		const handleMute = (): void => {
+			if (!isCurrentRequest()) return;
+			if (modeRef.current !== 'ready') return;
+			setError(TRACK_MUTED_ERROR);
+		};
+
+		const handleUnmute = (): void => {
+			if (!isCurrentRequest()) return;
+			setError((currentError) => currentError === TRACK_MUTED_ERROR ? null : currentError);
+		};
+
+		track.addEventListener('ended', handleEnded);
+		track.addEventListener('mute', handleMute);
+		track.addEventListener('unmute', handleUnmute);
+
+		activeTrackCleanupRef.current = () => {
+			track.removeEventListener('ended', handleEnded);
+			track.removeEventListener('mute', handleMute);
+			track.removeEventListener('unmute', handleUnmute);
+		};
+	}, [refreshAvailableCameras, stopCurrentStream, updateMode]);
+
+	/**
+	 * Acquire a camera stream, optionally targeting a specific device.
+	 * Handles teardown, retry-on-overconstrained, enumeration, and autoplay setup.
+	 *
+	 * @param requestedCameraId - Explicit camera ID to request, or `null` for browser selection.
+	 */
 	const startWithCameraId = useCallback(async (requestedCameraId: string | null) => {
 		// Guard uses ref — immune to stale closures from React's batched renders.
 		if (modeRef.current === 'requesting') return;
@@ -358,11 +566,13 @@ export function useMediaStream(): UseMediaStreamResult {
 				return;
 			}
 
-			setMirrorPreview(shouldMirrorPreview(stream));
 			const videoTrack = stream.getVideoTracks()[0];
+			const trackFacing = videoTrack === undefined ? null : getTrackFacing(videoTrack);
+			setMirrorPreview(trackFacing === 'front');
 			const resolvedCameraId = videoTrack === undefined
 				? requestedCameraId
 				: getTrackDeviceId(videoTrack) ?? requestedCameraId;
+			const trackGroupId = videoTrack === undefined ? null : getTrackGroupId(videoTrack);
 			// Prefer the requestedCameraId (from enumerateDevices) over the
 			// resolved track ID (from getSettings). track.getSettings().deviceId
 			// can differ from the enumerateDevices() deviceId on some devices,
@@ -371,13 +581,29 @@ export function useMediaStream(): UseMediaStreamResult {
 			const effectiveCameraId = requestedCameraId ?? resolvedCameraId;
 			setActiveCameraId(effectiveCameraId);
 			preferredCameraIdRef.current = effectiveCameraId;
-			void refreshAvailableCameras(isCurrentRequest, effectiveCameraId);
-
+			rememberCameraFacing(effectiveCameraId, trackFacing);
 			streamRef.current = stream;
+			// Normalise the active camera against enumerateDevices() before the
+			// UI becomes ready again. Otherwise the switch button can read a
+			// transient track ID and spend one tap re-opening the current camera.
+			await refreshAvailableCameras(
+				isCurrentRequest,
+				effectiveCameraId,
+				resolvedCameraId,
+				trackGroupId,
+				trackFacing,
+			);
+			rememberCameraFacing(preferredCameraIdRef.current, trackFacing);
+			if (videoTrack !== undefined) {
+				bindTrackLifecycle(videoTrack, isCurrentRequest);
+			}
 
 			const video = videoRef.current;
 			if (video !== null) {
 				if (!isCurrentRequest()) {
+					if (streamRef.current === stream) {
+						streamRef.current = null;
+					}
 					stopStream(stream);
 					return;
 				}
@@ -445,16 +671,30 @@ export function useMediaStream(): UseMediaStreamResult {
 					}
 					// Continue with the fallback stream — reuse the success
 					// path below by assigning and returning early.
-					setMirrorPreview(shouldMirrorPreview(fallbackStream));
 					const fallbackTrack = fallbackStream.getVideoTracks()[0];
+					const fallbackTrackFacing = fallbackTrack === undefined
+						? null
+						: getTrackFacing(fallbackTrack);
+					setMirrorPreview(fallbackTrackFacing === 'front');
 					const fallbackDeviceId = fallbackTrack === undefined
 						? null
 						: getTrackDeviceId(fallbackTrack);
+					const fallbackGroupId = fallbackTrack === undefined ? null : getTrackGroupId(fallbackTrack);
 					setActiveCameraId(fallbackDeviceId);
 					preferredCameraIdRef.current = fallbackDeviceId;
-					void refreshAvailableCameras(isCurrentRequest, fallbackDeviceId);
-
+					rememberCameraFacing(fallbackDeviceId, fallbackTrackFacing);
 					streamRef.current = fallbackStream;
+					await refreshAvailableCameras(
+						isCurrentRequest,
+						fallbackDeviceId,
+						fallbackDeviceId,
+						fallbackGroupId,
+						fallbackTrackFacing,
+					);
+					rememberCameraFacing(preferredCameraIdRef.current, fallbackTrackFacing);
+					if (fallbackTrack !== undefined) {
+						bindTrackLifecycle(fallbackTrack, isCurrentRequest);
+					}
 					const video = videoRef.current;
 					if (video !== null) {
 						video.srcObject = fallbackStream;
@@ -475,6 +715,9 @@ export function useMediaStream(): UseMediaStreamResult {
 						}
 					}
 					if (!isCurrentRequest()) {
+						if (streamRef.current === fallbackStream) {
+							streamRef.current = null;
+						}
 						stopStream(fallbackStream);
 						return;
 					}
@@ -491,17 +734,47 @@ export function useMediaStream(): UseMediaStreamResult {
 			setMirrorPreview(false);
 			updateMode('idle');
 		}
-	}, [refreshAvailableCameras, stopCurrentStream, updateMode]);
+	}, [bindTrackLifecycle, refreshAvailableCameras, rememberCameraFacing, stopCurrentStream, updateMode]);
 
+	/** Start the previously preferred camera, or the browser-default front-facing choice. */
 	const start = useCallback(async () => {
 		await startWithCameraId(preferredCameraIdRef.current);
 	}, [startWithCameraId]);
 
+	/**
+	 * Cycle to the next camera.
+	 * On mobile, prefers switching between known front/back devices before falling back to simple cycling.
+	 */
 	const switchToNextCamera = useCallback(async () => {
 		if (modeRef.current !== 'ready') return;
 		if (availableCameras.length < 2) return;
 
-		const activeIndex = availableCameras.findIndex((device) => device.deviceId === activeCameraId);
+		const activeCameraIdForCycle = preferredCameraIdRef.current ?? activeCameraId;
+		const activeIndex = availableCameras.findIndex((device) => device.deviceId === activeCameraIdForCycle);
+		const activeFacing = activeCameraFacingRef.current
+			?? (activeCameraIdForCycle === null
+				? null
+				: cameraFacingByIdRef.current.get(activeCameraIdForCycle)
+					?? null);
+
+		if (isLikelyMobileDevice() && activeFacing !== null) {
+			const targetFacing: CameraFacing = activeFacing === 'front' ? 'back' : 'front';
+
+			for (let offset = 1; offset <= availableCameras.length; offset += 1) {
+				const nextIndex = activeIndex < 0
+					? offset - 1
+					: (activeIndex + offset) % availableCameras.length;
+				const candidate = availableCameras[nextIndex];
+				if (candidate === undefined) continue;
+
+				const candidateFacing = cameraFacingByIdRef.current.get(candidate.deviceId);
+				if (candidateFacing === targetFacing) {
+					await startWithCameraId(candidate.deviceId);
+					return;
+				}
+			}
+		}
+
 		const nextIndex = activeIndex < 0 ? 0 : (activeIndex + 1) % availableCameras.length;
 		const nextCamera = availableCameras[nextIndex];
 		if (nextCamera === undefined) return;
@@ -509,6 +782,50 @@ export function useMediaStream(): UseMediaStreamResult {
 		await startWithCameraId(nextCamera.deviceId);
 	}, [activeCameraId, availableCameras, startWithCameraId]);
 
+	/**
+	 * Select a specific enumerated camera by ID.
+	 *
+	 * @param cameraId - Stable `MediaDeviceInfo.deviceId` chosen by the user.
+	 */
+	const selectCamera = useCallback(async (cameraId: string) => {
+		if (modeRef.current !== 'ready') return;
+		if (cameraId === '') return;
+
+		const activeCameraIdForSelection = preferredCameraIdRef.current ?? activeCameraId;
+		if (activeCameraIdForSelection === cameraId) return;
+
+		await startWithCameraId(cameraId);
+	}, [activeCameraId, startWithCameraId]);
+
+	/** Keep the camera list fresh when hardware or permission state changes. */
+	useEffect(() => {
+		const mediaDevices = navigator.mediaDevices;
+		if (typeof mediaDevices.addEventListener !== 'function') {
+			return;
+		}
+
+		let cancelled = false;
+		const handleDeviceChange = (): void => {
+			const stream = streamRef.current;
+			const activeTrack = stream?.getVideoTracks()[0];
+
+			void refreshAvailableCameras(
+				() => !cancelled,
+				preferredCameraIdRef.current,
+				activeTrack === undefined ? null : getTrackDeviceId(activeTrack),
+				activeTrack === undefined ? null : getTrackGroupId(activeTrack),
+				activeTrack === undefined ? null : getTrackFacing(activeTrack),
+			);
+		};
+
+		mediaDevices.addEventListener('devicechange', handleDeviceChange);
+		return () => {
+			cancelled = true;
+			mediaDevices.removeEventListener('devicechange', handleDeviceChange);
+		};
+	}, [refreshAvailableCameras]);
+
+	/** Release camera resources when the hook owner unmounts. */
 	useEffect(() => {
 		return () => {
 			requestIdRef.current += 1;
@@ -526,6 +843,7 @@ export function useMediaStream(): UseMediaStreamResult {
 		videoRef,
 		start,
 		switchToNextCamera,
+		selectCamera,
 		stop,
 		reset,
 		clearError,

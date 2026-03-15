@@ -10,6 +10,7 @@ import { useLiveAnalysis } from '$hooks/use-live-analysis.ts';
 import { useLiveAnnouncements } from '$hooks/use-live-announcements.ts';
 import { useMediaStream } from '$hooks/use-media-stream.ts';
 import { captureErrorMessage, captureVideoFrame } from '$lib/capture-video-frame.ts';
+import { COARSE_POINTER_QUERY, isLikelyMobileDevice } from '$lib/device-detection.ts';
 import type { Diagnosis } from '$lib/diagnosis.ts';
 import { formatUpdateTime } from '$lib/format-time.ts';
 import type { AnalysisStep } from '$lib/pipeline.ts';
@@ -38,7 +39,6 @@ const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
 const DESKTOP_PREVIEW_ASPECT_RATIO = 16 / 9;
 const MOBILE_PREVIEW_ASPECT_RATIO = 3 / 4;
 const MOBILE_PREVIEW_MEDIA_QUERY = '(max-width: 700px) and (orientation: portrait)';
-
 function getFallbackPreviewAspectRatio(): number {
 	if (typeof window === 'undefined') {
 		return DESKTOP_PREVIEW_ASPECT_RATIO;
@@ -160,6 +160,12 @@ function CameraIdleActions({ cameraAutoPaused, error, onStart }: CameraIdleActio
 interface CameraReadyControlsProps {
 	/** Whether the device has more than one camera available. */
 	readonly canSwitchCamera: boolean;
+	/** Whether the control should act as a simple mobile front/back switch. */
+	readonly useMobileCameraSwitch: boolean;
+	/** All known camera devices for explicit desktop selection. */
+	readonly availableCameras: readonly MediaDeviceInfo[];
+	/** `deviceId` of the currently active camera. */
+	readonly activeCameraId: string | null;
 	/** Human-readable label of the active camera device. */
 	readonly activeCameraLabel: string | undefined;
 	/** Whether live analysis is currently running. */
@@ -168,6 +174,8 @@ interface CameraReadyControlsProps {
 	readonly onCapture: () => void;
 	/** Callback to cycle to the next available camera. */
 	readonly onSwitchCamera: () => void;
+	/** Callback to start a specific camera from the desktop picker. */
+	readonly onSelectCamera: (cameraId: string) => void;
 	/** Callback to toggle live analysis on/off. */
 	readonly onLiveToggle: () => void;
 }
@@ -179,18 +187,24 @@ interface CameraReadyControlsProps {
  */
 function CameraReadyControls({
 	canSwitchCamera,
+	useMobileCameraSwitch,
+	availableCameras,
+	activeCameraId,
 	activeCameraLabel,
 	isLiveRunning,
 	onCapture,
 	onSwitchCamera,
+	onSelectCamera,
 	onLiveToggle,
 }: CameraReadyControlsProps) {
+	const cameraSelectId = useId();
+
 	return (
 		<div className='camera-controls'>
 			<button type='button' className='camera-btn camera-btn--primary' onClick={onCapture}>
 				Foto maken
 			</button>
-			{canSwitchCamera && (
+			{canSwitchCamera && useMobileCameraSwitch && (
 				<button
 					type='button'
 					className='camera-btn camera-btn--switch'
@@ -201,6 +215,33 @@ function CameraReadyControls({
 				>
 					Wissel camera
 				</button>
+			)}
+			{canSwitchCamera && !useMobileCameraSwitch && (
+				<div className='camera-picker'>
+					<label className='camera-picker-label' htmlFor={cameraSelectId}>
+						Camera
+					</label>
+					<select
+						id={cameraSelectId}
+						className='camera-select'
+						value={activeCameraId ?? ''}
+						onChange={(event) => {
+							onSelectCamera(event.currentTarget.value);
+						}}
+					>
+						{availableCameras.map((camera, index) => {
+							const label = camera.label.trim() !== ''
+								? camera.label
+								: `Camera ${String(index + 1)}`;
+
+							return (
+								<option key={camera.deviceId} value={camera.deviceId}>
+									{label}
+								</option>
+							);
+						})}
+					</select>
+				</div>
 			)}
 			<button
 				type='button'
@@ -427,6 +468,7 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 	const [heroOwner, setHeroOwner] = useState<HeroOwner>('button');
 	const [previewPrimed, setPreviewPrimed] = useState(false);
 	const [previewAspectRatio, setPreviewAspectRatio] = useState(getFallbackPreviewAspectRatio);
+	const [useMobileCameraSwitch, setUseMobileCameraSwitch] = useState(isLikelyMobileDevice);
 	const [videoReady, setVideoReady] = useState(false);
 	const [livePanelClosing, setLivePanelClosing] = useState(false);
 	const [modalClosing, setModalClosing] = useState(false);
@@ -451,6 +493,7 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 		videoRef,
 		start: startCamera,
 		switchToNextCamera,
+		selectCamera,
 		reset: resetCamera,
 		clearError: clearCameraError,
 		setError: setCameraError,
@@ -837,6 +880,25 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 	}, [cameraActive, videoReady]);
 
 	useEffect(() => {
+		if (typeof window === 'undefined') {
+			return;
+		}
+
+		const mediaQuery = window.matchMedia(COARSE_POINTER_QUERY);
+
+		const syncCameraUiMode = (): void => {
+			setUseMobileCameraSwitch(isLikelyMobileDevice());
+		};
+
+		syncCameraUiMode();
+		mediaQuery.addEventListener('change', syncCameraUiMode);
+
+		return () => {
+			mediaQuery.removeEventListener('change', syncCameraUiMode);
+		};
+	}, []);
+
+	useEffect(() => {
 		const handleVisibilityChange = (): void => {
 			if (document.visibilityState === 'visible') {
 				clearReleaseTimer();
@@ -897,6 +959,15 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 		clearLiveError();
 		void switchToNextCamera();
 	}, [clearLiveError, isLiveRunning, stopLiveAnalysis, switchToNextCamera]);
+
+	const handleSelectCamera = useCallback((cameraId: string) => {
+		if (transitionClosingRef.current) return;
+
+		restartLiveAfterSwitchRef.current = isLiveRunning;
+		stopLiveAnalysis();
+		clearLiveError();
+		void selectCamera(cameraId);
+	}, [clearLiveError, isLiveRunning, selectCamera, stopLiveAnalysis]);
 
 	const handleUseLiveDiagnosis = useCallback(() => {
 		if (liveDiagnosis === null || onLiveDiagnosis === undefined) return;
@@ -1008,10 +1079,14 @@ export default function CameraCapture({ onCapture, onLiveDiagnosis }: CameraCapt
 						{isReady && (
 							<CameraReadyControls
 								canSwitchCamera={canSwitchCamera}
+								useMobileCameraSwitch={useMobileCameraSwitch}
+								availableCameras={availableCameras}
+								activeCameraId={activeCameraId}
 								activeCameraLabel={activeCameraLabel}
 								isLiveRunning={isLiveRunning}
 								onCapture={handleCapture}
 								onSwitchCamera={handleSwitchCamera}
+								onSelectCamera={handleSelectCamera}
 								onLiveToggle={handleLiveToggle}
 							/>
 						)}
