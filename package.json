@@ -45,7 +45,7 @@
 		"eslint-plugin-react-x": "^2.13.0",
 		"gl": "^8.1.6",
 		"globals": "^17.4.0",
-		"sharp": "^0.34.5",
+		"sharp": "^0.35.4",
 		"typescript": "~5.9.3",
 		"typescript-eslint": "^8.56.1",
 		"vite": "^8.0.0-beta.16"
